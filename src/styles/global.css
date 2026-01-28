@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #080808;
+    color: #fcfcfc;
+    overflow-x: hidden;
+  }
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+::-webkit-scrollbar {
+  display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+html {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.text-stroke {
+  -webkit-text-stroke: 1px rgba(197, 160, 89, 0.3);
+  color: transparent;
+}
+.text-stroke-strong {
+  -webkit-text-stroke: 1px rgba(197, 160, 89, 0.8);
+  color: transparent;
+}
+
+::selection {
+  background: #c5a059;
+  color: #000;
+}

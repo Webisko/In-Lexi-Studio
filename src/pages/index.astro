@@ -1,0 +1,37 @@
+---
+import { Navigation } from '../components/Navigation';
+import { Hero } from '../components/Hero';
+import { GallerySlider } from '../components/GallerySlider';
+import { AboutFeature } from '../components/AboutFeature';
+import { LatestMoments } from '../components/LatestMoments';
+import { Collage } from '../components/Collage';
+import { FAQ } from '../components/FAQ';
+import { Footer } from '../components/Footer';
+import '../styles/global.css';
+import { mockData } from '../lib/mockData';
+---
+
+<html lang="en" class="scroll-smooth">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href={import.meta.env.BASE_URL + "favicon.svg"} />
+		<title>In Lexi Studio</title>
+        <!-- Fonts -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Montserrat:wght@200;300;400;500&display=swap" rel="stylesheet">
+	</head>
+	<body class="bg-dark-bg text-off-white overflow-x-hidden">
+        <Navigation client:load /> 
+		<main>
+			<Hero client:load />
+            <GallerySlider client:visible />
+            <AboutFeature client:visible />
+            <LatestMoments client:visible />
+            <Collage client:visible />
+            <FAQ client:visible />
+            <Footer client:visible />
+		</main>
+	</body>
+</html>
