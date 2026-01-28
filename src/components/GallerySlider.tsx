@@ -91,7 +91,7 @@ export const GallerySlider: React.FC = () => {
 
                 {/* Dynamic CTA Button Overlay */}
                 <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 z-20">
-                    <a href={`/${category}`} className="bg-white text-dark-bg px-8 py-3 rounded-full flex items-center gap-2 hover:bg-gold hover:text-white transition-all duration-300 shadow-xl">
+                    <a href={`${import.meta.env.BASE_URL}${category}`} className="bg-white text-dark-bg px-8 py-3 rounded-full flex items-center gap-2 hover:bg-gold hover:text-white transition-all duration-300 shadow-xl">
                         <span className="font-display tracking-[0.2em] text-xs uppercase">More about</span>
                         <span className="font-display tracking-[0.2em] text-xs uppercase font-bold text-gold hover:text-white transition-colors">{category}</span>
                     </a>
