@@ -80,7 +80,7 @@ export const GallerySlider: React.FC = () => {
                 {/* Images Strip */}
                 <motion.div
                     className="flex h-full"
-                    animate={{ x: `-${currentIndex * 25}%` }}
+                    animate={{ x: `-${currentIndex * 25}vw` }}
                     transition={isAnimating ? { type: "spring", stiffness: 150, damping: 20 } : { duration: 0 }}
                     onAnimationComplete={() => setIsAnimating(false)}
                     drag="x"
