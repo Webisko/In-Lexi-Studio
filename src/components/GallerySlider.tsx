@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'framer-motion';
+import { motion, useMotionValue } from 'framer-motion';
 import { useStore } from '@nanostores/react';
 import { currentCategory, type GalleryCategory } from '../store/galleryStore';
 import { mockData } from '../lib/mockData';
@@ -7,20 +7,32 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const GallerySlider: React.FC = () => {
     const category = useStore(currentCategory);
-    const [images, setImages] = useState(mockData.gallery[category]);
-    const [currentIndex, setCurrentIndex] = useState(0);
+    const originalImages = mockData.gallery[category];
+    const [currentIndex, setCurrentIndex] = useState(originalImages.length);
     const [isHovered, setIsHovered] = useState(false);
+    const [isAnimating, setIsAnimating] = useState(false);
     const autoPlayRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    // For drag functionality
-    const dragX = useMotionValue(0);
-    const containerRef = useRef<HTMLDivElement>(null);
+    // Triple the images to allow seamless infinite scrolling
+    const images = [...originalImages, ...originalImages, ...originalImages];
 
-    // Update images when category changes
+    // Update images and reset index when category changes
     useEffect(() => {
-        setImages(mockData.gallery[category]);
-        setCurrentIndex(0);
-    }, [category]);
+        setCurrentIndex(originalImages.length);
+    }, [category, originalImages.length]);
+
+    // Handle the "snap" for infinite loop
+    useEffect(() => {
+        if (!isAnimating) {
+            if (currentIndex >= originalImages.length * 2) {
+                // Instantly jump back to the middle set
+                setCurrentIndex(currentIndex - originalImages.length);
+            } else if (currentIndex < originalImages.length) {
+                // Instantly jump forward to the middle set
+                setCurrentIndex(currentIndex + originalImages.length);
+            }
+        }
+    }, [currentIndex, isAnimating, originalImages.length]);
 
     // Autoplay Logic
     useEffect(() => {
@@ -34,14 +46,18 @@ export const GallerySlider: React.FC = () => {
         return () => {
             if (autoPlayRef.current) clearInterval(autoPlayRef.current);
         };
-    }, [isHovered, images.length, currentIndex]);
+    }, [isHovered, originalImages.length, currentIndex]);
 
     const nextSlide = () => {
-        setCurrentIndex((prev) => (prev + 1) % images.length);
+        if (isAnimating) return;
+        setIsAnimating(true);
+        setCurrentIndex((prev) => prev + 1);
     };
 
     const prevSlide = () => {
-        setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+        if (isAnimating) return;
+        setIsAnimating(true);
+        setCurrentIndex((prev) => prev - 1);
     };
 
     const handleDragEnd = (event: any, info: any) => {
@@ -57,7 +73,6 @@ export const GallerySlider: React.FC = () => {
         <div id="gallery" className="w-full h-[75vh] bg-dark-bg relative flex flex-col items-center justify-center overflow-hidden">
 
             <div
-                ref={containerRef}
                 className="w-full h-full relative"
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
@@ -66,9 +81,11 @@ export const GallerySlider: React.FC = () => {
                 <motion.div
                     className="flex h-full"
                     animate={{ x: `-${currentIndex * 25}%` }}
-                    transition={{ type: "spring", stiffness: 150, damping: 20 }}
+                    transition={isAnimating ? { type: "spring", stiffness: 150, damping: 20 } : { duration: 0 }}
+                    onAnimationComplete={() => setIsAnimating(false)}
                     drag="x"
                     dragConstraints={{ left: 0, right: 0 }}
+                    onDragStart={() => setIsAnimating(true)}
                     onDragEnd={handleDragEnd}
                     style={{ width: `${images.length * 25}%` }}
                 >
