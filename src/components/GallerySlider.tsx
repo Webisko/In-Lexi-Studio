@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, useMotionValue } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useStore } from '@nanostores/react';
 import { currentCategory, type GalleryCategory } from '../store/galleryStore';
 import { mockData } from '../lib/mockData';
@@ -36,17 +36,21 @@ export const GallerySlider: React.FC = () => {
 
     // Autoplay Logic
     useEffect(() => {
-        if (isHovered) {
-            if (autoPlayRef.current) clearInterval(autoPlayRef.current);
-        } else {
+        if (autoPlayRef.current) {
+            clearInterval(autoPlayRef.current);
+        }
+
+        if (!isHovered) {
             autoPlayRef.current = setInterval(() => {
-                nextSlide();
+                setIsAnimating(true);
+                setCurrentIndex((prev) => prev + 1);
             }, 5000);
         }
+
         return () => {
             if (autoPlayRef.current) clearInterval(autoPlayRef.current);
         };
-    }, [isHovered, originalImages.length, currentIndex]);
+    }, [isHovered]);
 
     const nextSlide = () => {
         if (isAnimating) return;
@@ -87,19 +91,21 @@ export const GallerySlider: React.FC = () => {
                     dragConstraints={{ left: 0, right: 0 }}
                     onDragStart={() => setIsAnimating(true)}
                     onDragEnd={handleDragEnd}
-                    style={{ width: `${images.length * 25}%` }}
+                    style={{ cursor: 'grab' }}
                 >
                     {images.map((img, i) => (
                         <div
                             key={`${img.id}-${i}`}
-                            className="w-[25vw] h-full flex-shrink-0 relative group cursor-grab active:cursor-grabbing"
+                            className="w-[25vw] h-full flex-shrink-0 relative group"
+                            style={{ pointerEvents: 'none' }}
                         >
                             <img
                                 src={img.src}
                                 alt={img.alt}
-                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none"
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                draggable={false}
                             />
-                            <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors duration-500 pointer-events-none" />
+                            <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors duration-500" />
                         </div>
                     ))}
                 </motion.div>
