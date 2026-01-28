@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'framer-motion';
 import { useStore } from '@nanostores/react';
 import { currentCategory, type GalleryCategory } from '../store/galleryStore';
 import { mockData } from '../lib/mockData';
@@ -12,10 +12,14 @@ export const GallerySlider: React.FC = () => {
     const [isHovered, setIsHovered] = useState(false);
     const autoPlayRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+    // For drag functionality
+    const dragX = useMotionValue(0);
+    const containerRef = useRef<HTMLDivElement>(null);
+
     // Update images when category changes
     useEffect(() => {
         setImages(mockData.gallery[category]);
-        setCurrentIndex(0); // Reset to start
+        setCurrentIndex(0);
     }, [category]);
 
     // Autoplay Logic
@@ -30,7 +34,7 @@ export const GallerySlider: React.FC = () => {
         return () => {
             if (autoPlayRef.current) clearInterval(autoPlayRef.current);
         };
-    }, [isHovered, images.length, currentIndex]); // depend on currentIndex to ensure closure is fresh if needed, though functional update handles it
+    }, [isHovered, images.length, currentIndex]);
 
     const nextSlide = () => {
         setCurrentIndex((prev) => (prev + 1) % images.length);
@@ -40,54 +44,48 @@ export const GallerySlider: React.FC = () => {
         setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
     };
 
-    // Calculate visible images (desktop 4)
-    // We need to handle wrapping logic for infinite-like feel or just simple sliding window.
-    // For a simple slider showing 4 items, let's just slice. If we near end, we wrap around.
-    // However, user said "slider showing 4 images".
-    // To make it truly infinite and smooth, we usually simply shift the index.
-
-    // Let's assume we show 4 items starting from currentIndex.
-    const getVisibleImages = () => {
-        const visible = [];
-        for (let i = 0; i < 4; i++) {
-            visible.push(images[(currentIndex + i) % images.length]);
+    const handleDragEnd = (event: any, info: any) => {
+        const threshold = 50;
+        if (info.offset.x < -threshold) {
+            nextSlide();
+        } else if (info.offset.x > threshold) {
+            prevSlide();
         }
-        return visible;
     };
-
-    const visibleImages = getVisibleImages();
 
     return (
         <div id="gallery" className="w-full h-[75vh] bg-dark-bg relative flex flex-col items-center justify-center overflow-hidden">
 
             <div
+                ref={containerRef}
                 className="w-full h-full relative"
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
-                {/* Images Container - Full Width */}
-                <div className="w-full h-full flex">
-                    <AnimatePresence mode="popLayout">
-                        {visibleImages.map((img, i) => (
-                            <motion.div
-                                key={`${img.id}-${i}`}
-                                layout
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                transition={{ duration: 0.8, ease: "easeInOut" }}
-                                className="w-1/4 h-full relative group cursor-pointer"
-                            >
-                                <img
-                                    src={img.src}
-                                    alt={img.alt}
-                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                />
-                                <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors duration-500" />
-                            </motion.div>
-                        ))}
-                    </AnimatePresence>
-                </div>
+                {/* Images Strip */}
+                <motion.div
+                    className="flex h-full"
+                    animate={{ x: `-${currentIndex * 25}%` }}
+                    transition={{ type: "spring", stiffness: 150, damping: 20 }}
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    onDragEnd={handleDragEnd}
+                    style={{ width: `${images.length * 25}%` }}
+                >
+                    {images.map((img, i) => (
+                        <div
+                            key={`${img.id}-${i}`}
+                            className="w-[25vw] h-full flex-shrink-0 relative group cursor-grab active:cursor-grabbing"
+                        >
+                            <img
+                                src={img.src}
+                                alt={img.alt}
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none"
+                            />
+                            <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors duration-500 pointer-events-none" />
+                        </div>
+                    ))}
+                </motion.div>
 
                 {/* Dynamic CTA Button Overlay */}
                 <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 z-20">
@@ -102,7 +100,12 @@ export const GallerySlider: React.FC = () => {
                     onClick={prevSlide}
                     className="absolute top-1/2 left-4 transform -translate-y-1/2 text-white/50 hover:text-white transition-colors p-2 z-20 mix-blend-difference"
                 >
-                    <ChevronLeft size={48} strokeWidth={1} />
+                    <motion.div
+                        animate={{ x: [-5, 0, -5] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                        <ChevronLeft size={48} strokeWidth={1} />
+                    </motion.div>
                 </button>
 
                 {/* Next Button Overlay */}
@@ -110,7 +113,12 @@ export const GallerySlider: React.FC = () => {
                     onClick={nextSlide}
                     className="absolute top-1/2 right-4 transform -translate-y-1/2 text-white/50 hover:text-white transition-colors p-2 z-20 mix-blend-difference"
                 >
-                    <ChevronRight size={48} strokeWidth={1} />
+                    <motion.div
+                        animate={{ x: [5, 0, 5] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                        <ChevronRight size={48} strokeWidth={1} />
+                    </motion.div>
                 </button>
             </div>
         </div>
