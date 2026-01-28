@@ -18,32 +18,37 @@ export const Navigation: React.FC = () => {
 
   return (
     <>
-      <nav className={`fixed top-0 left-0 right-0 z-50 px-8 py-6 transition-all duration-500 ${isScrolled ? 'bg-dark-bg/70 backdrop-blur-md py-4' : 'bg-transparent'}`}>
-        <div className="flex justify-between items-center w-full">
+      <nav
+        className={`fixed left-0 right-0 top-0 z-50 px-8 py-6 transition-all duration-500 ${isScrolled ? 'bg-dark-bg/70 py-4 backdrop-blur-md' : 'bg-transparent'}`}
+      >
+        <div className="flex w-full items-center justify-between">
           {/* Left: Custom Menu Icon */}
-          <div className="w-1/3 flex justify-start">
-            <button className="group relative w-10 h-10 flex items-center justify-center focus:outline-none">
-              <div className="flex flex-col items-start gap-[6px] group-hover:gap-[8px] transition-all duration-300">
-                <span className="w-8 h-[1px] bg-white group-hover:bg-gold transition-all duration-300 origin-right"></span>
-                <span className="w-5 h-[1px] bg-white group-hover:w-8 group-hover:bg-gold transition-all duration-300 delay-75"></span>
-                <span className="w-8 h-[1px] bg-white group-hover:bg-gold transition-all duration-300 delay-150 origin-right"></span>
+          <div className="flex w-1/3 justify-start">
+            <button className="group relative flex h-10 w-10 items-center justify-center focus:outline-none">
+              <div className="flex flex-col items-start gap-[6px] transition-all duration-300 group-hover:gap-[8px]">
+                <span className="h-[1px] w-8 origin-right bg-white transition-all duration-300 group-hover:bg-gold"></span>
+                <span className="h-[1px] w-5 bg-white transition-all delay-75 duration-300 group-hover:w-8 group-hover:bg-gold"></span>
+                <span className="h-[1px] w-8 origin-right bg-white transition-all delay-150 duration-300 group-hover:bg-gold"></span>
               </div>
             </button>
           </div>
 
           {/* Center: IN LEXI STUDIO (Logo Text) */}
-          <div className="w-1/3 flex justify-center">
+          <div className="flex w-1/3 justify-center">
             <motion.span
               style={{ opacity: logoTextOpacity }}
-              className="font-display text-white tracking-widest text-lg md:text-xl"
+              className="font-display text-lg tracking-widest text-white md:text-xl"
             >
               IN LEXI STUDIO
             </motion.span>
           </div>
 
           {/* Right: GET IN TOUCH */}
-          <div className="w-1/3 flex justify-end">
-            <a href="#contact" className="text-white text-[10px] md:text-xs tracking-[0.2em] font-sans uppercase hover:text-gold transition-colors border-b border-transparent hover:border-gold pb-1">
+          <div className="flex w-1/3 justify-end">
+            <a
+              href="#contact"
+              className="border-b border-transparent pb-1 font-sans text-[10px] uppercase tracking-[0.2em] text-white transition-colors hover:border-gold hover:text-gold md:text-xs"
+            >
               get in touch
             </a>
           </div>

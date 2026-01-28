@@ -5,5 +5,5 @@ export type GalleryCategory = 'wedding' | 'portrait' | 'product';
 export const currentCategory = atom<GalleryCategory>('wedding');
 
 export const setCategory = (category: GalleryCategory) => {
-    currentCategory.set(category);
+  currentCategory.set(category);
 };
