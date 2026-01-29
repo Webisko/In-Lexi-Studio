@@ -2,7 +2,7 @@ import React from 'react';
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="bg-dark-bg px-6 pb-8 pt-24 text-white md:px-12">
+    <footer id="contact" className="bg-dark-bg px-6 pb-8 pt-24 text-white md:px-12">
       <div className="container mx-auto">
         <div className="mb-20 grid grid-cols-1 gap-12 md:grid-cols-4 md:gap-20">
           {/* Column 1: Intro / Vision */}

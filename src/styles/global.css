@@ -7,7 +7,62 @@
     background-color: #080808;
     color: #fcfcfc;
     overflow-x: hidden;
+    position: relative;
   }
+}
+
+@layer components {
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: #ffffff;
+    color: #936328;
+    border: 1px solid transparent;
+    border-radius: 9999px;
+    padding: 0.75rem 2.25rem;
+    font-family: 'Montserrat', sans-serif;
+    font-size: clamp(0.8rem, 0.6vw + 0.7rem, 1.05rem);
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    line-height: 1;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease,
+      border-color 0.3s ease,
+      transform 0.3s ease;
+  }
+
+  .btn-primary:hover {
+    background: #936328;
+    color: #ffffff;
+    border-color: #ffffff;
+  }
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: url('https://inlexistudio.com/wp-content/uploads/tekstura.webp') center/cover
+    no-repeat;
+  z-index: -2;
+  pointer-events: none;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 85vh;
+  background: url('https://inlexistudio.com/wp-content/uploads/In-Lexi-Studio-1000X1000-2-1.webp')
+    center/auto 85vh no-repeat;
+  transform: translateY(-50%);
+  z-index: -1;
+  pointer-events: none;
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */
@@ -32,4 +87,53 @@ html {
 ::selection {
   background: #c5a059;
   color: #000;
+}
+
+.hotspot-wrap {
+  position: relative;
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+}
+
+.hotspot {
+  position: relative;
+  z-index: 2;
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  background: url('https://inlexistudio.com/wp-content/uploads/In-Lexi-Studio-kursor-64-x-64-px-normal.svg')
+    center/contain no-repeat;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.35));
+}
+
+.hotspot-pulse {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  animation: hotspotPulse 2.6s ease-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes hotspotPulse {
+  0% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(0.75);
+  }
+  60% {
+    opacity: 0.2;
+    transform: translate(-50%, -50%) scale(1.6);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.1);
+  }
 }

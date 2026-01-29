@@ -1,12 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
 
 export const Navigation: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
-  const { scrollY } = useScroll();
-
-  // Opacity for the "IN LEXI STUDIO" text in nav
-  const logoTextOpacity = useTransform(scrollY, [300, 500], [0, 1]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -35,12 +30,9 @@ export const Navigation: React.FC = () => {
 
           {/* Center: IN LEXI STUDIO (Logo Text) */}
           <div className="flex w-1/3 justify-center">
-            <motion.span
-              style={{ opacity: logoTextOpacity }}
-              className="font-display text-lg tracking-widest text-white md:text-xl"
-            >
+            <span className="font-display text-lg tracking-widest text-white md:text-xl">
               IN LEXI STUDIO
-            </motion.span>
+            </span>
           </div>
 
           {/* Right: GET IN TOUCH */}

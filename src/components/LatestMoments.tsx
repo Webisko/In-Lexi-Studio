@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 
 interface Moment {
   id: number;
@@ -48,46 +47,35 @@ const moments: Moment[] = [
 
 export const LatestMoments: React.FC = () => {
   return (
-    <section className="bg-white px-4 py-24 md:px-12 md:py-32">
-      <div className="mb-20 flex flex-col items-center">
-        <h2 className="text-center font-display text-4xl leading-none text-black md:text-6xl">
-          LATEST <br /> MOMENTS
-        </h2>
-      </div>
+    <section className="relative w-full overflow-hidden">
+      <div className="grid h-[65vh] min-h-[520px] w-full grid-cols-1 grid-rows-7 md:grid-cols-4 md:grid-rows-2">
+        {/* Title cell - merged/spans 2 rows on desktop */}
+        <div className="relative flex items-start justify-start bg-gradient-to-br from-black/60 to-black/40 p-10 md:row-span-2 md:p-14">
+          <h2 className="text-left font-display text-[clamp(2rem,3.5vw,3.5rem)] leading-[0.95] tracking-wide text-white">
+            LATEST
+            <br />
+            MOMENTS
+          </h2>
+        </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* 6 image tiles */}
         {moments.map((moment, index) => (
-          <motion.div
-            key={moment.id}
-            className="group relative cursor-pointer"
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: index * 0.1, duration: 0.8 }}
-          >
-            <div className="relative aspect-[3/4] overflow-hidden">
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/0 transition-all duration-500 group-hover:bg-black/40">
-                <span className="translate-y-4 transform border border-white px-6 py-2 text-[10px] uppercase tracking-widest text-white opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">
-                  DISCOVER
-                </span>
-              </div>
-              <img
-                src={moment.image}
-                alt={moment.title}
-                className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-105"
-              />
-            </div>
+          <div key={moment.id} className="group relative cursor-pointer overflow-hidden">
+            <div className="absolute inset-0 z-10 bg-black/25 transition-colors duration-500 group-hover:bg-black/10" />
 
-            <div className="mt-4 text-center">
-              <h3 className="font-serif text-2xl italic text-gray-800">{moment.title}</h3>
+            <img
+              src={moment.image}
+              alt={moment.title}
+              className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-110"
+            />
+
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-6">
+              <h3 className="text-center font-serif text-[clamp(1.5rem,2.5vw,2.5rem)] italic leading-tight text-white drop-shadow-lg">
+                {moment.title}
+              </h3>
             </div>
-          </motion.div>
+          </div>
         ))}
-      </div>
-
-      {/* Decorative End Mark */}
-      <div className="mt-24 flex justify-center">
-        <span className="font-display text-4xl text-gold/50">ILS</span>
       </div>
     </section>
   );

@@ -62,9 +62,7 @@ export const GalleryStrip: React.FC = () => {
               </p>
 
               <div className="pt-12">
-                <button className="bg-black px-10 py-4 font-sans text-xs uppercase tracking-[0.25em] text-white transition-colors hover:bg-gold">
-                  get in touch
-                </button>
+                <button className="btn-primary">get in touch</button>
               </div>
             </motion.div>
           </div>

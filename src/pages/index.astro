@@ -2,6 +2,7 @@
 import { Navigation } from '../components/Navigation';
 import { Hero } from '../components/Hero';
 import { GallerySlider } from '../components/GallerySlider';
+import { WelcomeSection } from '../components/WelcomeSection';
 import { AboutFeature } from '../components/AboutFeature';
 import { LatestMoments } from '../components/LatestMoments';
 import { Collage } from '../components/Collage';
@@ -27,11 +28,12 @@ import { mockData } from '../lib/mockData';
 		<main>
 			<Hero client:load />
             <GallerySlider client:visible />
-            <AboutFeature client:visible />
-            <LatestMoments client:visible />
-            <Collage client:visible />
-            <FAQ client:visible />
-            <Footer client:visible />
+			<WelcomeSection />
+			<AboutFeature />
+			<LatestMoments />
+			<Collage />
+			<FAQ />
+			<Footer />
 		</main>
 	</body>
 </html>

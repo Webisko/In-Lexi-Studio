@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 
 export const AboutFeature: React.FC = () => {
   return (
@@ -13,12 +12,7 @@ export const AboutFeature: React.FC = () => {
         <div className="flex flex-col items-center gap-20 md:flex-row">
           {/* Left: Image with text overlay */}
           <div className="relative w-full md:w-1/2">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8 }}
-              className="relative z-10"
-            >
+            <div className="relative z-10">
               <img
                 src="https://images.unsplash.com/photo-1511285560982-1351cdeb9821?q=80&w=1000&auto=format&fit=crop"
                 alt="Moments Preserved"
@@ -33,7 +27,7 @@ export const AboutFeature: React.FC = () => {
                   Emotions Captured
                 </h2>
               </div>
-            </motion.div>
+            </div>
           </div>
 
           {/* Right: Narrative Text */}
@@ -72,9 +66,7 @@ export const AboutFeature: React.FC = () => {
 
             <div className="pt-8">
               <h4 className="mb-4 font-display text-xl">Ready to tell your story together?</h4>
-              <button className="border-b border-gold pb-1 text-sm uppercase tracking-widest text-gold transition-colors hover:border-white hover:text-white">
-                Let's create something beautiful.
-              </button>
+              <button className="btn-primary">Let's create something beautiful.</button>
             </div>
           </div>
         </div>

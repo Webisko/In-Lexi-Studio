@@ -1,9 +1,11 @@
 import React from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { setCategory, type GalleryCategory } from '../store/galleryStore';
+import { useStore } from '@nanostores/react';
+import { currentCategory, setCategory, type GalleryCategory } from '../store/galleryStore';
 
 export const Hero: React.FC = () => {
   const { scrollY } = useScroll();
+  const activeCategory = useStore(currentCategory);
 
   // Transform logic for the central graphic
   // Shrink slightly and fade out as we scroll down
@@ -17,10 +19,6 @@ export const Hero: React.FC = () => {
   const handleCategoryClick = (e: React.MouseEvent, category: GalleryCategory) => {
     e.preventDefault();
     setCategory(category);
-    const gallerySection = document.getElementById('gallery');
-    if (gallerySection) {
-      gallerySection.scrollIntoView({ behavior: 'smooth' });
-    }
   };
 
   return (
@@ -80,18 +78,29 @@ export const Hero: React.FC = () => {
           viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.8 }}
         >
-          {['WEDDING', 'PORTRAIT', 'PRODUCT'].map((item) => (
-            <a
-              key={item}
-              href={`#gallery`}
-              onClick={(e) => handleCategoryClick(e, item.toLowerCase() as GalleryCategory)}
-              onMouseEnter={() => setCategory(item.toLowerCase() as GalleryCategory)}
-              className="group pointer-events-auto relative cursor-pointer font-display text-xl uppercase tracking-[0.2em] text-white transition-all duration-300 hover:text-gold md:text-2xl"
-            >
-              {item}
-              <span className="absolute -bottom-2 left-0 h-[1px] w-0 bg-gold transition-all duration-300 group-hover:w-full" />
-            </a>
-          ))}
+          {['WEDDING', 'PORTRAIT', 'PRODUCT'].map((item) => {
+            const category = item.toLowerCase() as GalleryCategory;
+            const isActive = activeCategory === category;
+
+            return (
+              <a
+                key={item}
+                href="#"
+                onClick={(e) => handleCategoryClick(e, category)}
+                onMouseEnter={() => setCategory(category)}
+                className={`group pointer-events-auto relative cursor-pointer font-display text-xl uppercase tracking-[0.2em] transition-all duration-300 md:text-2xl ${
+                  isActive ? '-translate-y-1 text-gold' : 'translate-y-0 text-white hover:text-gold'
+                }`}
+              >
+                {item}
+                <span
+                  className={`absolute -bottom-2 left-0 h-[1px] bg-gold transition-all duration-300 ${
+                    isActive ? 'w-full' : 'w-0 group-hover:w-full'
+                  }`}
+                />
+              </a>
+            );
+          })}
         </motion.div>
       </div>
     </section>
