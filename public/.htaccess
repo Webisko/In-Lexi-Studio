@@ -1,10 +1,3 @@
-RewriteEngine On
-RewriteBase /
-
-# Serve static files and directories directly
-RewriteCond %{REQUEST_FILENAME} -f [OR]
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteRule ^ - [L]
-
-# Everything else goes to index.html (SPA)
-RewriteRule ^ index.html [L]
+# Astro static site - no rewrite needed
+# Directories contain index.html files
+# Apache will serve them automatically
