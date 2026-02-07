@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const faqs = [
   {
@@ -59,8 +59,9 @@ export const FAQ: React.FC = () => {
         <div className="border-t border-gray-200">
           {faqs.map((faq, index) => (
             <div key={index} className="border-b border-gray-200">
-              <div
-                className="group flex cursor-pointer items-center justify-between px-2 py-6 transition-colors hover:bg-gray-50"
+              <button
+                type="button"
+                className="group flex w-full items-center justify-between px-2 py-6 text-left transition-colors hover:bg-gray-50"
                 onClick={() => setOpenIndex(openIndex === index ? null : index)}
               >
                 <h3 className="pr-8 font-sans text-xs uppercase leading-relaxed tracking-widest text-gray-800 md:text-sm">
@@ -69,9 +70,9 @@ export const FAQ: React.FC = () => {
                 <span className="shrink-0 text-gray-400 transition-colors group-hover:text-gold">
                   {openIndex === index ? <Minus size={14} /> : <Plus size={14} />}
                 </span>
-              </div>
+              </button>
 
-              <AnimatePresence>
+              <AnimatePresence initial={false}>
                 {openIndex === index && (
                   <motion.div
                     initial={{ height: 0, opacity: 0 }}

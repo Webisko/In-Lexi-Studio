@@ -1,0 +1,90 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getSettings } from '../lib/api';
+
+const settings = await getSettings();
+const email = settings?.email || 'contact@inlexistudio.com';
+---
+
+<Layout title="Contact" description="Get in touch with In Lexi Studio">
+  <div class="container mx-auto px-6 py-24 md:py-32">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-16">
+      {/* Contact Info */}
+      <div class="space-y-8">
+        <div>
+          <h1 class="font-display text-4xl md:text-5xl mb-6 text-white">Get in Touch</h1>
+          <p class="text-gray-300 font-sans leading-relaxed text-lg">
+            We’d love to hear from you. Whether you’re planning a wedding, interested in a portrait
+            session, or just want to say hello, fill out the form or reach out directly.
+          </p>
+        </div>
+
+        <div class="space-y-6 pt-4">
+          <div>
+            <h3 class="text-gold font-display text-lg mb-1 tracking-wide">Email</h3>
+            <a href={`mailto:${email}`} class="text-white hover:text-gold transition-colors"
+              >{email}</a
+            >
+          </div>
+          <div>
+            <h3 class="text-gold font-display text-lg mb-1 tracking-wide">Socials</h3>
+            <div class="flex gap-4 text-white">
+              <a href="#" class="hover:text-gold transition-colors">Instagram</a>
+              <span class="text-gray-600">|</span>
+              <a href="#" class="hover:text-gold transition-colors">Facebook</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Contact Form */}
+      <form
+        class="space-y-6 bg-white/5 p-8 rounded-lg border border-white/10"
+        name="contact"
+        method="POST"
+      >
+        <div>
+          <label class="block text-gold text-xs uppercase tracking-widest mb-2 font-display"
+            >Name</label
+          >
+          <input
+            type="text"
+            name="name"
+            class="w-full bg-black/20 border border-white/10 rounded p-4 text-white focus:border-gold outline-none transition-colors"
+            placeholder="Your name"
+            required
+          />
+        </div>
+        <div>
+          <label class="block text-gold text-xs uppercase tracking-widest mb-2 font-display"
+            >Email</label
+          >
+          <input
+            type="email"
+            name="email"
+            class="w-full bg-black/20 border border-white/10 rounded p-4 text-white focus:border-gold outline-none transition-colors"
+            placeholder="your@email.com"
+            required
+          />
+        </div>
+        <div>
+          <label class="block text-gold text-xs uppercase tracking-widest mb-2 font-display"
+            >Message</label
+          >
+          <textarea
+            name="message"
+            rows="4"
+            class="w-full bg-black/20 border border-white/10 rounded p-4 text-white focus:border-gold outline-none transition-colors"
+            placeholder="Tell us about your plans..."
+            required></textarea>
+        </div>
+        <button
+          type="submit"
+          class="bg-gold text-black font-display font-medium px-8 py-4 rounded hover:bg-white transition-colors w-full uppercase tracking-wider text-sm"
+        >
+          Send Message
+        </button>
+      </form>
+    </div>
+  </div>
+</Layout>

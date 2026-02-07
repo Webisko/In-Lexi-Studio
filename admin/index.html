@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="pl" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>In Lexi CMS</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              'dark-bg': '#0a0a0a',
+              'dark-secondary': '#111111',
+              gold: '#D4AF37',
+              'gold-hover': '#B5952F',
+              'off-white': '#f5f5f5',
+            },
+            fontFamily: {
+              sans: ['Montserrat', 'sans-serif'],
+              display: ['Cinzel', 'serif'],
+              serif: ['Cormorant Garamond', 'serif'],
+            },
+          },
+        },
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
+      referrerpolicy="origin"
+    ></script>
+    <style>
+      /* Loader */
+      .loader {
+        border-top-color: #d4af37;
+        -webkit-animation: spinner 1.5s linear infinite;
+        animation: spinner 1.5s linear infinite;
+      }
+      @keyframes spinner {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body
+    class="min-h-screen bg-dark-bg font-sans text-off-white antialiased selection:bg-gold selection:text-black"
+  >
+    <!-- Login Screen -->
+    <div
+      id="login-screen"
+      class="flex min-h-screen items-center justify-center bg-[url('https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center"
+    >
+      <div class="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
+      <div
+        class="bg-dark-secondary/90 relative w-full max-w-md rounded-xl border border-white/5 p-10 shadow-2xl backdrop-blur-xl"
+      >
+        <div class="mb-8 text-center">
+          <h1 class="mb-2 font-display text-3xl font-bold tracking-widest text-gold">IN LEXI</h1>
+          <p class="text-xs uppercase tracking-[0.3em] text-gray-400">Studio Management</p>
+        </div>
+
+        <form id="login-form" class="space-y-6">
+          <div>
+            <label class="mb-2 block text-xs uppercase tracking-wider text-gray-500">Email</label>
+            <input
+              type="email"
+              id="email"
+              class="w-full rounded border border-white/10 bg-black/50 p-3 text-white placeholder-gray-600 transition-all focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+              placeholder="admin@inlexi.com"
+              required
+            />
+          </div>
+          <div>
+            <label class="mb-2 block text-xs uppercase tracking-wider text-gray-500">Hasło</label>
+            <input
+              type="password"
+              id="password"
+              class="w-full rounded border border-white/10 bg-black/50 p-3 text-white placeholder-gray-600 transition-all focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            class="hover:bg-gold-hover w-full rounded bg-gold px-4 py-3 font-bold text-black shadow-[0_0_20px_rgba(212,175,55,0.2)] transition-colors"
+          >
+            Zaloguj się
+          </button>
+        </form>
+        <p
+          id="login-error"
+          class="mt-4 hidden rounded bg-red-500/10 p-2 text-center text-sm text-red-500"
+        ></p>
+      </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="flex hidden h-screen overflow-hidden">
+      <!-- Sidebar -->
+      <aside
+        class="dark:bg-dark-secondary z-20 flex w-72 flex-col border-r border-gray-200 bg-white transition-colors dark:border-white/5"
+      >
+        <div
+          class="flex h-20 items-center justify-center border-b border-gray-200 dark:border-white/5"
+        >
+          <h1 class="font-display text-xl font-bold tracking-widest text-gold">
+            IN LEXI <span class="ml-1 font-sans text-xs text-gray-500">CMS</span>
+          </h1>
+        </div>
+
+        <nav class="flex-1 space-y-1 overflow-y-auto p-4">
+          <p class="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Pulpit
+          </p>
+          <button
+            class="nav-btn group flex w-full items-center rounded-md px-4 py-3 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/5 dark:hover:text-white"
+            data-tab="dashboard"
+          >
+            <svg
+              class="mr-3 h-5 w-5 text-gray-500 group-hover:text-gold"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+              />
+            </svg>
+            Kokpit
+          </button>
+
+          <p class="mt-4 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Treść
+          </p>
+          <button
+            class="nav-btn group flex w-full items-center rounded-md px-4 py-3 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/5 dark:hover:text-white"
+            data-tab="pages"
+          >
+            <svg
+              class="mr-3 h-5 w-5 text-gray-500 group-hover:text-gold"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+              />
+            </svg>
+            Strony
+          </button>
+          <button
+            class="nav-btn group flex w-full items-center rounded-md px-4 py-3 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/5 dark:hover:text-white"
+            data-tab="galleries"
+          >
+            <svg
+              class="mr-3 h-5 w-5 text-gray-500 group-hover:text-gold"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+            Sesje zdjęciowe
+          </button>
+          <button
+            class="nav-btn group flex w-full items-center rounded-md px-4 py-3 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/5 dark:hover:text-white"
+            data-tab="testimonials"
+          >
+            <svg
+              class="mr-3 h-5 w-5 text-gray-500 group-hover:text-gold"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+              />
+            </svg>
+            Opinie klientów
+          </button>
+
+          <div class="my-4 border-t border-gray-200 dark:border-white/5"></div>
+
+          <p class="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            System
+          </p>
+          <button
+            class="nav-btn group flex w-full items-center rounded-md px-4 py-3 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/5 dark:hover:text-white"
+            data-tab="settings"
+          >
+            <svg
+              class="mr-3 h-5 w-5 text-gray-500 group-hover:text-gold"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+            Ustawienia
+          </button>
+        </nav>
+
+        <div class="border-t border-gray-200 p-4 dark:border-white/5">
+          <a
+            href="https://inlexistudio.com"
+            target="_blank"
+            class="mb-4 flex items-center text-xs text-gray-500 transition-colors hover:text-gold"
+          >
+            <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+              />
+            </svg>
+            Zobacz stronę
+          </a>
+          <button
+            id="logout-btn"
+            class="flex w-full items-center rounded bg-red-500/10 px-4 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/20"
+          >
+            <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+              />
+            </svg>
+            Wyloguj
+          </button>
+          <button
+            id="theme-toggle"
+            class="mt-4 flex w-full items-center justify-between rounded border border-gray-200 px-4 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:border-white/10 dark:hover:bg-white/5 dark:hover:text-white"
+          >
+            <span>Tryb</span>
+            <div class="flex items-center">
+              <svg
+                class="mr-2 hidden h-4 w-4 dark:block"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                />
+              </svg>
+              <svg
+                class="mr-2 block h-4 w-4 dark:hidden"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                />
+              </svg>
+            </div>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main
+        class="relative flex-1 overflow-y-auto bg-gray-50 p-8 transition-colors dark:bg-dark-bg"
+      >
+        <div id="tab-dashboard" class="tab-content mx-auto max-w-6xl"></div>
+        <div id="tab-pages" class="tab-content mx-auto hidden max-w-6xl"></div>
+        <div id="tab-galleries" class="tab-content mx-auto hidden max-w-6xl"></div>
+        <div id="tab-testimonials" class="tab-content mx-auto hidden max-w-6xl"></div>
+        <div id="tab-settings" class="tab-content mx-auto hidden max-w-6xl"></div>
+      </main>
+    </div>
+
+    <!-- Modal Template -->
+    <div
+      id="modal"
+      class="fixed inset-0 z-50 flex hidden items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+    >
+      <div
+        class="dark:bg-dark-secondary relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-white/10"
+      >
+        <div
+          class="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-white/10"
+        >
+          <h3 id="modal-title" class="font-display text-xl font-bold text-gray-900 dark:text-white">
+            Edycja
+          </h3>
+          <button
+            id="close-modal"
+            class="text-gray-400 transition-colors hover:text-gray-900 dark:hover:text-white"
+          >
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+        <div id="modal-content" class="overflow-y-auto p-6 text-gray-600 dark:text-gray-300">
+          <!-- Dynamic Content -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Image Picker Modal (Nested or separate, let's keep it separate) -->
+    <div
+      id="media-modal"
+      class="fixed inset-0 z-[60] flex hidden items-center justify-center bg-black/90 p-4 backdrop-blur-md"
+    >
+      <div
+        class="bg-dark-secondary relative flex h-[80vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-white/10 shadow-2xl"
+      >
+        <div
+          class="bg-dark-secondary flex items-center justify-between border-b border-white/10 px-6 py-4"
+        >
+          <h3 class="text-lg font-bold text-white">Wybierz Zdjęcie (Media Library)</h3>
+          <button id="close-media-modal" class="text-gray-400 hover:text-white">&times;</button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4">
+          <div id="media-library-grid" class="grid grid-cols-4 gap-4">
+            <!-- Images loaded here -->
+          </div>
+        </div>
+        <div
+          class="bg-dark-secondary flex items-center justify-between border-t border-white/10 p-4"
+        >
+          <input type="file" id="global-file-upload" class="hidden" multiple accept="image/*" />
+          <button
+            onclick="document.getElementById('global-file-upload').click()"
+            class="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+          >
+            Prześlij nowe zdjęcia
+          </button>
+          <span id="media-status" class="text-xs text-gray-400"></span>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

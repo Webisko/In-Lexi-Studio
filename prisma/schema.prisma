@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       Int    @id @default(autoincrement())
+  email    String @unique
+  password String
+  role     String @default("ADMIN") // "ADMIN" or "MANAGER"
+}
+
+model Page {
+  id               Int      @id @default(autoincrement())
+  slug             String   @unique
+  title            String?
+  content          String?
+  hero_image       String?
+  meta_title       String?
+  meta_description String?
+  seo_image        String?
+  updated_at       DateTime @default(now()) @updatedAt
+}
+
+model Gallery {
+  id          Int           @id @default(autoincrement())
+  category    String        // 'wedding' | 'portrait' | 'product'
+  name        String?
+  items       GalleryItem[]
+  testimonial Testimonial?
+}
+
+model GalleryItem {
+  id         Int     @id @default(autoincrement())
+  gallery_id Int
+  gallery    Gallery @relation(fields: [gallery_id], references: [id], onDelete: Cascade)
+  title      String?
+  image_path String
+  alt        String?
+  sort_order Int     @default(0)
+}
+
+model Testimonial {
+  id         Int      @id @default(autoincrement())
+  author     String
+  content    String?
+  rating     Int      @default(5)
+  approved   Boolean  @default(false)
+  gallery_id Int?     @unique
+  gallery    Gallery? @relation(fields: [gallery_id], references: [id])
+}
+
+model Settings {
+  id        Int     @id @default(autoincrement())
+  site_name String?
+  logo_path String?
+  email     String?
+  phone     String?
+  instagram String?
+  facebook  String?
+}

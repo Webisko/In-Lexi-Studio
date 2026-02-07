@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { animate, motion, useMotionValue } from 'framer-motion';
 import { useStore } from '@nanostores/react';
 import { currentCategory, type GalleryCategory } from '../store/galleryStore';
-import { mockData } from '../lib/mockData';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Lightbox } from './Lightbox';
+import type { GalleryItem } from '../lib/api';
+import { getImageUrl } from '../lib/api';
 
 type SliderLayout = {
   slideWidthVw: number;
@@ -19,9 +20,19 @@ const getLayoutForWidth = (width: number): SliderLayout => {
   return { slideWidthVw: 80, visibleCount: 1 };
 };
 
-export const GallerySlider: React.FC = () => {
+interface GallerySliderProps {
+  data: Record<string, GalleryItem[]>;
+}
+
+export const GallerySlider: React.FC<GallerySliderProps> = ({ data }) => {
   const category = useStore(currentCategory);
-  const originalImages = mockData.gallery[category];
+
+  // Map API items to component expected format {id, src, alt}
+  const originalImages = (data[category] || []).map((item) => ({
+    id: item.id,
+    src: getImageUrl(item.image_path),
+    alt: item.alt || item.title || 'Gallery Image',
+  }));
   const [currentIndex, setCurrentIndex] = useState(originalImages.length);
   const [isHovered, setIsHovered] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -208,7 +219,10 @@ export const GallerySlider: React.FC = () => {
 
           {/* Dynamic CTA Button Overlay */}
           <div className="pointer-events-auto absolute bottom-12 left-1/2 z-20 -translate-x-1/2 transform">
-            <a href={`${import.meta.env.BASE_URL}${category}`} className="btn-primary shadow-xl">
+            <a
+              href={`${import.meta.env.BASE_URL}${category === 'wedding' ? 'wedding-photography' : category === 'portrait' ? 'portrait-photography' : category === 'product' ? 'product-photography' : category}`}
+              className="btn-primary shadow-xl"
+            >
               <span className="font-display">More about</span>
               <span className="font-display font-semibold">{category}</span>
             </a>

@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  cms:
+    build: .
+    container_name: inlexi-cms
+    restart: unless-stopped
+    ports:
+      - '80:80'
+    volumes:
+      # Persist Database
+      - ./backend_data/inlexistudio.db:/app/inlexistudio.db
+      # Persist Uploads
+      - ./public/uploads:/app/public/uploads
+    environment:
+      - JWT_SECRET=changeme_production_secret
+      - DATABASE_URL=file:./fotograf.db
+
+  umami-db:
+    image: postgres:15-alpine
+    container_name: umami-db
+    restart: always
+    environment:
+      POSTGRES_DB: umami
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: umami_password
+    volumes:
+      - ./backend_data/umami-db:/var/lib/postgresql/data
+
+  umami:
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    container_name: umami
+    restart: always
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: postgresql://umami:umami_password@umami-db:5432/umami
+      DATABASE_TYPE: postgresql
+      APP_SECRET: replace-me-with-a-random-string
+    depends_on:
+      - umami-db

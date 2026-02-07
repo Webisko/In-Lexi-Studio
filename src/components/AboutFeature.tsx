@@ -10,23 +10,42 @@ export const AboutFeature: React.FC = () => {
 
       <div className="container relative z-10 mx-auto px-6">
         <div className="flex flex-col items-center gap-20 md:flex-row">
-          {/* Left: Image with text overlay */}
-          <div className="relative w-full md:w-1/2">
-            <div className="relative z-10">
+          {/* Left: Layered images (from AI Studio reference) */}
+          <div className="relative flex h-[460px] w-full items-center justify-center md:h-[540px] md:w-1/2">
+            <div className="absolute left-0 top-0 hidden h-56 w-40 md:block">
               <img
-                src="https://images.unsplash.com/photo-1511285560982-1351cdeb9821?q=80&w=1000&auto=format&fit=crop"
-                alt="Moments Preserved"
-                className="h-auto w-full object-cover opacity-80 grayscale"
+                src="https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?q=80&w=400&auto=format&fit=crop"
+                alt="Detail 1"
+                className="h-full w-full object-cover opacity-60 grayscale transition-all duration-700 hover:grayscale-0"
               />
+            </div>
 
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/20 p-8 text-center">
-                <h2 className="mb-2 font-display text-4xl text-white shadow-sm md:text-6xl">
-                  Moments Preserved,
-                </h2>
-                <h2 className="font-serif text-3xl italic text-gold md:text-5xl">
-                  Emotions Captured
-                </h2>
+            <div className="relative z-10 w-full max-w-sm">
+              <div className="relative aspect-[3/4]">
+                <img
+                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=800&auto=format&fit=crop"
+                  alt="Photographer"
+                  className="h-full w-full object-cover shadow-2xl"
+                />
+                <div className="pointer-events-none absolute inset-0 m-4 border border-white/10" />
+
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/25 p-8 text-center">
+                  <h2 className="mb-2 font-display text-[clamp(2.25rem,3.6vw,3.75rem)] leading-[1.05] text-white shadow-sm">
+                    Moments Preserved,
+                  </h2>
+                  <h2 className="font-serif text-[clamp(1.75rem,3vw,3.25rem)] italic leading-[1.05] text-gold">
+                    Emotions Captured
+                  </h2>
+                </div>
               </div>
+            </div>
+
+            <div className="absolute bottom-0 right-6 hidden h-32 w-32 border-4 border-dark-bg md:block">
+              <img
+                src="https://images.unsplash.com/photo-1606800052052-a08af7148866?q=80&w=400&auto=format&fit=crop"
+                alt="Detail 2"
+                className="h-full w-full object-cover"
+              />
             </div>
           </div>
 

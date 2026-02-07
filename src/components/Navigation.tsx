@@ -38,7 +38,7 @@ export const Navigation: React.FC = () => {
           {/* Right: GET IN TOUCH */}
           <div className="flex w-1/3 justify-end">
             <a
-              href="#contact"
+              href="/contact"
               className="border-b border-transparent pb-1 font-sans text-[10px] uppercase tracking-[0.2em] text-white transition-colors hover:border-gold hover:text-gold md:text-xs"
             >
               get in touch

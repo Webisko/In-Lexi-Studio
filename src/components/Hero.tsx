@@ -2,10 +2,20 @@ import React from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useStore } from '@nanostores/react';
 import { currentCategory, setCategory, type GalleryCategory } from '../store/galleryStore';
+import type { Page } from '../lib/api';
+import { getImageUrl } from '../lib/api';
 
-export const Hero: React.FC = () => {
+interface HeroProps {
+  data?: Page | null;
+}
+
+export const Hero: React.FC<HeroProps> = ({ data }) => {
   const { scrollY } = useScroll();
   const activeCategory = useStore(currentCategory);
+
+  const bgImage = data?.hero_image
+    ? getImageUrl(data.hero_image)
+    : 'https://inlexistudio.com/wp-content/uploads/ILS-68-glowna.webp';
 
   // Transform logic for the central graphic
   // Shrink slightly and fade out as we scroll down
@@ -26,7 +36,7 @@ export const Hero: React.FC = () => {
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <img
-          src="https://inlexistudio.com/wp-content/uploads/ILS-68-glowna.webp"
+          src={bgImage}
           alt="Hero Background"
           className="h-full w-full object-cover object-center"
         />

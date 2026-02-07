@@ -89,6 +89,70 @@ html {
   color: #000;
 }
 
+.faq-item {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.faq-summary {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  display: flex;
+  cursor: pointer;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 0.5rem;
+  transition: background-color 0.2s ease;
+}
+
+.faq-summary:hover {
+  background-color: #f9fafb;
+}
+
+.faq-icon {
+  display: inline-flex;
+  min-width: 1.5rem;
+  justify-content: center;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.45);
+  transition: color 0.2s ease;
+}
+
+.faq-item.is-open .faq-icon--plus {
+  display: none;
+}
+
+.faq-item:not(.is-open) .faq-icon--minus {
+  display: none;
+}
+
+.faq-item.is-open .faq-icon {
+  color: #c5a059;
+}
+
+.faq-content-inner {
+  overflow: hidden;
+  padding: 0.5rem 0.5rem 2rem;
+}
+
+.faq-panel {
+  overflow: hidden;
+  height: 0px;
+  opacity: 0;
+  transition:
+    height 0.36s ease,
+    opacity 0.26s ease;
+  will-change: height, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .faq-panel {
+    transition: none;
+  }
+}
+
 .hotspot-wrap {
   position: relative;
   display: inline-flex;

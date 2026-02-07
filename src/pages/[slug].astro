@@ -1,0 +1,67 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getPage, getPages } from '../lib/api';
+import WeddingPhotography from '../components/pages/WeddingPhotography';
+import About from '../components/pages/About';
+import Approach from '../components/pages/Approach';
+import Portfolio from '../components/pages/Portfolio';
+
+export async function getStaticPaths() {
+  const pages = (await getPages()) || [];
+  console.log('Re-generating paths with data from API:', pages.length, 'pages found.');
+  return pages
+    .filter((p) => p.slug && p.slug !== '/' && p.slug !== 'home')
+    .map((page) => ({
+      params: { slug: page.slug },
+      props: { page },
+    }));
+}
+
+const { page } = Astro.props;
+
+if (!page) {
+  return Astro.redirect('/404');
+}
+---
+
+<Layout title={page.meta_title || page.title} description={page.meta_description}>
+  <main class="pt-24">
+    {/* Hero Section if Image Exists */}
+    {
+      page.hero_image && (
+        <div class="relative w-full h-[50vh] min-h-[400px]">
+          <img
+            src={page.hero_image}
+            alt={page.title}
+            class="absolute inset-0 w-full h-full object-cover"
+          />
+          <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
+            <h1 class="text-4xl md:text-6xl font-display text-white">{page.title}</h1>
+          </div>
+        </div>
+      )
+    }
+
+    {/* Content */}
+    <div class="min-h-screen">
+      {
+        page.slug === 'wedding-photography' ? (
+          <WeddingPhotography page={page} client:load />
+        ) : page.slug === 'about' ? (
+          <About page={page} client:load />
+        ) : page.slug === 'approach' ? (
+          <Approach page={page} client:load />
+        ) : page.slug === 'portfolio' ? (
+          <Portfolio page={page} client:load />
+        ) : (
+          <div class="container mx-auto px-4 py-16 max-w-4xl prose prose-gold lg:prose-xl dark:prose-invert">
+            {!page.hero_image && (
+              <h1 class="font-display text-4xl mb-8 text-center">{page.title}</h1>
+            )}
+            <article set:html={page.content} />
+          </div>
+        )
+      }
+    </div>
+  </main>
+</Layout>
