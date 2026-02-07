@@ -3,8 +3,9 @@ import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
 
 // https://astro.build/config
+// https://astro.build/config
 export default defineConfig({
-  site: 'https://webisko.github.io',
-  base: process.env.GITHUB_ACTIONS === 'true' ? '/In-Lexi-Studio' : '/',
+  site: 'https://inlexistudio.com',
+  base: '/',
   integrations: [react(), tailwind()],
 });
