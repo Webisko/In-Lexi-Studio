@@ -1,22 +1,10 @@
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteBase /
+RewriteEngine On
+RewriteBase /
 
-  # 1. Passenger App Handling (Critical for /app)
-  # If request starts with /app, do NOT process further rules (let Passenger handle it)
-  RewriteCond %{REQUEST_URI} ^/app [NC]
-  RewriteRule .* - [L]
+# Serve static files and directories directly
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
 
-  # 2. Redirect /admin -> /app/admin
-  RewriteRule ^admin/?$ /app/admin/ [R=301,L]
-  RewriteRule ^admin/(.*)$ /app/admin/$1 [R=301,L]
-
-  # 3. Frontend SPA Routing
-  # Serve existing files/directories directly
-  RewriteCond %{REQUEST_FILENAME} -f [OR]
-  RewriteCond %{REQUEST_FILENAME} -d
-  RewriteRule ^ - [L]
-
-  # Fallback to index.html for everything else (React Router / Astro)
-  RewriteRule ^ index.html [L]
-</IfModule>
+# Everything else goes to index.html (SPA)
+RewriteRule ^ index.html [L]
