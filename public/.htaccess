@@ -1,20 +1,27 @@
 RewriteEngine On
 RewriteBase /
 
-# 1. Passenger App Handling (Critical)
-# Turn off RewriteEngine for /app so Passenger can take over via its own config
+# 1. PASSENGER BACKEND (Critical)
+# Do not rewrite /app requests. Let Passenger handle them.
 RewriteRule ^app - [L]
 
-# 2. Astro Static Pages
-# If request maps to a directory, check for index.html inside it
+# 2. TRAILING SLASH ENFORCEMENT
+# If it's a directory but missing slash, redirect.
+# This helps Apache find the index.html via DirectoryIndex.
 RewriteCond %{REQUEST_FILENAME} -d
-RewriteCond %{REQUEST_FILENAME}/index.html -f
-RewriteRule ^(.*)$ $1/index.html [L]
+RewriteRule ^(.*[^/])$ /$1/ [R=301,L]
 
-# 3. Standard Static Files
+# 3. DIRECTORY INDEX
+# Ensure Apache looks for index.html (standard behavior, but being explicit helps)
+DirectoryIndex index.html
+
+# 4. STANDARD FILE SERVING
+# If file exists, serve it.
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
-# 4. Error Document (Optional - pretty 404)
-# If nothing matches, let Apache serve its default 404 or your custom 404.html
+# 5. SPA / 404 FALLBACK
+# If request is not a file and not a directory, show 404 or index.html
+# Since this is a static site with subpages, we prefer 404 for missing pages
+# rather than redirecting everything to home (which confuses invalid links).
 ErrorDocument 404 /404.html

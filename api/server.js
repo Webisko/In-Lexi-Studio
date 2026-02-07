@@ -40,7 +40,9 @@ app.get(/^\/admin($|\/)/, (req, res) => {
 
 // Root Route - Health Check (Crucial for debugging)
 app.get('/', (req, res) => {
-  res.send(`Backend API Running. Admin path: ${ADMIN_DIR}`);
+  res.send(
+    `<h1>InLexi Backend API</h1><p>Status: Running</p><p>Admin Path: ${ADMIN_DIR}</p><p>If you see this, Passenger is working!</p>`,
+  );
 });
 
 // 404 Handler for unknown API routes
