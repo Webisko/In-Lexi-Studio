@@ -49,10 +49,19 @@ jobs:
           ./api ./prisma ./admin ./app.js ./package.json ./package-lock.json \
           ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:domains/inlexistudio.com/cms-app/
 
-      - name: Install Backend Deps & Restart
+      - name: Configure Passenger & Restart
         run: |
           ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
             cd domains/inlexistudio.com/cms-app &&
+            
+            # Create/Overwrite Passenger .htaccess
+            echo 'PassengerEnabled on' > .htaccess &&
+            echo 'PassengerAppRoot /home/${{ secrets.SSH_USER }}/domains/inlexistudio.com/cms-app' >> .htaccess &&
+            echo 'PassengerAppType node' >> .htaccess &&
+            echo 'PassengerStartupFile app.js' >> .htaccess &&
+            echo 'PassengerNodejs /home/${{ secrets.SSH_USER }}/nodevenv/domains/inlexistudio.com/cms-app/22/bin/node' >> .htaccess &&
+
+            # Install & Restart
             source /home/${{ secrets.SSH_USER }}/nodevenv/domains/inlexistudio.com/cms-app/22/bin/activate &&
             npm install --production &&
             npx prisma generate &&
