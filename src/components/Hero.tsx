@@ -19,6 +19,12 @@ export const Hero: React.FC<HeroProps> = ({ data }) => {
   const bgSrcSet = data?.hero_image ? getImageSrcSet(data.hero_image) : '';
   const bgSizes = bgSrcSet ? getImageSizes('hero') : undefined;
 
+  const heroLogo = data?.home_hero_logo
+    ? getImageUrl(data.home_hero_logo)
+    : 'https://inlexistudio.com/wp-content/uploads/In-Lexi-Studio-1000X1000-5.webp';
+  const heroLogoSrcSet = data?.home_hero_logo ? getImageSrcSet(data.home_hero_logo) : '';
+  const heroLogoSizes = heroLogoSrcSet ? '320px' : undefined;
+
   // Transform logic for the central graphic
   // Shrink slightly and fade out as we scroll down
   const graphicScale = useTransform(scrollY, [0, 300], [1, 0.5]);
@@ -62,8 +68,12 @@ export const Hero: React.FC<HeroProps> = ({ data }) => {
           className="flex w-full max-w-2xl items-center justify-center px-4"
         >
           <img
-            src="https://inlexistudio.com/wp-content/uploads/In-Lexi-Studio-1000X1000-5.webp"
+            src={heroLogo}
+            srcSet={heroLogoSrcSet || undefined}
+            sizes={heroLogoSizes}
             alt="In Lexi Studio"
+            loading="eager"
+            decoding="async"
             className="h-auto w-full object-contain drop-shadow-2xl md:w-[80%]"
           />
         </motion.div>

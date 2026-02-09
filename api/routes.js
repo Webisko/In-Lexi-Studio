@@ -140,6 +140,25 @@ const buildFilePaths = (baseName) => {
   };
 };
 
+const deleteExistingVariants = (baseName) => {
+  if (!baseName) return;
+  const filesToDelete = fs
+    .readdirSync(uploadDir)
+    .filter(
+      (file) =>
+        file === `${baseName}.webp` ||
+        file.startsWith(`${baseName}-w`) ||
+        file.startsWith(`${baseName}-seo-1200x630`),
+    )
+    .map((file) => path.join(uploadDir, file));
+
+  filesToDelete.forEach((filePath) => {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  });
+};
+
 const writeWebpVariants = async (buffer, baseName, isWebpSource = false) => {
   const { mainName, variants, mainPath, variantPaths } = buildFilePaths(baseName);
   const image = sharp(buffer).rotate();
@@ -463,11 +482,44 @@ router.get('/admin/verify', authenticateToken, (req, res) => {
 });
 
 // File Upload
+router.get('/admin/upload/check', authenticateToken, (req, res) => {
+  const { name } = req.query;
+  if (!name) return res.status(400).json({ error: 'Name is required' });
+
+  const baseName = sanitizeBaseName(String(name));
+  const filename = `${baseName}.webp`;
+  const exists = fs.existsSync(path.join(uploadDir, filename));
+  res.json({
+    exists,
+    baseName,
+    filename,
+    url: exists ? `/uploads/${filename}` : null,
+  });
+});
+
 router.post('/admin/upload', authenticateToken, upload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   try {
-    const baseName = buildBaseName(req.file.originalname);
+    const requestedBase = sanitizeBaseName(req.body.baseName || req.file.originalname);
+    const overwrite = req.body.overwrite === 'true';
+    const existingPath = path.join(uploadDir, `${requestedBase}.webp`);
+
+    if (fs.existsSync(existingPath) && !overwrite) {
+      return res
+        .status(409)
+        .json({
+          error: 'File exists',
+          baseName: requestedBase,
+          url: `/uploads/${requestedBase}.webp`,
+        });
+    }
+
+    if (overwrite) {
+      deleteExistingVariants(requestedBase);
+    }
+
+    const baseName = requestedBase;
     const isWebpSource =
       req.file.mimetype === 'image/webp' ||
       (req.file.originalname && req.file.originalname.toLowerCase().endsWith('.webp'));
@@ -621,6 +673,45 @@ router.get('/admin/media/usage', authenticateToken, async (req, res) => {
 });
 
 // Page Routes (Admin)
+const toNumberOrNull = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const parseJsonArray = (value) => {
+  if (value === undefined || value === null) return value;
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    try {
+      const parsed = JSON.parse(trimmed);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+      return [];
+    }
+  }
+  return [];
+};
+
+const normalizePagePayload = (data) => {
+  if (!data) return;
+  data.home_gallery_wedding_id = toNumberOrNull(data.home_gallery_wedding_id);
+  data.home_gallery_portrait_id = toNumberOrNull(data.home_gallery_portrait_id);
+  data.home_gallery_product_id = toNumberOrNull(data.home_gallery_product_id);
+  data.home_gallery_wedding_images = parseJsonArray(data.home_gallery_wedding_images);
+  data.home_gallery_portrait_images = parseJsonArray(data.home_gallery_portrait_images);
+  data.home_gallery_product_images = parseJsonArray(data.home_gallery_product_images);
+  data.home_hero_logo = data.home_hero_logo || null;
+  data.home_moments_image = data.home_moments_image || null;
+  data.home_latest_moments_bg = data.home_latest_moments_bg || null;
+  data.home_latest_gallery_ids = parseJsonArray(data.home_latest_gallery_ids);
+  data.home_testimonial_ids = parseJsonArray(data.home_testimonial_ids);
+  data.wedding_slider_images = parseJsonArray(data.wedding_slider_images);
+  data.portfolio_gallery_ids = parseJsonArray(data.portfolio_gallery_ids);
+};
+
 router.get('/admin/pages', authenticateToken, async (req, res) => {
   const pages = await prisma.page.findMany({
     orderBy: [{ sort_order: 'asc' }, { updated_at: 'desc' }],
@@ -631,6 +722,8 @@ router.put('/admin/pages/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const data = { ...req.body };
   const pageId = Number(id);
+
+  normalizePagePayload(data);
 
   if (data.is_home) {
     data.slug = '/';
@@ -664,6 +757,8 @@ router.put('/admin/pages/:id', authenticateToken, async (req, res) => {
 });
 router.post('/admin/pages', authenticateToken, async (req, res) => {
   const data = { ...req.body };
+
+  normalizePagePayload(data);
 
   if (data.is_home) {
     data.slug = '/';
@@ -713,6 +808,18 @@ router.put('/admin/galleries/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const data = await prisma.gallery.update({ where: { id: Number(id) }, data: req.body });
   res.json(data);
+});
+router.delete('/admin/galleries/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const galleryId = Number(id);
+  await prisma.$transaction([
+    prisma.testimonial.updateMany({
+      where: { gallery_id: galleryId },
+      data: { gallery_id: null },
+    }),
+    prisma.gallery.delete({ where: { id: galleryId } }),
+  ]);
+  res.json({ success: true });
 });
 
 // Gallery Items

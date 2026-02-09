@@ -3,38 +3,43 @@ const faqs = [
   {
     question: 'What photography services do you offer?',
     answer:
-      'I offer three main photography services: Weddings – Full wedding day coverage capturing candid moments and portraits from ceremony to reception. Portraits & Headshots – Professional headshots for business/LinkedIn and personal portrait sessions, in-studio or on location. Product & Promotional Photography – Commercial photography for businesses including product shots, e-commerce images, and marketing campaigns.',
+      'I provide three main photography services: Wedding Photography - I capture your special day with a blend of candid moments and posed portraits, documenting everything from getting ready to the first dance. Portrait and Headshot Photography - Professional headshots for business, LinkedIn, or acting portfolios, plus personal portraits for family occasions. Sessions can be in-studio or on location, and I can bring studio equipment to your chosen spot. Product and Promotional Photography - Commercial photography for businesses including product shots, e-commerce imagery, social media content, and promotional campaigns that help your brand stand out.',
   },
   {
     question: 'What is included in your photography services and what are your rates?',
     answer:
-      'Each service includes consultation, professional editing, and high-resolution image delivery. Rates vary based on the specific package and duration of coverage. Please contact us for a detailed price list.',
+      'Every service is tailored to your specific needs and includes professional consultation, the photography session, and expert post-processing with delivery of high-resolution edited images. For detailed package information and current rates, please visit my [rates section] or [contact me here] for a personalized quote based on your requirements.',
   },
   {
     question:
       'How far in advance should I book my photography session and what is your booking process?',
     answer:
-      'For weddings, we recommend booking 12-18 months in advance. For portrait sessions, 1-2 months is usually sufficient. Our process involves an initial consultation, signing a contract, and a deposit to secure your date.',
+      'I recommend booking as soon as possible since dates fill quickly and I keep a limited number of spots to ensure quality service. For details about each service, please visit my [individual services page]. To secure your date, reach out through my [contact form] and we will discuss your needs, check availability, and finalize your booking with a signed contract and retainer.',
+  },
+  {
+    question: 'When should I book and how does your scheduling work?',
+    answer:
+      'Honestly, the sooner the better. My calendar fills up fast and I only take on a certain number of clients each month so I can give everyone my full attention. You can see what each service involves on my [individual services page], but the booking process is straightforward - just drop me a line, we will chat about what you need, I will check my availability, and then we will get everything locked in with a contract and deposit. Do not wait too long though - the best dates go quickly.',
   },
   {
     question: 'Do you offer complimentary consultations?',
     answer:
-      "Yes, we believe it's important to connect before the big day. We offer complimentary video or in-person consultations to discuss your vision.",
+      'Yes. I offer free consultations to discuss your vision, answer questions, and make sure we are the perfect fit. [Schedule your consultation here] - spots are limited each week.',
   },
   {
     question: 'What happens if I wait to book?',
     answer:
-      'Dates are filled on a first-come, first-served basis. Waiting may result in your preferred date being unavailable.',
+      'My calendar fills months in advance, especially for popular wedding dates and seasons. The longer you wait, the less likely your preferred date will be available. I recommend reaching out even if you are just considering it - I can hold your date with a small deposit while you finalize details.',
   },
   {
     question: 'Can you show me recent work from sessions like mine?',
     answer:
-      "Absolutely. You can view our 'Latest Moments' section or request full gallery examples relevant to your specific event type.",
+      'Absolutely. I love sharing recent galleries that match what you are looking for. [Contact me here] with details about your event or session, and I will send you a personalized portfolio of similar work. This also lets us discuss your specific needs and availability.',
   },
   {
     question: 'What makes you different from other photographers?',
     answer:
-      "Our focus is on raw emotion and storytelling. We don't just take pictures; we preserve the feeling of the moment, creating a legacy for you to cherish.",
+      'Great question. Rather than list everything here, I would love to chat personally about your vision and show you exactly how I approach each unique situation. [Let us schedule a quick call] - I think you will immediately feel the difference in how I work with my clients.',
   },
 ];
 ---
@@ -89,6 +94,7 @@ const faqs = [
 </section>
 
 <script>
+  // @ts-nocheck
   (() => {
     const root = document.querySelector('[data-faq-accordion]');
     if (!(root instanceof HTMLElement)) return;
@@ -98,17 +104,22 @@ const faqs = [
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const DURATION_MS = prefersReducedMotion ? 0 : 360;
 
+    /** @type {HTMLElement[]} */
     const items = Array.from(root.querySelectorAll('.faq-item'));
 
+    /** @type {(item: HTMLElement) => HTMLElement | null} */
     const getPanel = (item) => item.querySelector('.faq-panel');
+    /** @type {(item: HTMLElement) => HTMLButtonElement | null} */
     const getButton = (item) => item.querySelector('.faq-summary');
 
+    /** @type {(item: HTMLElement, isOpen: boolean) => void} */
     const setExpanded = (item, isOpen) => {
       const button = getButton(item);
       if (button) button.setAttribute('aria-expanded', String(isOpen));
       item.classList.toggle('is-open', isOpen);
     };
 
+    /** @type {(panel: HTMLElement) => void} */
     const expandPanel = (panel) => {
       panel.hidden = false;
       panel.style.height = '0px';
@@ -121,6 +132,7 @@ const faqs = [
       panel.style.height = `${targetHeight}px`;
       panel.style.opacity = '1';
 
+      /** @type {(event: TransitionEvent) => void} */
       const onEnd = (event) => {
         if (event.target !== panel || event.propertyName !== 'height') return;
         panel.style.height = 'auto';
@@ -129,6 +141,7 @@ const faqs = [
       panel.addEventListener('transitionend', onEnd);
     };
 
+    /** @type {(panel: HTMLElement) => void} */
     const collapsePanel = (panel) => {
       const currentHeight = panel.scrollHeight;
       panel.style.transitionDuration = `${DURATION_MS}ms`;
@@ -138,6 +151,7 @@ const faqs = [
       panel.style.height = '0px';
       panel.style.opacity = '0';
 
+      /** @type {(event: TransitionEvent) => void} */
       const onEnd = (event) => {
         if (event.target !== panel || event.propertyName !== 'height') return;
         panel.hidden = true;
@@ -146,6 +160,7 @@ const faqs = [
       panel.addEventListener('transitionend', onEnd);
     };
 
+    /** @type {(item: HTMLElement) => void} */
     const closeItem = (item) => {
       const panel = getPanel(item);
       if (!panel || panel.hidden) {
@@ -156,6 +171,7 @@ const faqs = [
       collapsePanel(panel);
     };
 
+    /** @type {(item: HTMLElement) => void} */
     const openItem = (item) => {
       const panel = getPanel(item);
       if (!panel) return;

@@ -1,6 +1,9 @@
 import React from 'react';
 
 export const WelcomeSection: React.FC = () => {
+  const baseUrl = import.meta.env.BASE_URL || '/';
+  const buildLink = (slug: string) => `${baseUrl}${slug}`;
+
   return (
     <section className="px-4 py-24 text-white md:px-12 md:py-32">
       <div className="mx-auto w-full max-w-6xl">
@@ -15,7 +18,10 @@ export const WelcomeSection: React.FC = () => {
               <div className="mt-6 flex flex-col items-center gap-6 text-[clamp(3.5rem,6vw,6rem)] leading-[0.9] tracking-[0.1em]">
                 <div className="relative inline-flex items-center justify-center">
                   <span className="block">IN</span>
-                  <div className="group absolute left-full top-1/2 ml-4 flex -translate-y-1/2 items-center">
+                  <a
+                    href={buildLink('approach')}
+                    className="group absolute left-full top-1/2 ml-4 flex -translate-y-1/2 items-center"
+                  >
                     <span className="hotspot-wrap" aria-hidden="true">
                       <span className="hotspot-pulse" aria-hidden="true" />
                       <span className="hotspot" aria-hidden="true" />
@@ -23,11 +29,14 @@ export const WelcomeSection: React.FC = () => {
                     <span className="ml-4 inline-flex -translate-x-3 items-center rounded-full bg-white px-6 py-2 font-sans text-sm uppercase tracking-[0.25em] text-black opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100 md:text-base">
                       APPROACH
                     </span>
-                  </div>
+                  </a>
                 </div>
                 <div className="relative inline-flex items-center justify-center">
                   <span className="block">LEXI</span>
-                  <div className="group absolute left-full top-1/2 ml-4 flex -translate-y-1/2 items-center">
+                  <a
+                    href={buildLink('about')}
+                    className="group absolute left-full top-1/2 ml-4 flex -translate-y-1/2 items-center"
+                  >
                     <span className="hotspot-wrap" aria-hidden="true">
                       <span className="hotspot-pulse" aria-hidden="true" />
                       <span className="hotspot" aria-hidden="true" />
@@ -35,11 +44,14 @@ export const WelcomeSection: React.FC = () => {
                     <span className="ml-4 inline-flex -translate-x-3 items-center rounded-full bg-white px-6 py-2 font-sans text-sm uppercase tracking-[0.25em] text-black opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100 md:text-base">
                       ABOUT
                     </span>
-                  </div>
+                  </a>
                 </div>
                 <div className="relative inline-flex items-center justify-center">
                   <span className="block">STUDIO</span>
-                  <div className="group absolute left-full top-1/2 ml-4 flex -translate-y-1/2 items-center">
+                  <a
+                    href={buildLink('portfolio')}
+                    className="group absolute left-full top-1/2 ml-4 flex -translate-y-1/2 items-center"
+                  >
                     <span className="hotspot-wrap" aria-hidden="true">
                       <span className="hotspot-pulse" aria-hidden="true" />
                       <span className="hotspot" aria-hidden="true" />
@@ -47,7 +59,7 @@ export const WelcomeSection: React.FC = () => {
                     <span className="ml-4 inline-flex -translate-x-3 items-center rounded-full bg-white px-6 py-2 font-sans text-sm uppercase tracking-[0.25em] text-black opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100 md:text-base">
                       PORTFOLIO
                     </span>
-                  </div>
+                  </a>
                 </div>
               </div>
             </h2>

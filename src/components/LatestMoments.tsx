@@ -1,9 +1,15 @@
 import React from 'react';
+import { getImageSizes, getImageSrcSet, getImageUrl } from '../lib/api';
 
 interface Moment {
   id: number;
   title: string;
   image: string;
+}
+
+interface LatestMomentsProps {
+  items?: Moment[];
+  backgroundImage?: string | null;
 }
 
 const moments: Moment[] = [
@@ -45,10 +51,21 @@ const moments: Moment[] = [
   },
 ];
 
-export const LatestMoments: React.FC = () => {
+export const LatestMoments: React.FC<LatestMomentsProps> = ({ items, backgroundImage }) => {
+  const resolvedItems = items && items.length > 0 ? items : moments;
+  const backgroundUrl = backgroundImage ? getImageUrl(backgroundImage) : '';
+
   return (
     <section className="relative w-full overflow-hidden">
-      <div className="grid h-[65vh] min-h-[520px] w-full grid-cols-1 grid-rows-7 md:grid-cols-4 md:grid-rows-2">
+      {backgroundUrl ? (
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${backgroundUrl})` }}
+          aria-hidden="true"
+        />
+      ) : null}
+      <div className="absolute inset-0 bg-black/50" aria-hidden="true" />
+      <div className="relative z-10 grid h-[65vh] min-h-[520px] w-full grid-cols-1 grid-rows-7 md:grid-cols-4 md:grid-rows-2">
         {/* Title cell - merged/spans 2 rows on desktop */}
         <div className="relative flex items-start justify-start bg-gradient-to-br from-black/60 to-black/40 p-10 md:row-span-2 md:p-14">
           <h2 className="text-left font-display text-[clamp(2rem,3.5vw,3.5rem)] leading-[0.95] tracking-wide text-white">
@@ -59,25 +76,35 @@ export const LatestMoments: React.FC = () => {
         </div>
 
         {/* 6 image tiles */}
-        {moments.map((moment, index) => (
-          <div key={moment.id} className="group relative cursor-pointer overflow-hidden">
-            <div className="absolute inset-0 z-10 bg-black/25 transition-colors duration-500 group-hover:bg-black/10" />
+        {resolvedItems.map((moment) => {
+          const resolvedImage = moment.image ? getImageUrl(moment.image) : '';
+          const resolvedSrcSet = moment.image ? getImageSrcSet(moment.image) : '';
+          const resolvedSizes = resolvedSrcSet ? getImageSizes('gallery') : undefined;
+          const fallbackImage =
+            'https://images.unsplash.com/photo-1511285560982-1351cdeb9821?q=80&w=1000&auto=format&fit=crop';
 
-            <img
-              src={moment.image}
-              alt={moment.title}
-              loading="lazy"
-              decoding="async"
-              className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-110"
-            />
+          return (
+            <div key={moment.id} className="group relative cursor-pointer overflow-hidden">
+              <div className="absolute inset-0 z-10 bg-black/25 transition-colors duration-500 group-hover:bg-black/10" />
 
-            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-6">
-              <h3 className="text-center font-serif text-[clamp(1.5rem,2.5vw,2.5rem)] italic leading-tight text-white drop-shadow-lg">
-                {moment.title}
-              </h3>
+              <img
+                src={resolvedImage || fallbackImage}
+                srcSet={resolvedSrcSet || undefined}
+                sizes={resolvedSizes}
+                alt={moment.title}
+                loading="lazy"
+                decoding="async"
+                className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-110"
+              />
+
+              <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-6">
+                <h3 className="text-center font-serif text-[clamp(1.5rem,2.5vw,2.5rem)] italic leading-tight text-white drop-shadow-lg">
+                  {moment.title}
+                </h3>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

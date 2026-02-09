@@ -4,6 +4,7 @@ import {
   getImageSizes,
   getImageSrcSet,
   getImageUrl,
+  getGalleries,
   getPage,
   getPagesRequired,
   getSettings,
@@ -30,6 +31,7 @@ export async function getStaticPaths() {
 const { page } = Astro.props;
 
 const settings = await getSettings();
+const galleries = await getGalleries();
 const heroSrc = page?.hero_image ? getImageUrl(page.hero_image) : '';
 const heroSrcSet = page?.hero_image ? getImageSrcSet(page.hero_image) : '';
 const heroSizes = heroSrcSet ? getImageSizes('hero') : '';
@@ -77,7 +79,7 @@ if (!page) {
         ) : page.slug === 'approach' ? (
           <Approach page={page} client:load />
         ) : page.slug === 'portfolio' ? (
-          <Portfolio page={page} client:load />
+          <Portfolio page={page} galleries={galleries || []} client:load />
         ) : (
           <div class="container mx-auto px-4 py-16 max-w-4xl prose prose-gold lg:prose-xl dark:prose-invert">
             {!page.hero_image && (

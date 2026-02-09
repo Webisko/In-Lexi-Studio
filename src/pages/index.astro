@@ -16,16 +16,74 @@ const testimonials = (await getTestimonials()) || [];
 const galleries = await getGalleries();
 const settings = await getSettings();
 
-const galleryMap: Record<string, any[]> = {};
-if (galleries) {
-  galleries.forEach((g) => {
-    galleryMap[g.category] = g.items;
-  });
+const parseIdArray = (value: any): number[] => {
+  const normalize = (items: any[]) =>
+    items.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0);
+
+  if (Array.isArray(value)) return normalize(value);
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? normalize(parsed) : [];
+    } catch (err) {
+      return [];
+    }
+  }
+  return [];
+};
+
+const galleryList = galleries || [];
+const galleryById = new Map(galleryList.map((g) => [g.id, g]));
+const buildImageItems = (images?: string[] | null) => {
+  if (!images || !images.length) return [];
+  return images.map((image, index) => ({
+    id: index + 1,
+    image_path: image,
+    alt: 'Gallery image',
+  }));
+};
+const pickGallery = (id: number | null | undefined, category: string) => {
+  if (id && galleryById.has(id)) return galleryById.get(id);
+  return galleryList.find((g) => g.category === category);
+};
+
+const selectedGalleries = {
+  wedding: pickGallery(homePage?.home_gallery_wedding_id, 'wedding'),
+  portrait: pickGallery(homePage?.home_gallery_portrait_id, 'portrait'),
+  product: pickGallery(homePage?.home_gallery_product_id, 'product'),
+};
+
+const weddingImages = buildImageItems(homePage?.home_gallery_wedding_images);
+const portraitImages = buildImageItems(homePage?.home_gallery_portrait_images);
+const productImages = buildImageItems(homePage?.home_gallery_product_images);
+
+const galleryMap: Record<string, any[]> = {
+  wedding: weddingImages.length ? weddingImages : selectedGalleries.wedding?.items || [],
+  portrait: portraitImages.length ? portraitImages : selectedGalleries.portrait?.items || [],
+  product: productImages.length ? productImages : selectedGalleries.product?.items || [],
+};
+
+const latestGalleryIds = parseIdArray(homePage?.home_latest_gallery_ids);
+let latestGalleries = latestGalleryIds
+  .map((id) => galleryById.get(id))
+  .filter((g) => g && g.items && g.items.length) as any[];
+if (latestGalleries.length === 0) {
+  latestGalleries = galleryList.slice(0, 6).filter((g) => g.items && g.items.length);
 }
-// Fallback structure to prevent crashes if DB is empty
-if (!galleryMap['wedding']) galleryMap['wedding'] = [];
-if (!galleryMap['portrait']) galleryMap['portrait'] = [];
-if (!galleryMap['product']) galleryMap['product'] = [];
+
+const latestMoments = latestGalleries.slice(0, 6).map((gallery) => {
+  const cover = gallery.items[0];
+  return {
+    id: gallery.id,
+    title: gallery.name || gallery.category || 'Gallery',
+    image: cover?.image_path || '',
+  };
+});
+
+const selectedTestimonials = parseIdArray(homePage?.home_testimonial_ids);
+const testimonialsData = selectedTestimonials.length
+  ? testimonials.filter((item) => selectedTestimonials.includes(item.id))
+  : testimonials;
 ---
 
 <Layout
@@ -38,10 +96,10 @@ if (!galleryMap['product']) galleryMap['product'] = [];
     <Hero client:load data={homePageData} />
     <GallerySlider client:visible data={galleryMap} />
     <WelcomeSection />
-    <AboutFeature />
-    <LatestMoments />
+    <AboutFeature image={homePage?.home_moments_image} />
+    <LatestMoments items={latestMoments} backgroundImage={homePage?.home_latest_moments_bg} />
     <Collage />
-    <Testimonials client:load data={testimonials} />
+    <Testimonials client:load data={testimonialsData} />
     <FAQ />
   </main>
 </Layout>

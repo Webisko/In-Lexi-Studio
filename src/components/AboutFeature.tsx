@@ -1,6 +1,19 @@
 import React from 'react';
+import { getImageSizes, getImageSrcSet, getImageUrl } from '../lib/api';
 
-export const AboutFeature: React.FC = () => {
+interface AboutFeatureProps {
+  image?: string | null;
+  imageAlt?: string;
+}
+
+export const AboutFeature: React.FC<AboutFeatureProps> = ({ image, imageAlt }) => {
+  const fallbackMain =
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=800&auto=format&fit=crop';
+  const mainImage = image ? getImageUrl(image) : fallbackMain;
+  const mainSrcSet = image ? getImageSrcSet(image) : '';
+  const mainSizes = mainSrcSet ? getImageSizes('half') : undefined;
+  const mainAlt = imageAlt || 'Moments preserved';
+
   return (
     <section className="relative overflow-hidden bg-dark-bg py-24 text-white md:py-40">
       {/* Background "ILS" Watermark */}
@@ -25,8 +38,10 @@ export const AboutFeature: React.FC = () => {
             <div className="relative z-10 w-full max-w-sm">
               <div className="relative aspect-[3/4]">
                 <img
-                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=800&auto=format&fit=crop"
-                  alt="Photographer"
+                  src={mainImage}
+                  srcSet={mainSrcSet || undefined}
+                  sizes={mainSizes}
+                  alt={mainAlt}
                   loading="lazy"
                   decoding="async"
                   className="h-full w-full object-cover shadow-2xl"

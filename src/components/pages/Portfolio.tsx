@@ -1,68 +1,50 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Maximize2, X, Filter } from 'lucide-react';
-import type { Page } from '../../lib/api';
+import { Maximize2, X } from 'lucide-react';
+import type { Gallery, Page } from '../../lib/api';
+import { getImageSizes, getImageSrcSet, getImageUrl } from '../../lib/api';
 
 interface Props {
   page: Page;
+  galleries?: Gallery[];
 }
 
-// Note: In a real scenario, these would come from the API (getGalleries)
-// For the restoration, I'll use representative high-quality placeholders
-// that match the original site's feel.
-const portfolioItems = [
-  {
-    id: 1,
-    category: 'Wedding',
-    src: 'https://inlexistudio.com/wp-content/uploads/2023/07/In-Lexi-Studio-Wedding-Photography-Glasgow-Scotland-1-15.jpg',
-  },
-  {
-    id: 2,
-    category: 'Architecture',
-    src: 'https://inlexistudio.com/wp-content/uploads/2023/11/In-Lexi-Studio-Architecture-Photography-Glasgow-1.jpg',
-  },
-  {
-    id: 3,
-    category: 'Product',
-    src: 'https://inlexistudio.com/wp-content/uploads/2023/07/Product-Photography-Glasgow-In-Lexi-Studio-1.jpg',
-  },
-  {
-    id: 4,
-    category: 'Wedding',
-    src: 'https://inlexistudio.com/wp-content/uploads/2023/11/In-Lexi-Studio-Wedding-Photography-Glasgow-Scotland-1-1.jpg',
-  },
-  {
-    id: 5,
-    category: 'Portrait',
-    src: 'https://inlexistudio.com/wp-content/uploads/2023/07/In-Lexi-Studio-Portrait-Photography-Glasgow-1.jpg',
-  },
-  {
-    id: 6,
-    category: 'Event',
-    src: 'https://inlexistudio.com/wp-content/uploads/2023/11/Event-Photography-Glasgow-In-Lexi-Studio.jpg',
-  },
-  {
-    id: 7,
-    category: 'Wedding',
-    src: 'https://inlexistudio.com/wp-content/uploads/2023/07/In-Lexi-Studio-Wedding-Photography-Glasgow-Scotland-1-14.jpg',
-  },
-  {
-    id: 8,
-    category: 'Lifestyle',
-    src: 'https://inlexistudio.com/wp-content/uploads/2023/07/Lifestyle-Photography-Glasgow-In-Lexi-Studio.jpg',
-  },
-  {
-    id: 9,
-    category: 'Wedding',
-    src: 'https://inlexistudio.com/wp-content/uploads/2023/11/In-Lexi-Studio-Wedding-Photography-Glasgow-Scotland-1-16.jpg',
-  },
-];
+const CATEGORY_LABELS: Record<string, string> = {
+  wedding: 'Wedding',
+  portrait: 'Portrait',
+  product: 'Product',
+};
 
-const categories = ['All', 'Wedding', 'Portrait', 'Product', 'Architecture', 'Event'];
-
-export default function Portfolio({ page }: Props) {
+export default function Portfolio({ page, galleries = [] }: Props) {
   const [filter, setFilter] = useState('All');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const selectedGalleryIds = useMemo(
+    () => (page.portfolio_gallery_ids || []).map((id) => Number(id)),
+    [page.portfolio_gallery_ids],
+  );
+  const selectedGalleries = useMemo(() => {
+    if (!selectedGalleryIds.length) return galleries;
+    const map = new Map(galleries.map((gallery) => [gallery.id, gallery]));
+    return selectedGalleryIds.map((id) => map.get(id)).filter(Boolean) as Gallery[];
+  }, [galleries, selectedGalleryIds]);
+
+  const portfolioItems = useMemo(() => {
+    return selectedGalleries.flatMap((gallery) =>
+      (gallery.items || []).map((item) => ({
+        id: `${gallery.id}-${item.id}`,
+        category: CATEGORY_LABELS[gallery.category] || gallery.category,
+        src: getImageUrl(item.image_path),
+        srcSet: getImageSrcSet(item.image_path),
+        sizes: getImageSizes('gallery'),
+        alt: item.alt || item.title || gallery.name || 'Portfolio image',
+      })),
+    );
+  }, [selectedGalleries]);
+
+  const categories = useMemo(() => {
+    const unique = Array.from(new Set(portfolioItems.map((item) => item.category)));
+    return ['All', ...unique];
+  }, [portfolioItems]);
 
   const filteredItems =
     filter === 'All' ? portfolioItems : portfolioItems.filter((item) => item.category === filter);
@@ -122,6 +104,8 @@ export default function Portfolio({ page }: Props) {
               >
                 <img
                   src={item.src}
+                  srcSet={item.srcSet || undefined}
+                  sizes={item.srcSet ? item.sizes : undefined}
                   alt={item.category}
                   loading="lazy"
                   decoding="async"

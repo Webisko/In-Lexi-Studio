@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Coffee, Camera, Heart, Globe, Music } from 'lucide-react';
+import { Coffee, Globe, Music } from 'lucide-react';
 import type { Page } from '../../lib/api';
 import { getImageSizes, getImageSrcSet, getImageUrl } from '../../lib/api';
 

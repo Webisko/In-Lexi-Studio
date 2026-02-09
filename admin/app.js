@@ -1,4 +1,4 @@
-const CMS_APP_VERSION = '2026-02-09-1';
+const CMS_APP_VERSION = '2026-02-10-1';
 console.info(`CMS app version: ${CMS_APP_VERSION}`);
 
 function normalizeBaseUrl(url) {
@@ -21,9 +21,7 @@ const UPLOADS_BASE_URL = `${API_URL.replace(/\/api$/i, '')}/uploads`;
 const resolveUploadsUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) {
-    return /\/app\/uploads\//i.test(path)
-      ? path
-      : path.replace(/\/uploads\//i, '/app/uploads/');
+    return /\/app\/uploads\//i.test(path) ? path : path.replace(/\/uploads\//i, '/app/uploads/');
   }
   if (/^\/?uploads\//i.test(path)) {
     const trimmed = path.replace(/^\/?uploads\//i, '');
@@ -33,12 +31,27 @@ const resolveUploadsUrl = (path) => {
   return `${UPLOADS_BASE_URL}/${path}`;
 };
 
+const addVariantSuffix = (url, width) => url.replace(/\.webp(\?.*)?$/i, `-w${width}.webp$1`);
+const getImageSrcSet = (path, widths = [160, 480, 960]) => {
+  if (!path) return '';
+  const url = resolveUploadsUrl(path);
+  if (!/\.webp(\?.*)?$/i.test(url)) return '';
+  return widths.map((width) => `${addVariantSuffix(url, width)} ${width}w`).join(', ');
+};
+
 // --- Global State ---
 let token = localStorage.getItem('token');
 let currentUser = null;
 let resetToken = null;
 let mediaViewMode = 'grid';
 let mediaFilterQuery = '';
+let pagesViewMode = 'list';
+let pagesFilterQuery = '';
+let galleriesViewMode = 'grid';
+let galleriesFilterQuery = '';
+let galleriesFilterCategory = 'all';
+let testimonialsViewMode = 'list';
+let testimonialsFilterQuery = '';
 
 const ensureUploadToast = () => {
   let toast = document.getElementById('upload-toast');
@@ -71,7 +84,7 @@ const updateUploadToast = ({ title, message, percent, visible }) => {
   }
 };
 
-const uploadFileWithProgress = (file, onProgress) => {
+const uploadFileWithProgress = (file, onProgress, options = {}) => {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${ADMIN_API_URL}/upload`);
@@ -94,8 +107,152 @@ const uploadFileWithProgress = (file, onProgress) => {
     xhr.addEventListener('error', () => reject(new Error('Upload failed')));
     const formData = new FormData();
     formData.append('image', file);
+    if (options.baseName) formData.append('baseName', options.baseName);
+    if (options.overwrite) formData.append('overwrite', 'true');
     xhr.send(formData);
   });
+};
+
+const checkUploadConflict = async (name) => {
+  const res = await fetch(`${ADMIN_API_URL}/upload/check?name=${encodeURIComponent(name)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error('Conflict check failed');
+  return res.json();
+};
+
+const ensureUploadConflictModal = () => {
+  let modal = document.getElementById('upload-conflict-modal');
+  if (modal) return modal;
+  modal = document.createElement('div');
+  modal.id = 'upload-conflict-modal';
+  modal.className = 'fixed inset-0 z-[90] hidden items-center justify-center bg-black/70 p-4';
+  modal.innerHTML = `
+    <div class="w-full max-w-4xl rounded-xl border border-white/10 bg-dark-secondary p-6 text-off-white shadow-2xl">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h3 class="text-lg font-bold">Plik o tej nazwie już istnieje</h3>
+          <p class="text-sm text-gray-400">Porównaj zdjęcia i wybierz, co zrobić.</p>
+        </div>
+        <button type="button" id="upload-conflict-close" class="text-gray-400 hover:text-white">✕</button>
+      </div>
+      <div class="mt-6 grid gap-6 md:grid-cols-2">
+        <div class="space-y-2">
+          <p class="text-xs uppercase tracking-widest text-gray-400">Aktualne zdjęcie</p>
+          <div class="overflow-hidden rounded-lg border border-white/10 bg-black">
+            <img id="upload-conflict-existing" class="h-64 w-full object-cover" />
+          </div>
+        </div>
+        <div class="space-y-2">
+          <p class="text-xs uppercase tracking-widest text-gray-400">Nowe zdjęcie</p>
+          <div class="overflow-hidden rounded-lg border border-white/10 bg-black">
+            <img id="upload-conflict-new" class="h-64 w-full object-cover" />
+          </div>
+        </div>
+      </div>
+      <div class="mt-6 space-y-2">
+        <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Nowa nazwa (jeśli zmieniasz)</label>
+        <input id="upload-conflict-rename" type="text" class="w-full rounded border border-white/10 bg-black/40 p-2 text-off-white focus:border-gold focus:outline-none" placeholder="Wpisz nową nazwę" />
+        <p id="upload-conflict-error" class="hidden text-xs text-red-400"></p>
+      </div>
+      <div class="mt-6 flex flex-wrap justify-end gap-3">
+        <button type="button" id="upload-conflict-skip" class="rounded border border-white/10 px-4 py-2 text-sm text-gray-300 hover:border-white/30">Pomiń</button>
+        <button type="button" id="upload-conflict-rename-btn" class="rounded bg-gray-200 px-4 py-2 text-sm text-gray-900 hover:bg-gray-300">Zmień nazwę</button>
+        <button type="button" id="upload-conflict-replace" class="rounded bg-gold px-4 py-2 text-sm font-semibold text-black hover:bg-gold-hover">Zastąp</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  return modal;
+};
+
+const showUploadConflictModal = ({ existingUrl, newFile, baseName }) => {
+  return new Promise((resolve) => {
+    const modal = ensureUploadConflictModal();
+    const existingImg = document.getElementById('upload-conflict-existing');
+    const newImg = document.getElementById('upload-conflict-new');
+    const renameInput = document.getElementById('upload-conflict-rename');
+    const errorEl = document.getElementById('upload-conflict-error');
+    const closeBtn = document.getElementById('upload-conflict-close');
+    const skipBtn = document.getElementById('upload-conflict-skip');
+    const renameBtn = document.getElementById('upload-conflict-rename-btn');
+    const replaceBtn = document.getElementById('upload-conflict-replace');
+
+    const previewUrl = URL.createObjectURL(newFile);
+    if (existingImg) existingImg.src = resolveUploadsUrl(existingUrl);
+    if (newImg) newImg.src = previewUrl;
+    if (renameInput) renameInput.value = '';
+    if (errorEl) {
+      errorEl.textContent = '';
+      errorEl.classList.add('hidden');
+    }
+
+    const cleanup = (result) => {
+      URL.revokeObjectURL(previewUrl);
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      resolve(result);
+    };
+
+    const showError = (message) => {
+      if (!errorEl) return;
+      errorEl.textContent = message;
+      errorEl.classList.remove('hidden');
+    };
+
+    const handleClose = () => cleanup({ action: 'skip' });
+    const handleSkip = () => cleanup({ action: 'skip' });
+    const handleReplace = () => cleanup({ action: 'replace', baseName });
+
+    const handleRename = async () => {
+      const value = renameInput?.value?.trim();
+      if (!value) {
+        showError('Podaj nową nazwę pliku.');
+        return;
+      }
+      try {
+        const check = await checkUploadConflict(value);
+        if (check.exists) {
+          showError('Taka nazwa już istnieje. Podaj inną nazwę.');
+          return;
+        }
+        cleanup({ action: 'rename', baseName: value });
+      } catch (err) {
+        showError('Nie udało się sprawdzić nazwy. Spróbuj ponownie.');
+      }
+    };
+
+    closeBtn.onclick = handleClose;
+    skipBtn.onclick = handleSkip;
+    replaceBtn.onclick = handleReplace;
+    renameBtn.onclick = handleRename;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  });
+};
+
+const uploadFileWithResolution = async (file, onProgress) => {
+  const conflict = await checkUploadConflict(file.name);
+  if (conflict.exists) {
+    const decision = await showUploadConflictModal({
+      existingUrl: conflict.url,
+      newFile: file,
+      baseName: conflict.baseName,
+    });
+    if (decision.action === 'skip') return null;
+    if (decision.action === 'replace') {
+      return uploadFileWithProgress(file, onProgress, {
+        baseName: conflict.baseName,
+        overwrite: true,
+      });
+    }
+    if (decision.action === 'rename') {
+      return uploadFileWithProgress(file, onProgress, { baseName: decision.baseName });
+    }
+  }
+
+  return uploadFileWithProgress(file, onProgress, { baseName: conflict.baseName });
 };
 
 const uploadFilesWithProgress = async (fileList, onComplete) => {
@@ -108,7 +265,7 @@ const uploadFilesWithProgress = async (fileList, onComplete) => {
     const baseMessage = `Plik ${i + 1}/${files.length}: ${file.name}`;
     dom.mediaStatus.textContent = baseMessage;
     try {
-      await uploadFileWithProgress(file, (ratio) => {
+      await uploadFileWithResolution(file, (ratio) => {
         const percent = Math.round(((i + ratio) / files.length) * 100);
         updateUploadToast({ message: baseMessage, percent });
       });
@@ -593,12 +750,9 @@ async function loadDashboard() {
   const galleries = await galleriesRes.json();
   */
 
-  const pendingEdits = galleries.length; // Mock metric
-  const ratingAvg =
-    testimonials.length > 0
-      ? (testimonials.reduce((a, b) => a + b.rating, 0) / testimonials.length).toFixed(1)
-      : '0.0';
-  const recentGalleries = galleries.slice(0, 3);
+  const approvedTestimonials = testimonials.filter((t) => t.approved);
+  const maxGalleryCards = window.innerWidth < 768 ? 4 : 6;
+  const recentGalleries = galleries.slice(0, maxGalleryCards);
 
   container.innerHTML = `
         <div class="mb-8">
@@ -615,18 +769,18 @@ async function loadDashboard() {
                 </div>
                 <div class="flex items-baseline">
                     <span class="text-4xl font-display text-gray-900 dark:text-white mr-2">${galleries.length}</span>
-                    <span class="text-xs text-green-500 font-bold">Aktywnych</span>
+                    <span class="text-xs text-gray-500">Opublikowanych</span>
                 </div>
             </div>
 
             <div class="bg-white dark:bg-dark-secondary p-6 rounded-xl shadow-sm border border-gray-200 dark:border-white/5">
                 <div class="flex justify-between items-start mb-4">
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Średnia Ocena</span>
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Opinie</span>
                     <svg class="w-6 h-6 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
                 </div>
                 <div class="flex items-baseline">
-                    <span class="text-4xl font-display text-gray-900 dark:text-white mr-2">${ratingAvg}</span>
-                    <span class="text-xs text-gray-500">z ${testimonials.length} opinii</span>
+                    <span class="text-4xl font-display text-gray-900 dark:text-white mr-2">${approvedTestimonials.length}</span>
+                    <span class="text-xs text-gray-500">Opublikowanych</span>
                 </div>
             </div>
 
@@ -649,16 +803,17 @@ async function loadDashboard() {
                     <h3 class="font-display text-xl text-gray-900 dark:text-white">Ostatnie Sesje</h3>
                     <button onclick="document.querySelector('[data-tab=\'galleries\']').click()" class="text-sm text-gold hover:text-white transition-colors">Zobacz Wszystkie</button>
                 </div>
-                <div class="grid grid-cols-3 gap-4">
+                <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
                      ${recentGalleries
                        .map(
                          (g) => `
                         <div class="aspect-[3/4] bg-gray-100 dark:bg-black rounded-lg overflow-hidden relative group cursor-pointer" onclick="editGallery(${g.id})">
-                            ${
-                              g.items && g.items.length > 0
-                                ? `<img src="${resolveUploadsUrl(g.items[0].image_path)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">`
-                                : ''
-                            }
+                            ${(() => {
+                              const cover = g.cover_image || g.items?.[0]?.image_path || '';
+                              return cover
+                                ? `<img src="${resolveUploadsUrl(cover)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">`
+                                : '';
+                            })()}
                             <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
                                 <p class="text-white font-medium text-sm truncate">${g.name || 'Bez nazwy'}</p>
                                 <p class="text-xs text-gray-400 capitalize">${CATEGORY_MAP[g.category] || g.category}</p>
@@ -670,7 +825,7 @@ async function loadDashboard() {
                      
                      <!-- Add New Placeholder -->
                      ${
-                       recentGalleries.length < 3
+                       recentGalleries.length < maxGalleryCards
                          ? `
                         <button onclick="editGallery(null)" class="aspect-[3/4] border-2 border-dashed border-gray-300 dark:border-white/10 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:border-gold hover:text-gold transition-colors">
                             <svg class="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -744,55 +899,130 @@ async function loadPages() {
     // If there are other pages but no home, we might want to list them still?
     // User said "I don't see any pages". So likely empty.
     if (pages.length > 0) {
-      // Render table + Seed Button
-      renderPagesTable(pages, true, container);
+      renderPagesView(pages, true, container);
     }
     return;
   }
 
-  renderPagesTable(pages, false, container);
+  renderPagesView(pages, false, container);
 }
 
-function renderPagesTable(pages, showSeedBtn, container) {
+function renderPagesView(pages, showSeedBtn, container) {
+  const query = pagesFilterQuery.trim().toLowerCase();
+  const filteredPages = query
+    ? pages.filter((p) => `${p.title || ''} ${p.slug || ''}`.toLowerCase().includes(query))
+    : pages;
+
+  const renderList = () => `
+    <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-lg overflow-hidden shadow-sm">
+      <table class="w-full text-left">
+        <thead class="bg-gray-50 dark:bg-white/5 text-gray-400 text-xs uppercase tracking-wider">
+          <tr>
+            <th class="px-3 py-4"></th>
+            <th class="px-6 py-4">Tytuł</th>
+            <th class="px-6 py-4">Slug</th>
+            <th class="px-6 py-4">Ostatnia modyfikacja</th>
+            <th class="px-6 py-4 text-right">Akcje</th>
+          </tr>
+        </thead>
+        <tbody id="pages-table-body" class="divide-y divide-gray-200 dark:divide-white/5 text-sm text-gray-600 dark:text-gray-300">
+          ${filteredPages
+            .map(
+              (p) => `
+              <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors" data-id="${p.id}">
+                <td class="px-3 py-4 text-gray-400 cursor-move drag-handle" title="Przeciągnij, aby zmienić kolejność">&#9776;</td>
+                <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                  ${p.title || '(Bez tytułu)'}
+                  ${p.is_home ? '<span class="ml-2 text-xs uppercase tracking-wider text-gold">Home</span>' : ''}
+                </td>
+                <td class="px-6 py-4 text-gray-500 dark:text-gray-500">${p.slug}</td>
+                <td class="px-6 py-4">${new Date(p.updated_at || p.updatedAt || Date.now()).toLocaleDateString()}</td>
+                <td class="px-6 py-4 text-right">
+                  <button onclick="editPage(${p.id})" class="text-gold hover:text-black dark:hover:text-white transition-colors font-medium">Edytuj</button>
+                </td>
+              </tr>
+            `,
+            )
+            .join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  const renderGrid = () => `
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+      ${filteredPages
+        .map(
+          (p) => `
+          <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl p-5 shadow-sm">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="font-display text-lg text-gray-900 dark:text-white">
+                  ${p.title || '(Bez tytułu)'}
+                </h3>
+                <p class="text-xs text-gray-500">${p.slug}</p>
+              </div>
+              ${p.is_home ? '<span class="text-xs uppercase tracking-wider text-gold">Home</span>' : ''}
+            </div>
+            <div class="mt-4 flex items-center justify-between text-xs text-gray-500">
+              <span>${new Date(p.updated_at || p.updatedAt || Date.now()).toLocaleDateString()}</span>
+              <button onclick="editPage(${p.id})" class="text-gold hover:text-black dark:hover:text-white transition-colors font-medium">Edytuj</button>
+            </div>
+          </div>
+        `,
+        )
+        .join('')}
+    </div>
+  `;
+
   container.innerHTML = `
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Strony</h2>
-             ${showSeedBtn ? `<button onclick="seedHomePage()" class="text-sm text-gold hover:text-white underline">Dodaj Home</button>` : ''}
+    <div class="flex flex-col gap-4 mb-6">
+      <div class="flex flex-wrap justify-between items-center gap-4">
+        <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Strony</h2>
+        ${showSeedBtn ? `<button onclick="seedHomePage()" class="text-sm text-gold hover:text-white underline">Dodaj Home</button>` : ''}
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <input id="pages-filter" type="text" placeholder="Szukaj po tytule lub slugu" class="w-64 max-w-full rounded-full border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 px-4 py-1.5 text-xs uppercase tracking-widest text-gray-600 dark:text-gray-200 placeholder-gray-400 focus:border-gold focus:outline-none" />
+        <div class="flex gap-2">
+          <button id="pages-view-list" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
+            pagesViewMode === 'list' ? 'bg-gold text-black border-gold' : 'text-gray-500'
+          }">Lista</button>
+          <button id="pages-view-grid" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
+            pagesViewMode === 'grid' ? 'bg-gold text-black border-gold' : 'text-gray-500'
+          }">Siatka</button>
         </div>
-        <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-lg overflow-hidden shadow-sm">
-            <table class="w-full text-left">
-                <thead class="bg-gray-50 dark:bg-white/5 text-gray-400 text-xs uppercase tracking-wider">
-                    <tr>
-                        <th class="px-3 py-4"></th>
-                        <th class="px-6 py-4">Tytuł</th>
-                        <th class="px-6 py-4">Slug</th>
-                        <th class="px-6 py-4">Ostatnia Modyfikacja</th>
-                        <th class="px-6 py-4 text-right">Akcje</th>
-                    </tr>
-                </thead>
-                <tbody id="pages-table-body" class="divide-y divide-gray-200 dark:divide-white/5 text-sm text-gray-600 dark:text-gray-300">
-                    ${pages
-                      .map(
-                        (p) => `
-                        <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors" data-id="${p.id}">
-                            <td class="px-3 py-4 text-gray-400 cursor-move drag-handle" title="Przeciągnij, aby zmienić kolejność">&#9776;</td>
-                            <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                              ${p.title || '(Bez tytułu)'}
-                              ${p.is_home ? '<span class="ml-2 text-xs uppercase tracking-wider text-gold">Home</span>' : ''}
-                            </td>
-                            <td class="px-6 py-4 text-gray-500 dark:text-gray-500">${p.slug}</td>
-                            <td class="px-6 py-4">${new Date(p.updated_at || p.updatedAt || Date.now()).toLocaleDateString()}</td>
-                            <td class="px-6 py-4 text-right">
-                                <button onclick="editPage(${p.id})" class="text-gold hover:text-black dark:hover:text-white transition-colors font-medium">Edytuj</button>
-                            </td>
-                        </tr>
-                    `,
-                      )
-                      .join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
+      </div>
+    </div>
+    ${pagesViewMode === 'grid' ? renderGrid() : renderList()}
+  `;
+
+  const filterInput = document.getElementById('pages-filter');
+  if (filterInput) {
+    filterInput.value = pagesFilterQuery;
+    filterInput.addEventListener('input', (event) => {
+      pagesFilterQuery = event.target.value;
+      renderPagesView(pages, showSeedBtn, container);
+      const nextInput = document.getElementById('pages-filter');
+      if (nextInput) {
+        nextInput.focus();
+        const pos = pagesFilterQuery.length;
+        nextInput.setSelectionRange(pos, pos);
+      }
+    });
+  }
+
+  const listBtn = document.getElementById('pages-view-list');
+  const gridBtn = document.getElementById('pages-view-grid');
+  if (listBtn)
+    listBtn.addEventListener('click', () => {
+      pagesViewMode = 'list';
+      renderPagesView(pages, showSeedBtn, container);
+    });
+  if (gridBtn)
+    gridBtn.addEventListener('click', () => {
+      pagesViewMode = 'grid';
+      renderPagesView(pages, showSeedBtn, container);
+    });
 
   const tbody = document.getElementById('pages-table-body');
   if (tbody) {
@@ -835,6 +1065,19 @@ window.editPage = async (id) => {
     title: '',
     content: '',
     hero_image: '',
+    home_hero_logo: '',
+    home_gallery_wedding_id: null,
+    home_gallery_portrait_id: null,
+    home_gallery_product_id: null,
+    home_gallery_wedding_images: [],
+    home_gallery_portrait_images: [],
+    home_gallery_product_images: [],
+    home_moments_image: '',
+    home_latest_moments_bg: '',
+    home_latest_gallery_ids: [],
+    home_testimonial_ids: [],
+    wedding_slider_images: [],
+    portfolio_gallery_ids: [],
     meta_title: '',
     meta_description: '',
     seo_image: '',
@@ -842,11 +1085,53 @@ window.editPage = async (id) => {
     seo_use_hero: true,
     slug: '',
   };
-  const res = await fetch(`${ADMIN_API_URL}/pages`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const pages = await res.json();
+  const parseIds = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+      return [];
+    }
+  };
+
+  const parseImageList = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+      return [];
+    }
+  };
+
+  const [pages, galleries, testimonials] = await Promise.all([
+    fetch(`${ADMIN_API_URL}/pages`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((res) => res.json()),
+    fetch(`${ADMIN_API_URL}/galleries`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((res) => res.json()),
+    fetch(`${ADMIN_API_URL}/testimonials`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((res) => res.json()),
+  ]);
+
   page = pages.find((p) => p.id === id) || page;
+  const normalizedSlug = String(page.slug || '').replace(/^\/+/, '');
+  const isHomePage = Boolean(page.is_home || normalizedSlug === '' || normalizedSlug === 'home');
+  const isWeddingPage = normalizedSlug === 'wedding-photography';
+  const isPortfolioPage = normalizedSlug === 'portfolio';
+  page.is_home = isHomePage;
+  page.home_latest_gallery_ids = parseIds(page.home_latest_gallery_ids);
+  page.home_testimonial_ids = parseIds(page.home_testimonial_ids);
+  page.home_gallery_wedding_images = parseImageList(page.home_gallery_wedding_images);
+  page.home_gallery_portrait_images = parseImageList(page.home_gallery_portrait_images);
+  page.home_gallery_product_images = parseImageList(page.home_gallery_product_images);
+  page.wedding_slider_images = parseImageList(page.wedding_slider_images);
+  page.portfolio_gallery_ids = parseIds(page.portfolio_gallery_ids);
 
   // SEO Section (Admin Only)
   const seoSection =
@@ -887,40 +1172,223 @@ window.editPage = async (id) => {
   `
       : '';
 
+  const renderGalleryOptions = (selectedId) =>
+    (galleries || [])
+      .map((g) => {
+        const label = `${g.name || 'Bez nazwy'} (${CATEGORY_MAP[g.category] || g.category})`;
+        return `<option value="${g.id}" ${Number(selectedId) === g.id ? 'selected' : ''}>${label}</option>`;
+      })
+      .join('');
+
+  const renderTestimonialOptions = (selectedId) =>
+    (testimonials || [])
+      .map(
+        (t) =>
+          `<option value="${t.id}" ${Number(selectedId) === t.id ? 'selected' : ''}>${
+            t.author || 'Bez autora'
+          }</option>`,
+      )
+      .join('');
+
+  const renderImagePicker = ({ inputId, label, value, sizeClass = 'h-56' }) => {
+    const hasValue = Boolean(value);
+    return `
+      <div class="space-y-3">
+        <label class="text-xs font-bold uppercase tracking-wider text-gray-500">${label}</label>
+        <div>
+          <div id="${inputId}_empty" class="${hasValue ? 'hidden' : ''} w-full rounded-lg border-2 border-dashed border-gray-300 dark:border-white/10 p-6 text-gray-400 transition-colors hover:border-gold hover:text-gold">
+            <div class="flex flex-col items-center justify-center gap-3 text-center">
+              <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+              <p class="text-sm">Wybierz z biblioteki lub dodaj z komputera</p>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" class="rounded bg-gray-200 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-300 dark:bg-white/10 dark:text-white dark:hover:bg-white/20" onclick="openMediaPicker().then(url => updateImagePicker('${inputId}', url))">Wybierz z biblioteki</button>
+                <button type="button" class="rounded bg-gray-100 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10" onclick="document.getElementById('${inputId}_upload').click()">Dodaj z komputera</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="${inputId}_filled" class="${hasValue ? '' : 'hidden'}">
+            <img id="${inputId}_preview" src="${resolveUploadsUrl(value || '')}" class="w-full ${sizeClass} rounded-lg border border-gray-200 dark:border-white/10 object-cover" />
+            <div class="mt-3 flex flex-wrap gap-2">
+              <button type="button" class="rounded bg-gray-200 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-300 dark:bg-white/10 dark:text-white dark:hover:bg-white/20" onclick="openMediaPicker().then(url => updateImagePicker('${inputId}', url))">Zmień</button>
+              <button type="button" class="rounded bg-gray-100 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10" onclick="updateImagePicker('${inputId}', '')">Usuń</button>
+            </div>
+          </div>
+
+          <input type="text" id="${inputId}" value="${value || ''}" class="hidden" />
+          <input type="file" id="${inputId}_upload" class="hidden" accept="image/*" />
+        </div>
+      </div>
+    `;
+  };
+
+  const renderImageListSection = (listId, label) => `
+    <div class="space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-wider text-gray-500">${label}</p>
+          <p class="text-xs text-gray-400">Dodawaj zdjęcia i przeciągaj, aby zmienić kolejność</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="rounded bg-gray-200 px-3 py-1.5 text-xs uppercase tracking-widest text-gray-900 transition-colors hover:bg-gray-300 dark:bg-white/10 dark:text-white dark:hover:bg-white/20" data-add-library="${listId}">Z biblioteki</button>
+          <label class="cursor-pointer rounded bg-gray-100 px-3 py-1.5 text-xs uppercase tracking-widest text-gray-900 transition-colors hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10">
+            Z komputera
+            <input type="file" class="hidden" accept="image/*" data-add-upload="${listId}" />
+          </label>
+        </div>
+      </div>
+      <div id="${listId}" class="grid grid-cols-2 gap-3 md:grid-cols-3"></div>
+    </div>
+  `;
+
   const html = `
         <form id="page-form" class="space-y-6">
-             <div class="space-y-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Tytuł Strony</label>
-                <input type="text" id="title" value="${page.title || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold font-medium text-xl">
-            </div>
-            
-            <div class="space-y-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Zdjęcie główne (Hero)</label>
-              <div class="flex items-center gap-4">
-                <img id="hero_image_preview" src="${resolveUploadsUrl(page.hero_image || '')}" class="w-20 h-20 rounded object-cover border border-gray-200 dark:border-white/10 ${page.hero_image ? '' : 'hidden'}" />
-                <div class="flex-1 space-y-2">
-                  <input type="text" id="hero_image" value="${page.hero_image || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none">
-                  <div class="flex gap-2">
-                    <button type="button" onclick="openMediaPicker().then(url => setImageField('hero_image','hero_image_preview',url))" class="bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Wybierz</button>
-                    <button type="button" onclick="clearImageField('hero_image','hero_image_preview')" class="bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Usuń</button>
+            <div class="space-y-6 rounded-xl border border-gray-200 dark:border-white/10 p-4">
+              <h3 class="text-sm font-bold uppercase tracking-widest text-gray-500">Ustawienia ogólne</h3>
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div class="space-y-4">
+                  <div class="space-y-2">
+                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Tytuł strony</label>
+                    <input type="text" id="title" value="${page.title || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold font-medium text-xl">
                   </div>
+
+                  <div class="space-y-2">
+                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Slug</label>
+                    <div class="w-full rounded border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-black/30 p-2 text-sm text-gray-600 dark:text-gray-400">
+                      ${page.slug || '/'}
+                    </div>
+                    <p class="text-xs text-gray-400">Slug jest ustawiany automatycznie.</p>
+                  </div>
+                </div>
+
+                <div class="space-y-6">
+                  ${renderImagePicker({
+                    inputId: 'hero_image',
+                    label: 'Zdjęcie główne (Hero)',
+                    value: page.hero_image || '',
+                    sizeClass: 'h-56',
+                  })}
+                  ${renderImagePicker({
+                    inputId: 'home_hero_logo',
+                    label: 'Logo na środku Hero',
+                    value: page.home_hero_logo || '',
+                    sizeClass: 'h-48',
+                  })}
                 </div>
               </div>
             </div>
 
-            <div class="space-y-2">
-              <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Slug</label>
-              <input type="text" id="slug" value="${page.slug || ''}" class="w-full bg-gray-100 dark:bg-black/30 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-500 dark:text-gray-400 outline-none" disabled>
-            </div>
+            <div id="details-section" class="space-y-6 rounded-xl border border-gray-200 dark:border-white/10 p-4">
+              <h3 class="text-sm font-bold uppercase tracking-widest text-gray-500">Szczegóły</h3>
 
-            <label class="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
-              <input type="checkbox" id="is_home" ${page.is_home ? 'checked' : ''} class="w-4 h-4 accent-gold" />
-              To jest strona główna (slug zostanie ustawiony na "/")
-            </label>
+              <div id="home-details-section" class="space-y-8">
+                <div class="space-y-4">
+                  <h4 class="text-xs font-bold uppercase tracking-wider text-gray-500">Galerie na stronie głównej</h4>
+                  <div class="space-y-6">
+                    ${renderImageListSection('home_gallery_wedding_images', 'Galeria Wedding')}
+                    ${renderImageListSection('home_gallery_portrait_images', 'Galeria Portrait')}
+                    ${renderImageListSection('home_gallery_product_images', 'Galeria Product')}
+                  </div>
+                </div>
 
-            <div class="space-y-2 h-[400px] flex flex-col">
+                <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  ${renderImagePicker({
+                    inputId: 'home_moments_image',
+                    label: 'Zdjęcie Moments Preserved',
+                    value: page.home_moments_image || '',
+                    sizeClass: 'h-56',
+                  })}
+                  ${renderImagePicker({
+                    inputId: 'home_latest_moments_bg',
+                    label: 'Tło Latest Moments',
+                    value: page.home_latest_moments_bg || '',
+                    sizeClass: 'h-56',
+                  })}
+                </div>
+
+                <div class="space-y-4">
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p class="text-xs font-bold uppercase tracking-wider text-gray-500">Latest Moments</p>
+                      <p class="text-xs text-gray-400">Wybierz dokładnie 6 sesji zdjęciowych</p>
+                    </div>
+                    <span id="latest-galleries-count" class="text-xs uppercase tracking-widest text-gray-400">0 / 6</span>
+                  </div>
+                  <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div class="space-y-2">
+                      <p class="text-[10px] uppercase tracking-widest text-gray-400">Wszystkie sesje</p>
+                      <div id="latest-galleries-all" class="space-y-2"></div>
+                    </div>
+                    <div class="space-y-2">
+                      <p class="text-[10px] uppercase tracking-widest text-gray-400">Wybrane (przeciągnij, aby zmienić kolejność)</p>
+                      <div id="latest-galleries-selected" class="space-y-2"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="space-y-4">
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p class="text-xs font-bold uppercase tracking-wider text-gray-500">Opinie na stronie głównej</p>
+                      <p class="text-xs text-gray-400">Wybierz minimum 3 opinie</p>
+                    </div>
+                    <span id="home-testimonials-count" class="text-xs uppercase tracking-widest text-gray-400">0</span>
+                  </div>
+                  <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div class="space-y-2">
+                      <p class="text-[10px] uppercase tracking-widest text-gray-400">Wszystkie opinie</p>
+                      <div id="home-testimonials-all" class="space-y-2"></div>
+                    </div>
+                    <div class="space-y-2">
+                      <p class="text-[10px] uppercase tracking-widest text-gray-400">Wybrane (przeciągnij, aby zmienić kolejność)</p>
+                      <div id="home-testimonials-selected" class="space-y-2"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="wedding-details-section" class="space-y-6">
+                <div class="space-y-4">
+                  <h4 class="text-xs font-bold uppercase tracking-wider text-gray-500">Wedding slider</h4>
+                  ${renderImageListSection('wedding_slider_images', 'Zdjęcia do slidera')}
+                </div>
+              </div>
+
+              <div id="portfolio-details-section" class="space-y-6">
+                <div class="space-y-4">
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p class="text-xs font-bold uppercase tracking-wider text-gray-500">Portfolio</p>
+                      <p class="text-xs text-gray-400">Wybierz galerie do portfolio i ustaw ich kolejność</p>
+                    </div>
+                    <span id="portfolio-galleries-count" class="text-xs uppercase tracking-widest text-gray-400">0</span>
+                  </div>
+                  <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex flex-wrap gap-2">
+                      <button data-portfolio-category="all" class="px-3 py-1 text-xs rounded-full border border-gray-200 dark:border-white/10 uppercase tracking-widest">Wszystkie</button>
+                      <button data-portfolio-category="wedding" class="px-3 py-1 text-xs rounded-full border border-gray-200 dark:border-white/10 uppercase tracking-widest">Ślubne</button>
+                      <button data-portfolio-category="portrait" class="px-3 py-1 text-xs rounded-full border border-gray-200 dark:border-white/10 uppercase tracking-widest">Portretowe</button>
+                      <button data-portfolio-category="product" class="px-3 py-1 text-xs rounded-full border border-gray-200 dark:border-white/10 uppercase tracking-widest">Produktowe</button>
+                    </div>
+                    <input id="portfolio-galleries-filter" type="text" placeholder="Szukaj sesji" class="w-56 max-w-full rounded-full border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 px-4 py-1.5 text-xs uppercase tracking-widest text-gray-600 dark:text-gray-200 placeholder-gray-400 focus:border-gold focus:outline-none" />
+                  </div>
+                  <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div class="space-y-2">
+                      <p class="text-[10px] uppercase tracking-widest text-gray-400">Wszystkie sesje</p>
+                      <div id="portfolio-galleries-all" class="space-y-2"></div>
+                    </div>
+                    <div class="space-y-2">
+                      <p class="text-[10px] uppercase tracking-widest text-gray-400">Wybrane (przeciągnij, aby zmienić kolejność)</p>
+                      <div id="portfolio-galleries-selected" class="space-y-2"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="content-section" class="space-y-2 h-[400px] flex flex-col">
                 <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Treść</label>
                 <textarea id="content" class="wysiwyg flex-1">${page.content || ''}</textarea>
+              </div>
             </div>
 
             ${seoSection}
@@ -936,13 +1404,449 @@ window.editPage = async (id) => {
   applySeoUseHeroState();
   initMetaCounters();
 
-  const isHome = document.getElementById('is_home');
-  if (isHome) {
-    isHome.addEventListener('change', () => {
-      const slugInput = document.getElementById('slug');
-      if (slugInput) slugInput.value = isHome.checked ? '/' : page.slug || '';
+  window.updateImagePicker = (inputId, url) => {
+    const input = document.getElementById(inputId);
+    const preview = document.getElementById(`${inputId}_preview`);
+    const emptyState = document.getElementById(`${inputId}_empty`);
+    const filledState = document.getElementById(`${inputId}_filled`);
+    const hasValue = Boolean(url);
+
+    if (input) input.value = url || '';
+    if (preview && url) preview.src = resolveUploadsUrl(url);
+    if (preview && !url) preview.removeAttribute('src');
+    if (emptyState) emptyState.classList.toggle('hidden', hasValue);
+    if (filledState) filledState.classList.toggle('hidden', !hasValue);
+  };
+
+  const bindImageUpload = (inputId) => {
+    const uploadInput = document.getElementById(`${inputId}_upload`);
+    if (!uploadInput) return;
+    uploadInput.addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      try {
+        updateUploadToast({
+          title: 'Przesyłanie',
+          message: `Wysyłanie: ${file.name}`,
+          percent: 0,
+          visible: true,
+        });
+        const result = await uploadFileWithResolution(file, (ratio) => {
+          updateUploadToast({
+            message: `Wysyłanie: ${file.name}`,
+            percent: Math.round(ratio * 100),
+          });
+        });
+        updateUploadToast({ title: 'Gotowe', message: 'Plik przesłany.', percent: 100 });
+        setTimeout(() => updateUploadToast({ visible: false }), 1500);
+        if (result?.url) window.updateImagePicker(inputId, result.url);
+      } catch (err) {
+        updateUploadToast({ title: 'Błąd', message: 'Nie udało się przesłać pliku.', percent: 0 });
+        setTimeout(() => updateUploadToast({ visible: false }), 2500);
+      }
+      event.target.value = '';
+    });
+  };
+
+  ['hero_image', 'home_hero_logo', 'home_moments_image', 'home_latest_moments_bg'].forEach(
+    (inputId) => {
+      bindImageUpload(inputId);
+    },
+  );
+
+  const imageLists = {
+    home_gallery_wedding_images: [...(page.home_gallery_wedding_images || [])],
+    home_gallery_portrait_images: [...(page.home_gallery_portrait_images || [])],
+    home_gallery_product_images: [...(page.home_gallery_product_images || [])],
+    wedding_slider_images: [...(page.wedding_slider_images || [])],
+  };
+
+  const renderImageList = (listId) => {
+    const container = document.getElementById(listId);
+    if (!container) return;
+    const items = imageLists[listId] || [];
+
+    if (!items.length) {
+      container.innerHTML = `
+        <div class="col-span-2 md:col-span-3 rounded-lg border border-dashed border-gray-300 dark:border-white/10 p-6 text-center text-xs text-gray-400">
+          Brak zdjęć. Dodaj je z biblioteki lub z komputera.
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = items
+      .map(
+        (url, index) => `
+        <div class="group relative aspect-square overflow-hidden rounded border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-black/40" data-url="${url}">
+          <img src="${resolveUploadsUrl(url)}" class="h-full w-full object-cover" />
+          <div class="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
+            <button type="button" class="rounded bg-red-500/80 px-3 py-1 text-xs uppercase tracking-widest text-white" data-remove-index="${index}" data-list-id="${listId}">Usuń</button>
+          </div>
+        </div>
+      `,
+      )
+      .join('');
+
+    if (!container.dataset.sortable) {
+      Sortable.create(container, {
+        animation: 150,
+        onEnd: () => {
+          const ordered = Array.from(container.children)
+            .map((child) => child.dataset.url)
+            .filter(Boolean);
+          imageLists[listId] = ordered;
+          renderImageList(listId);
+        },
+      });
+      container.dataset.sortable = 'true';
+    }
+  };
+
+  Object.keys(imageLists).forEach((listId) => {
+    renderImageList(listId);
+    const container = document.getElementById(listId);
+    if (!container) return;
+    container.addEventListener('click', (event) => {
+      const removeButton = event.target.closest('[data-remove-index]');
+      if (!removeButton) return;
+      const index = Number(removeButton.getAttribute('data-remove-index'));
+      if (Number.isNaN(index)) return;
+      imageLists[listId].splice(index, 1);
+      renderImageList(listId);
+    });
+  });
+
+  document.querySelectorAll('[data-add-library]').forEach((button) => {
+    button.addEventListener('click', async (event) => {
+      const listId = event.currentTarget.getAttribute('data-add-library');
+      if (!listId) return;
+      const url = await openMediaPicker();
+      if (!url) return;
+      if (!imageLists[listId].includes(url)) {
+        imageLists[listId].push(url);
+        renderImageList(listId);
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-add-upload]').forEach((input) => {
+    input.addEventListener('change', async (event) => {
+      const listId = event.target.getAttribute('data-add-upload');
+      const file = event.target.files?.[0];
+      if (!listId || !file) return;
+      try {
+        updateUploadToast({
+          title: 'Przesyłanie',
+          message: `Wysyłanie: ${file.name}`,
+          percent: 0,
+          visible: true,
+        });
+        const result = await uploadFileWithResolution(file, (ratio) => {
+          updateUploadToast({
+            message: `Wysyłanie: ${file.name}`,
+            percent: Math.round(ratio * 100),
+          });
+        });
+        updateUploadToast({ title: 'Gotowe', message: 'Plik przesłany.', percent: 100 });
+        setTimeout(() => updateUploadToast({ visible: false }), 1500);
+        if (result?.url && !imageLists[listId].includes(result.url)) {
+          imageLists[listId].push(result.url);
+          renderImageList(listId);
+        }
+      } catch (err) {
+        updateUploadToast({ title: 'Błąd', message: 'Nie udało się przesłać pliku.', percent: 0 });
+        setTimeout(() => updateUploadToast({ visible: false }), 2500);
+      }
+      event.target.value = '';
+    });
+  });
+
+  const galleryById = new Map((galleries || []).map((g) => [g.id, g]));
+  let latestGalleryIds = (page.home_latest_gallery_ids || []).filter((id) => galleryById.has(id));
+  let homeTestimonialIds = (page.home_testimonial_ids || []).filter((id) =>
+    (testimonials || []).some((t) => t.id === id),
+  );
+  let portfolioGalleryIds = (page.portfolio_gallery_ids || []).filter((id) => galleryById.has(id));
+  let portfolioCategory = 'all';
+  let portfolioQuery = '';
+
+  const renderLatestGalleries = () => {
+    const allContainer = document.getElementById('latest-galleries-all');
+    const selectedContainer = document.getElementById('latest-galleries-selected');
+    const countEl = document.getElementById('latest-galleries-count');
+    if (!allContainer || !selectedContainer) return;
+    if (countEl) countEl.textContent = `${latestGalleryIds.length} / 6`;
+
+    allContainer.innerHTML = (galleries || [])
+      .map((gallery) => {
+        const isSelected = latestGalleryIds.includes(gallery.id);
+        const disabled = isSelected || latestGalleryIds.length >= 6;
+        const thumb = gallery.cover_image || gallery.items?.[0]?.image_path || '';
+        const thumbUrl = thumb ? resolveUploadsUrl(thumb) : '';
+        return `
+          <button type="button" class="flex w-full items-center gap-3 rounded border border-gray-200 dark:border-white/10 bg-white/70 px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:border-gold dark:bg-black/30 dark:text-gray-200 ${
+            disabled ? 'opacity-40 cursor-not-allowed' : ''
+          }" data-add-gallery="${gallery.id}" ${disabled ? 'disabled' : ''}>
+            <div class="h-12 w-12 flex-shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-black/40">
+              ${thumbUrl ? `<img src="${thumbUrl}" class="h-full w-full object-cover" />` : ''}
+            </div>
+            <div>
+              <p class="font-medium">${gallery.name || 'Bez nazwy'}</p>
+              <p class="text-xs text-gray-400">${CATEGORY_MAP[gallery.category] || gallery.category}</p>
+            </div>
+          </button>
+        `;
+      })
+      .join('');
+
+    selectedContainer.innerHTML = latestGalleryIds
+      .map((id) => {
+        const gallery = galleryById.get(id);
+        if (!gallery) return '';
+        const thumb = gallery.cover_image || gallery.items?.[0]?.image_path || '';
+        const thumbUrl = thumb ? resolveUploadsUrl(thumb) : '';
+        return `
+          <div class="flex items-center gap-3 rounded border border-gray-200 dark:border-white/10 bg-white/70 px-3 py-2 text-sm text-gray-700 dark:bg-black/30 dark:text-gray-200" data-selected-gallery="${id}">
+            <div class="h-12 w-12 flex-shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-black/40">
+              ${thumbUrl ? `<img src="${thumbUrl}" class="h-full w-full object-cover" />` : ''}
+            </div>
+            <div class="flex-1">
+              <p class="font-medium">${gallery.name || 'Bez nazwy'}</p>
+              <p class="text-xs text-gray-400">${CATEGORY_MAP[gallery.category] || gallery.category}</p>
+            </div>
+            <button type="button" class="text-xs uppercase tracking-widest text-red-500" data-remove-gallery="${id}">Usuń</button>
+          </div>
+        `;
+      })
+      .join('');
+
+    if (!selectedContainer.dataset.sortable) {
+      Sortable.create(selectedContainer, {
+        animation: 150,
+        onEnd: () => {
+          latestGalleryIds = Array.from(selectedContainer.children)
+            .map((child) => Number(child.dataset.selectedGallery))
+            .filter((id) => !Number.isNaN(id));
+          renderLatestGalleries();
+        },
+      });
+      selectedContainer.dataset.sortable = 'true';
+    }
+  };
+
+  const renderTestimonialsPicker = () => {
+    const allContainer = document.getElementById('home-testimonials-all');
+    const selectedContainer = document.getElementById('home-testimonials-selected');
+    const countEl = document.getElementById('home-testimonials-count');
+    if (!allContainer || !selectedContainer) return;
+    if (countEl) countEl.textContent = `${homeTestimonialIds.length}`;
+
+    allContainer.innerHTML = (testimonials || [])
+      .map((t) => {
+        const isSelected = homeTestimonialIds.includes(t.id);
+        return `
+          <button type="button" class="flex w-full items-center gap-3 rounded border border-gray-200 dark:border-white/10 bg-white/70 px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:border-gold dark:bg-black/30 dark:text-gray-200 ${
+            isSelected ? 'opacity-40 cursor-not-allowed' : ''
+          }" data-add-testimonial="${t.id}" ${isSelected ? 'disabled' : ''}>
+            <div class="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-black/40">
+              ${
+                t.avatar_image
+                  ? `<img src="${resolveUploadsUrl(t.avatar_image)}" class="h-full w-full object-cover" />`
+                  : ''
+              }
+            </div>
+            <div>
+              <p class="font-medium">${t.author || 'Bez autora'}</p>
+              <p class="text-xs text-gray-400">${t.content ? t.content.slice(0, 40) + '…' : 'Brak treści'}</p>
+            </div>
+          </button>
+        `;
+      })
+      .join('');
+
+    selectedContainer.innerHTML = homeTestimonialIds
+      .map((id) => {
+        const t = (testimonials || []).find((item) => item.id === id);
+        if (!t) return '';
+        return `
+          <div class="flex items-center gap-3 rounded border border-gray-200 dark:border-white/10 bg-white/70 px-3 py-2 text-sm text-gray-700 dark:bg-black/30 dark:text-gray-200" data-selected-testimonial="${id}">
+            <div class="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-black/40">
+              ${
+                t.avatar_image
+                  ? `<img src="${resolveUploadsUrl(t.avatar_image)}" class="h-full w-full object-cover" />`
+                  : ''
+              }
+            </div>
+            <div class="flex-1">
+              <p class="font-medium">${t.author || 'Bez autora'}</p>
+              <p class="text-xs text-gray-400">${t.content ? t.content.slice(0, 40) + '…' : 'Brak treści'}</p>
+            </div>
+            <button type="button" class="text-xs uppercase tracking-widest text-red-500" data-remove-testimonial="${id}">Usuń</button>
+          </div>
+        `;
+      })
+      .join('');
+
+    if (!selectedContainer.dataset.sortable) {
+      Sortable.create(selectedContainer, {
+        animation: 150,
+        onEnd: () => {
+          homeTestimonialIds = Array.from(selectedContainer.children)
+            .map((child) => Number(child.dataset.selectedTestimonial))
+            .filter((id) => !Number.isNaN(id));
+          renderTestimonialsPicker();
+        },
+      });
+      selectedContainer.dataset.sortable = 'true';
+    }
+  };
+
+  renderLatestGalleries();
+  renderTestimonialsPicker();
+
+  const renderPortfolioPicker = () => {
+    const allContainer = document.getElementById('portfolio-galleries-all');
+    const selectedContainer = document.getElementById('portfolio-galleries-selected');
+    const countEl = document.getElementById('portfolio-galleries-count');
+    const filterInput = document.getElementById('portfolio-galleries-filter');
+    if (!allContainer || !selectedContainer) return;
+    if (countEl) countEl.textContent = `${portfolioGalleryIds.length}`;
+    if (filterInput) filterInput.value = portfolioQuery;
+
+    const filtered = (galleries || []).filter((gallery) => {
+      if (portfolioCategory !== 'all' && gallery.category !== portfolioCategory) return false;
+      if (!portfolioQuery) return true;
+      return `${gallery.name || ''}`.toLowerCase().includes(portfolioQuery.toLowerCase());
+    });
+
+    allContainer.innerHTML = filtered
+      .map((gallery) => {
+        const isSelected = portfolioGalleryIds.includes(gallery.id);
+        const thumb = gallery.cover_image || gallery.items?.[0]?.image_path || '';
+        const thumbUrl = thumb ? resolveUploadsUrl(thumb) : '';
+        return `
+          <button type="button" class="flex w-full items-center gap-3 rounded border border-gray-200 dark:border-white/10 bg-white/70 px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:border-gold dark:bg-black/30 dark:text-gray-200 ${
+            isSelected ? 'opacity-40 cursor-not-allowed' : ''
+          }" data-add-portfolio-gallery="${gallery.id}" ${isSelected ? 'disabled' : ''}>
+            <div class="h-12 w-12 flex-shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-black/40">
+              ${thumbUrl ? `<img src="${thumbUrl}" class="h-full w-full object-cover" />` : ''}
+            </div>
+            <div>
+              <p class="font-medium">${gallery.name || 'Bez nazwy'}</p>
+              <p class="text-xs text-gray-400">${CATEGORY_MAP[gallery.category] || gallery.category}</p>
+            </div>
+          </button>
+        `;
+      })
+      .join('');
+
+    selectedContainer.innerHTML = portfolioGalleryIds
+      .map((id) => {
+        const gallery = galleryById.get(id);
+        if (!gallery) return '';
+        const thumb = gallery.cover_image || gallery.items?.[0]?.image_path || '';
+        const thumbUrl = thumb ? resolveUploadsUrl(thumb) : '';
+        return `
+          <div class="flex items-center gap-3 rounded border border-gray-200 dark:border-white/10 bg-white/70 px-3 py-2 text-sm text-gray-700 dark:bg-black/30 dark:text-gray-200" data-selected-portfolio-gallery="${id}">
+            <div class="h-12 w-12 flex-shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-black/40">
+              ${thumbUrl ? `<img src="${thumbUrl}" class="h-full w-full object-cover" />` : ''}
+            </div>
+            <div class="flex-1">
+              <p class="font-medium">${gallery.name || 'Bez nazwy'}</p>
+              <p class="text-xs text-gray-400">${CATEGORY_MAP[gallery.category] || gallery.category}</p>
+            </div>
+            <button type="button" class="text-xs uppercase tracking-widest text-red-500" data-remove-portfolio-gallery="${id}">Usuń</button>
+          </div>
+        `;
+      })
+      .join('');
+
+    if (!selectedContainer.dataset.sortable) {
+      Sortable.create(selectedContainer, {
+        animation: 150,
+        onEnd: () => {
+          portfolioGalleryIds = Array.from(selectedContainer.children)
+            .map((child) => Number(child.dataset.selectedPortfolioGallery))
+            .filter((id) => !Number.isNaN(id));
+          renderPortfolioPicker();
+        },
+      });
+      selectedContainer.dataset.sortable = 'true';
+    }
+
+    document.querySelectorAll('[data-portfolio-category]').forEach((button) => {
+      const value = button.getAttribute('data-portfolio-category');
+      button.classList.toggle('bg-gold', portfolioCategory === value);
+      button.classList.toggle('text-black', portfolioCategory === value);
+      button.classList.toggle('border-gold', portfolioCategory === value);
+      button.classList.toggle('text-gray-500', portfolioCategory !== value);
+      button.classList.toggle('dark:text-gray-300', portfolioCategory !== value);
+    });
+  };
+
+  renderPortfolioPicker();
+
+  const latestAllContainer = document.getElementById('latest-galleries-all');
+  if (latestAllContainer) {
+    latestAllContainer.addEventListener('click', (event) => {
+      const addGallery = event.target.closest('[data-add-gallery]');
+      if (!addGallery) return;
+      const id = Number(addGallery.getAttribute('data-add-gallery'));
+      if (!Number.isNaN(id) && !latestGalleryIds.includes(id) && latestGalleryIds.length < 6) {
+        latestGalleryIds.push(id);
+        renderLatestGalleries();
+      }
     });
   }
+
+  const latestSelectedContainer = document.getElementById('latest-galleries-selected');
+  if (latestSelectedContainer) {
+    latestSelectedContainer.addEventListener('click', (event) => {
+      const removeGallery = event.target.closest('[data-remove-gallery]');
+      if (!removeGallery) return;
+      const id = Number(removeGallery.getAttribute('data-remove-gallery'));
+      latestGalleryIds = latestGalleryIds.filter((item) => item !== id);
+      renderLatestGalleries();
+    });
+  }
+
+  const testimonialsAllContainer = document.getElementById('home-testimonials-all');
+  if (testimonialsAllContainer) {
+    testimonialsAllContainer.addEventListener('click', (event) => {
+      const addTestimonial = event.target.closest('[data-add-testimonial]');
+      if (!addTestimonial) return;
+      const id = Number(addTestimonial.getAttribute('data-add-testimonial'));
+      if (!Number.isNaN(id) && !homeTestimonialIds.includes(id)) {
+        homeTestimonialIds.push(id);
+        renderTestimonialsPicker();
+      }
+    });
+  }
+
+  const testimonialsSelectedContainer = document.getElementById('home-testimonials-selected');
+  if (testimonialsSelectedContainer) {
+    testimonialsSelectedContainer.addEventListener('click', (event) => {
+      const removeTestimonial = event.target.closest('[data-remove-testimonial]');
+      if (!removeTestimonial) return;
+      const id = Number(removeTestimonial.getAttribute('data-remove-testimonial'));
+      homeTestimonialIds = homeTestimonialIds.filter((item) => item !== id);
+      renderTestimonialsPicker();
+    });
+  }
+
+  const applyHomeContentVisibility = () => {
+    const contentSection = document.getElementById('content-section');
+    const homeDetailsSection = document.getElementById('home-details-section');
+    const weddingDetailsSection = document.getElementById('wedding-details-section');
+    const portfolioDetailsSection = document.getElementById('portfolio-details-section');
+    if (contentSection)
+      contentSection.classList.toggle('hidden', isHomePage || isWeddingPage || isPortfolioPage);
+    if (homeDetailsSection) homeDetailsSection.classList.toggle('hidden', !isHomePage);
+    if (weddingDetailsSection) weddingDetailsSection.classList.toggle('hidden', !isWeddingPage);
+    if (portfolioDetailsSection)
+      portfolioDetailsSection.classList.toggle('hidden', !isPortfolioPage);
+  };
 
   const seoUseHero = document.getElementById('seo_use_hero');
   if (seoUseHero) {
@@ -957,16 +1861,86 @@ window.editPage = async (id) => {
     });
   }
 
+  applyHomeContentVisibility();
+
+  const portfolioAllContainer = document.getElementById('portfolio-galleries-all');
+  if (portfolioAllContainer) {
+    portfolioAllContainer.addEventListener('click', (event) => {
+      const addGallery = event.target.closest('[data-add-portfolio-gallery]');
+      if (!addGallery) return;
+      const id = Number(addGallery.getAttribute('data-add-portfolio-gallery'));
+      if (!Number.isNaN(id) && !portfolioGalleryIds.includes(id)) {
+        portfolioGalleryIds.push(id);
+        renderPortfolioPicker();
+      }
+    });
+  }
+
+  const portfolioSelectedContainer = document.getElementById('portfolio-galleries-selected');
+  if (portfolioSelectedContainer) {
+    portfolioSelectedContainer.addEventListener('click', (event) => {
+      const removeGallery = event.target.closest('[data-remove-portfolio-gallery]');
+      if (!removeGallery) return;
+      const id = Number(removeGallery.getAttribute('data-remove-portfolio-gallery'));
+      portfolioGalleryIds = portfolioGalleryIds.filter((item) => item !== id);
+      renderPortfolioPicker();
+    });
+  }
+
+  const portfolioFilterInput = document.getElementById('portfolio-galleries-filter');
+  if (portfolioFilterInput) {
+    portfolioFilterInput.addEventListener('input', (event) => {
+      portfolioQuery = event.target.value;
+      renderPortfolioPicker();
+    });
+  }
+
+  document.querySelectorAll('[data-portfolio-category]').forEach((button) => {
+    button.addEventListener('click', () => {
+      portfolioCategory = button.getAttribute('data-portfolio-category') || 'all';
+      renderPortfolioPicker();
+    });
+  });
+
   document.getElementById('page-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     if (tinymce.activeEditor) tinymce.activeEditor.save(); // Ensure tinyMCE saves to textarea
 
+    if (isHomePage && latestGalleryIds.length !== 6) {
+      alert('Wybierz dokładnie 6 sesji do sekcji Latest Moments.');
+      return;
+    }
+
+    if (isHomePage && homeTestimonialIds.length < 3) {
+      alert('Wybierz minimum 3 opinie na stronie głównej.');
+      return;
+    }
+
     const data = {
       title: document.getElementById('title').value,
-      content: document.getElementById('content').value,
+      content: document.getElementById('content')?.value || '',
       hero_image: document.getElementById('hero_image').value,
-      is_home: document.getElementById('is_home')?.checked || false,
+      is_home: isHomePage,
     };
+
+    if (isHomePage) {
+      data.home_hero_logo = document.getElementById('home_hero_logo')?.value || '';
+      data.home_gallery_wedding_images = imageLists.home_gallery_wedding_images;
+      data.home_gallery_portrait_images = imageLists.home_gallery_portrait_images;
+      data.home_gallery_product_images = imageLists.home_gallery_product_images;
+      data.home_moments_image = document.getElementById('home_moments_image')?.value || '';
+      data.home_latest_moments_bg = document.getElementById('home_latest_moments_bg')?.value || '';
+      data.home_latest_gallery_ids = latestGalleryIds;
+      data.home_testimonial_ids = homeTestimonialIds;
+    }
+
+    if (isWeddingPage) {
+      data.wedding_slider_images = imageLists.wedding_slider_images;
+    }
+
+    if (isPortfolioPage) {
+      data.portfolio_gallery_ids = portfolioGalleryIds;
+    }
 
     // Add SEO Link data if admin
     if (currentUser.role === 'ADMIN') {
@@ -1009,46 +1983,160 @@ async function loadGalleries() {
 
 function renderGalleries(galleries) {
   const container = document.getElementById('tab-galleries');
-  container.innerHTML = `
-        <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-            <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Sesje zdjęciowe</h2>
-            <div class="flex gap-2">
-                 <button onclick="filterGalleries('all')" class="px-3 py-1 text-sm rounded-full bg-gray-200 dark:bg-white/10 hover:bg-gold hover:text-black transition-colors">Wszystkie</button>
-                 <button onclick="filterGalleries('wedding')" class="px-3 py-1 text-sm rounded-full bg-gray-200 dark:bg-white/10 hover:bg-gold hover:text-black transition-colors">Ślubne</button>
-                 <button onclick="filterGalleries('portrait')" class="px-3 py-1 text-sm rounded-full bg-gray-200 dark:bg-white/10 hover:bg-gold hover:text-black transition-colors">Portretowe</button>
-                 <button onclick="filterGalleries('product')" class="px-3 py-1 text-sm rounded-full bg-gray-200 dark:bg-white/10 hover:bg-gold hover:text-black transition-colors">Produktowe</button>
-            </div>
-            <button onclick="editGallery(null)" class="bg-gold text-black px-4 py-2 rounded font-bold hover:bg-gold-hover transition-colors shadow-lg shadow-gold/20 flex items-center">
-                <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                Nowa sesja
-            </button>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            ${galleries
-              .map(
-                (g) => `
-                <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl overflow-hidden group hover:border-gold/50 transition-colors shadow-sm">
-                    <div class="h-48 bg-gray-100 dark:bg-black/50 relative">
-                        ${
-                          g.items && g.items.length > 0
-                            ? `<img src="${resolveUploadsUrl(g.items[0].image_path)}" class="w-full h-full object-cover">`
-                            : '<div class="flex items-center justify-center h-full text-gray-500">Brak zdjęć</div>'
-                        }
-                        <div class="absolute top-2 right-2 bg-black/70 px-2 py-1 rounded text-xs text-gold uppercase tracking-wider font-semibold">
-                            ${CATEGORY_MAP[g.category] || g.category}
-                        </div>
-                    </div>
-                    <div class="p-5">
-                        <h3 class="font-display font-medium text-lg text-gray-900 dark:text-white mb-1 group-hover:text-gold transition-colors">${g.name || 'Bez nazwy'}</h3>
-                        <p class="text-xs text-gray-500 uppercase tracking-widest mb-4">${g.items ? g.items.length : 0} zdjęć</p>
-                        <button onclick="editGallery(${g.id})" class="w-full py-2 border border-gray-300 dark:border-white/10 rounded text-gray-600 dark:text-gray-300 hover:bg-gold hover:text-black hover:border-gold transition-colors font-medium">Edytuj</button>
-                    </div>
+  const query = galleriesFilterQuery.trim().toLowerCase();
+  const filteredByCategory =
+    galleriesFilterCategory === 'all'
+      ? galleries
+      : galleries.filter((g) => g.category === galleriesFilterCategory);
+  const filteredGalleries = query
+    ? filteredByCategory.filter((g) => {
+        const label = `${g.name || ''} ${g.category || ''}`.toLowerCase();
+        return label.includes(query);
+      })
+    : filteredByCategory;
+
+  const renderGrid = () => `
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      ${filteredGalleries
+        .map((g) => {
+          const cover = g.cover_image || g.items?.[0]?.image_path || '';
+          return `
+            <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl overflow-hidden group hover:border-gold/50 transition-colors shadow-sm">
+              <div class="h-48 bg-gray-100 dark:bg-black/50 relative">
+                ${
+                  cover
+                    ? `<img src="${resolveUploadsUrl(cover)}" class="w-full h-full object-cover">`
+                    : '<div class="flex items-center justify-center h-full text-gray-500">Brak zdjęć</div>'
+                }
+                <div class="absolute top-2 right-2 bg-black/70 px-2 py-1 rounded text-xs text-gold uppercase tracking-wider font-semibold">
+                  ${CATEGORY_MAP[g.category] || g.category}
                 </div>
+              </div>
+              <div class="p-5">
+                <h3 class="font-display font-medium text-lg text-gray-900 dark:text-white mb-1 group-hover:text-gold transition-colors">${
+                  g.name || 'Bez nazwy'
+                }</h3>
+                <p class="text-xs text-gray-500 uppercase tracking-widest mb-4">${g.items ? g.items.length : 0} zdjęć</p>
+                <div class="grid grid-cols-2 gap-2">
+                  <button onclick="editGallery(${g.id})" class="w-full py-2 border border-gray-300 dark:border-white/10 rounded text-gray-600 dark:text-gray-300 hover:bg-gold hover:text-black hover:border-gold transition-colors font-medium">Edytuj</button>
+                  <button onclick="deleteGallery(${g.id})" class="w-full py-2 border border-red-500/40 rounded text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors font-medium">Usuń</button>
+                </div>
+              </div>
+            </div>
+          `;
+        })
+        .join('')}
+    </div>
+  `;
+
+  const renderList = () => `
+    <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-lg overflow-hidden shadow-sm">
+      <table class="w-full text-left">
+        <thead class="bg-gray-50 dark:bg-white/5 text-gray-400 text-xs uppercase tracking-wider">
+          <tr>
+            <th class="px-6 py-4">Sesja</th>
+            <th class="px-6 py-4">Kategoria</th>
+            <th class="px-6 py-4">Zdjęcia</th>
+            <th class="px-6 py-4 text-right">Akcje</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 dark:divide-white/5 text-sm text-gray-600 dark:text-gray-300">
+          ${filteredGalleries
+            .map(
+              (g) => `
+              <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">${g.name || 'Bez nazwy'}</td>
+                <td class="px-6 py-4 text-gray-500">${CATEGORY_MAP[g.category] || g.category}</td>
+                <td class="px-6 py-4">${g.items ? g.items.length : 0}</td>
+                <td class="px-6 py-4 text-right space-x-2">
+                  <button onclick="editGallery(${g.id})" class="text-gold hover:text-black dark:hover:text-white transition-colors font-medium">Edytuj</button>
+                  <button onclick="deleteGallery(${g.id})" class="text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors">Usuń</button>
+                </td>
+              </tr>
             `,
-              )
-              .join('')}
+            )
+            .join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  const categoryButton = (value, label) => `
+    <button data-category="${value}" class="px-3 py-1 text-xs rounded-full border border-gray-200 dark:border-white/10 uppercase tracking-widest transition-colors ${
+      galleriesFilterCategory === value
+        ? 'bg-gold text-black border-gold'
+        : 'text-gray-500 dark:text-gray-300 hover:bg-gold hover:text-black'
+    }">${label}</button>
+  `;
+
+  container.innerHTML = `
+    <div class="flex flex-col gap-4 mb-6">
+      <div class="flex flex-wrap justify-between items-center gap-4">
+        <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Sesje zdjęciowe</h2>
+        <button onclick="editGallery(null)" class="bg-gold text-black px-4 py-2 rounded font-bold hover:bg-gold-hover transition-colors shadow-lg shadow-gold/20 flex items-center">
+          <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Nowa sesja
+        </button>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="flex flex-wrap gap-2">
+          ${categoryButton('all', 'Wszystkie')}
+          ${categoryButton('wedding', 'Ślubne')}
+          ${categoryButton('portrait', 'Portretowe')}
+          ${categoryButton('product', 'Produktowe')}
         </div>
-    `;
+        <div class="flex flex-wrap items-center gap-2">
+          <input id="galleries-filter" type="text" placeholder="Szukaj sesji" class="w-56 max-w-full rounded-full border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 px-4 py-1.5 text-xs uppercase tracking-widest text-gray-600 dark:text-gray-200 placeholder-gray-400 focus:border-gold focus:outline-none" />
+          <button id="galleries-view-grid" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
+            galleriesViewMode === 'grid'
+              ? 'bg-gold text-black border-gold'
+              : 'text-gray-500 dark:text-gray-300'
+          }">Siatka</button>
+          <button id="galleries-view-list" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
+            galleriesViewMode === 'list'
+              ? 'bg-gold text-black border-gold'
+              : 'text-gray-500 dark:text-gray-300'
+          }">Lista</button>
+        </div>
+      </div>
+    </div>
+    ${galleriesViewMode === 'list' ? renderList() : renderGrid()}
+  `;
+
+  const filterInput = document.getElementById('galleries-filter');
+  if (filterInput) {
+    filterInput.value = galleriesFilterQuery;
+    filterInput.addEventListener('input', (event) => {
+      galleriesFilterQuery = event.target.value;
+      renderGalleries(galleries);
+      const nextInput = document.getElementById('galleries-filter');
+      if (nextInput) {
+        nextInput.focus();
+        const pos = galleriesFilterQuery.length;
+        nextInput.setSelectionRange(pos, pos);
+      }
+    });
+  }
+
+  const gridBtn = document.getElementById('galleries-view-grid');
+  const listBtn = document.getElementById('galleries-view-list');
+  if (gridBtn)
+    gridBtn.addEventListener('click', () => {
+      galleriesViewMode = 'grid';
+      renderGalleries(galleries);
+    });
+  if (listBtn)
+    listBtn.addEventListener('click', () => {
+      galleriesViewMode = 'list';
+      renderGalleries(galleries);
+    });
+
+  container.querySelectorAll('[data-category]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      galleriesFilterCategory = btn.dataset.category;
+      renderGalleries(galleries);
+    });
+  });
 }
 
 window.filterGalleries = (category) => {
@@ -1058,6 +2146,15 @@ window.filterGalleries = (category) => {
     const filtered = window.allGalleries.filter((g) => g.category === category);
     renderGalleries(filtered);
   }
+};
+
+window.deleteGallery = async (id) => {
+  if (!confirm('Czy na pewno chcesz usunąć tę sesję?')) return;
+  await fetch(`${ADMIN_API_URL}/galleries/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  loadGalleries();
 };
 
 window.editGallery = async (id) => {
@@ -1088,6 +2185,21 @@ window.editGallery = async (id) => {
                     <div class="space-y-2">
                       <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Nazwa</label>
                       <input type="text" id="name" value="${gallery.name || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold font-medium">
+                    </div>
+                    <div class="space-y-2">
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Zdjęcie okładki</label>
+                      <div class="flex items-center gap-4">
+                        <img id="cover_preview" src="${resolveUploadsUrl(gallery.cover_image || '')}" class="w-16 h-16 rounded-lg object-cover border border-gray-200 dark:border-white/10 ${
+                          gallery.cover_image ? '' : 'hidden'
+                        }" />
+                        <div class="flex-1 space-y-2">
+                          <input type="text" id="cover_image" value="${gallery.cover_image || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none">
+                          <div class="flex gap-2">
+                            <button type="button" onclick="openMediaPicker().then(url => setImageField('cover_image','cover_preview',url))" class="bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 px-3 py-2 rounded text-xs transition-colors text-gray-900 dark:text-white">Wybierz</button>
+                            <button type="button" onclick="clearImageField('cover_image','cover_preview')" class="bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 px-3 py-2 rounded text-xs transition-colors text-gray-900 dark:text-white">Usuń</button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                     
                     <button type="submit" class="w-full bg-gold text-black py-2 rounded font-bold hover:bg-gold-hover transition-colors">Zapisz Ustawienia</button>
@@ -1146,6 +2258,7 @@ window.editGallery = async (id) => {
     const data = {
       category: document.getElementById('category').value,
       name: document.getElementById('name').value,
+      cover_image: document.getElementById('cover_image').value || null,
     };
     const method = id ? 'PUT' : 'POST';
     const url = id ? `${ADMIN_API_URL}/galleries/${id}` : `${ADMIN_API_URL}/galleries`;
@@ -1224,49 +2337,148 @@ async function loadTestimonials() {
   });
   const testimonials = await res.json();
 
+  const query = testimonialsFilterQuery.trim().toLowerCase();
+  const filteredTestimonials = query
+    ? testimonials.filter((t) => {
+        const label = `${t.author || ''} ${t.content || ''}`.toLowerCase();
+        return label.includes(query);
+      })
+    : testimonials;
+
+  const renderList = () => `
+    <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-lg overflow-hidden shadow-sm">
+      <table class="w-full text-left">
+        <thead class="bg-gray-50 dark:bg-white/5 text-gray-400 text-xs uppercase tracking-wider">
+          <tr>
+            <th class="px-6 py-4">Avatar</th>
+            <th class="px-6 py-4">Klient</th>
+            <th class="px-6 py-4">Status</th>
+            <th class="px-6 py-4 text-right">Akcje</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 dark:divide-white/5 text-sm text-gray-600 dark:text-gray-300">
+          ${filteredTestimonials
+            .map(
+              (t) => `
+              <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                <td class="px-6 py-4">
+                  ${
+                    t.avatar_image
+                      ? `<img src="${resolveUploadsUrl(t.avatar_image)}" srcset="${getImageSrcSet(
+                          t.avatar_image,
+                          [160, 480],
+                        )}" sizes="40px" loading="lazy" decoding="async" class="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-white/10" />`
+                      : '<span class="text-xs text-gray-400">Brak</span>'
+                  }
+                </td>
+                <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">${t.author}</td>
+                <td class="px-6 py-4">
+                  <span class="px-2 py-1 rounded text-xs font-bold uppercase ${
+                    t.approved
+                      ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
+                      : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-500'
+                  }">
+                    ${t.approved ? 'Widoczna' : 'Ukryta'}
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-right space-x-2">
+                  <button onclick="editTestimonial(${t.id})" class="text-gold hover:text-black dark:hover:text-white transition-colors font-medium">Edytuj</button>
+                  <button onclick="deleteTestimonial(${t.id})" class="text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors">Usuń</button>
+                </td>
+              </tr>
+            `,
+            )
+            .join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  const renderGrid = () => `
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      ${filteredTestimonials
+        .map(
+          (t) => `
+          <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl p-5 shadow-sm">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                ${
+                  t.avatar_image
+                    ? `<img src="${resolveUploadsUrl(t.avatar_image)}" class="w-12 h-12 rounded-full object-cover border border-gray-200 dark:border-white/10" />`
+                    : '<div class="w-12 h-12 rounded-full bg-gray-200 dark:bg-white/10"></div>'
+                }
+                <div>
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">${t.author}</p>
+                  <span class="text-xs ${
+                    t.approved ? 'text-emerald-500' : 'text-yellow-500'
+                  }">${t.approved ? 'Widoczna' : 'Ukryta'}</span>
+                </div>
+              </div>
+              <button onclick="editTestimonial(${t.id})" class="text-gold hover:text-black dark:hover:text-white transition-colors text-sm font-medium">Edytuj</button>
+            </div>
+            <p class="mt-4 text-xs text-gray-500 line-clamp-4">${t.content || ''}</p>
+            <div class="mt-4 flex justify-end">
+              <button onclick="deleteTestimonial(${t.id})" class="text-xs text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors">Usuń</button>
+            </div>
+          </div>
+        `,
+        )
+        .join('')}
+    </div>
+  `;
+
   container.innerHTML = `
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Opinie klientów</h2>
-            <button onclick="editTestimonial(null)" class="bg-gold text-black px-4 py-2 rounded font-bold hover:bg-gold-hover transition-colors">Dodaj opinię</button>
+    <div class="flex flex-col gap-4 mb-6">
+      <div class="flex flex-wrap justify-between items-center gap-4">
+        <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Opinie klientów</h2>
+        <button onclick="editTestimonial(null)" class="bg-gold text-black px-4 py-2 rounded font-bold hover:bg-gold-hover transition-colors">Dodaj opinię</button>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <input id="testimonials-filter" type="text" placeholder="Szukaj opinii" class="w-56 max-w-full rounded-full border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 px-4 py-1.5 text-xs uppercase tracking-widest text-gray-600 dark:text-gray-200 placeholder-gray-400 focus:border-gold focus:outline-none" />
+        <div class="flex gap-2">
+          <button id="testimonials-view-list" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
+            testimonialsViewMode === 'list'
+              ? 'bg-gold text-black border-gold'
+              : 'text-gray-500 dark:text-gray-300'
+          }">Lista</button>
+          <button id="testimonials-view-grid" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
+            testimonialsViewMode === 'grid'
+              ? 'bg-gold text-black border-gold'
+              : 'text-gray-500 dark:text-gray-300'
+          }">Siatka</button>
         </div>
-        <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-lg overflow-hidden shadow-sm">
-             <table class="w-full text-left">
-                <thead class="bg-gray-50 dark:bg-white/5 text-gray-400 text-xs uppercase tracking-wider">
-                    <tr>
-                    <th class="px-6 py-4">Avatar</th>
-                        <th class="px-6 py-4">Klient</th>
-                        <!-- <th class="px-6 py-4">Ocena</th> -->
-                        <th class="px-6 py-4">Status</th>
-                        <th class="px-6 py-4 text-right">Akcje</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-white/5 text-sm text-gray-600 dark:text-gray-300">
-                    ${testimonials
-                      .map(
-                        (t) => `
-                        <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                          <td class="px-6 py-4">
-                            ${t.avatar_image ? `<img src="${t.avatar_image}" class="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-white/10" />` : '<span class="text-xs text-gray-400">Brak</span>'}
-                          </td>
-                            <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">${t.author}</td>
-                             <!-- <td class="px-6 py-4 text-gold tracking-widest">${'★'.repeat(t.rating)}${'☆'.repeat(5 - t.rating)}</td> -->
-                            <td class="px-6 py-4">
-                                <span class="px-2 py-1 rounded text-xs font-bold uppercase ${t.approved ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-500'}">
-                                    ${t.approved ? 'Widoczna' : 'Ukryta'}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 text-right space-x-2">
-                                <button onclick="editTestimonial(${t.id})" class="text-gold hover:text-black dark:hover:text-white transition-colors font-medium">Edytuj</button>
-                                <button onclick="deleteTestimonial(${t.id})" class="text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors">Usuń</button>
-                            </td>
-                        </tr>
-                    `,
-                      )
-                      .join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
+      </div>
+    </div>
+    ${testimonialsViewMode === 'grid' ? renderGrid() : renderList()}
+  `;
+
+  const filterInput = document.getElementById('testimonials-filter');
+  if (filterInput) {
+    filterInput.value = testimonialsFilterQuery;
+    filterInput.addEventListener('input', (event) => {
+      testimonialsFilterQuery = event.target.value;
+      loadTestimonials();
+      const nextInput = document.getElementById('testimonials-filter');
+      if (nextInput) {
+        nextInput.focus();
+        const pos = testimonialsFilterQuery.length;
+        nextInput.setSelectionRange(pos, pos);
+      }
+    });
+  }
+
+  const listBtn = document.getElementById('testimonials-view-list');
+  const gridBtn = document.getElementById('testimonials-view-grid');
+  if (listBtn)
+    listBtn.addEventListener('click', () => {
+      testimonialsViewMode = 'list';
+      loadTestimonials();
+    });
+  if (gridBtn)
+    gridBtn.addEventListener('click', () => {
+      testimonialsViewMode = 'grid';
+      loadTestimonials();
+    });
 }
 
 window.editTestimonial = async (id) => {
@@ -1425,165 +2637,169 @@ async function loadMediaLibraryTab() {
     return lines;
   };
 
-  const filterText = mediaFilterQuery.trim().toLowerCase();
-  const filteredFiles = filterText
-    ? files.filter((file) => {
-        const usageText = buildUsageLines(file).join(' ').toLowerCase();
-        return file.name.toLowerCase().includes(filterText) || usageText.includes(filterText);
-      })
-    : files;
+  const renderMediaLibrary = () => {
+    const filterText = mediaFilterQuery.trim().toLowerCase();
+    const filteredFiles = filterText
+      ? files.filter((file) => {
+          const usageText = buildUsageLines(file).join(' ').toLowerCase();
+          return file.name.toLowerCase().includes(filterText) || usageText.includes(filterText);
+        })
+      : files;
 
-  const renderGrid = () => {
-    return `
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        ${filteredFiles
-          .map((file) => {
-            const count = file.usageCount || 0;
-            const used = count > 0;
-            return `
-              <div class="group relative aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-black">
-                <img src="${resolveUploadsUrl(file.url)}" alt="${file.name}" class="h-full w-full object-cover" onerror="console.error('Media grid failed', this.src)" />
-                <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end">
-                  <div class="w-full p-3 text-xs text-white">
-                    <p class="truncate">${file.name}</p>
-                    <p class="mt-1 text-gold">Użycia: ${count}</p>
-                    <button data-file="${file.name}" class="mt-2 rounded-full border border-white/30 px-2 py-1 text-[10px] uppercase tracking-widest text-white hover:bg-white/10">
-                      Usuń
-                    </button>
-                  </div>
-                </div>
-                ${
-                  used
-                    ? '<span class="absolute top-2 left-2 rounded-full bg-black/60 px-2 py-1 text-[10px] uppercase tracking-widest text-gold">Używane</span>'
-                    : ''
-                }
-              </div>
-            `;
-          })
-          .join('')}
-      </div>
-    `;
-  };
-
-  const renderList = () => {
-    return `
-      <div class="space-y-3">
-        ${filteredFiles
-          .map((file) => {
-            const lines = buildUsageLines(file);
-            return `
-              <div class="flex items-start gap-4 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black/20 p-4">
-                <img src="${resolveUploadsUrl(file.url)}" alt="${file.name}" class="h-16 w-16 rounded object-cover border border-gray-200 dark:border-white/10" onerror="console.error('Media list failed', this.src)" />
-                <div class="flex-1">
-                  <div class="flex items-center justify-between">
-                    <p class="text-sm font-medium text-gray-900 dark:text-white">${file.name}</p>
-                    <div class="flex items-center gap-3 text-xs text-gray-500">
-                      <span>Użycia: ${file.usageCount || 0}</span>
-                      <button data-file="${file.name}" class="rounded-full border border-gray-200 dark:border-white/10 px-2 py-1 text-[10px] uppercase tracking-widest text-gray-500 hover:text-gold">
+    const renderGrid = () => {
+      return `
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          ${filteredFiles
+            .map((file) => {
+              const count = file.usageCount || 0;
+              const used = count > 0;
+              return `
+                <div class="group relative aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-black">
+                  <img src="${resolveUploadsUrl(file.url)}" alt="${file.name}" class="h-full w-full object-cover" onerror="console.error('Media grid failed', this.src)" />
+                  <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end">
+                    <div class="w-full p-3 text-xs text-white">
+                      <p class="truncate">${file.name}</p>
+                      <p class="mt-1 text-gold">Użycia: ${count}</p>
+                      <button data-file="${file.name}" class="mt-2 rounded-full border border-white/30 px-2 py-1 text-[10px] uppercase tracking-widest text-white hover:bg-white/10">
                         Usuń
                       </button>
                     </div>
                   </div>
-                  <div class="mt-2 space-y-1 text-xs text-gray-500">
-                    ${
-                      lines.length
-                        ? lines.map((line) => `<p>${line}</p>`).join('')
-                        : '<p>Nieużywane</p>'
-                    }
+                  ${
+                    used
+                      ? '<span class="absolute top-2 left-2 rounded-full bg-black/60 px-2 py-1 text-[10px] uppercase tracking-widest text-gold">Używane</span>'
+                      : ''
+                  }
+                </div>
+              `;
+            })
+            .join('')}
+        </div>
+      `;
+    };
+
+    const renderList = () => {
+      return `
+        <div class="space-y-3">
+          ${filteredFiles
+            .map((file) => {
+              const lines = buildUsageLines(file);
+              return `
+                <div class="flex items-start gap-4 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black/20 p-4">
+                  <img src="${resolveUploadsUrl(file.url)}" alt="${file.name}" class="h-16 w-16 rounded object-cover border border-gray-200 dark:border-white/10" onerror="console.error('Media list failed', this.src)" />
+                  <div class="flex-1">
+                    <div class="flex items-center justify-between">
+                      <p class="text-sm font-medium text-gray-900 dark:text-white">${file.name}</p>
+                      <div class="flex items-center gap-3 text-xs text-gray-500">
+                        <span>Użycia: ${file.usageCount || 0}</span>
+                        <button data-file="${file.name}" class="rounded-full border border-gray-200 dark:border-white/10 px-2 py-1 text-[10px] uppercase tracking-widest text-gray-500 hover:text-gold">
+                          Usuń
+                        </button>
+                      </div>
+                    </div>
+                    <div class="mt-2 space-y-1 text-xs text-gray-500">
+                      ${
+                        lines.length
+                          ? lines.map((line) => `<p>${line}</p>`).join('')
+                          : '<p>Nieużywane</p>'
+                      }
+                    </div>
                   </div>
                 </div>
-              </div>
-            `;
-          })
-          .join('')}
+              `;
+            })
+            .join('')}
+        </div>
+      `;
+    };
+
+    container.innerHTML = `
+      <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Biblioteka mediów</h2>
+          <p class="text-sm text-gray-500">Zarządzaj obrazami i sprawdzaj, gdzie są używane.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <input id="media-filter" type="text" placeholder="Filtruj po nazwie lub miejscu użycia" class="w-64 max-w-full rounded-full border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 px-4 py-1.5 text-xs uppercase tracking-widest text-gray-600 dark:text-gray-200 placeholder-gray-400 focus:border-gold focus:outline-none" />
+          <label class="rounded-full border border-gray-200 dark:border-white/10 px-3 py-1.5 text-xs uppercase tracking-widest text-gray-500 hover:text-gold cursor-pointer">
+            Dodaj media
+            <input id="media-upload" type="file" class="hidden" multiple accept="image/*" />
+          </label>
+          <button id="media-view-grid" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
+            mediaViewMode === 'grid'
+              ? 'bg-gold text-black border-gold'
+              : 'text-gray-500 dark:text-gray-300'
+          }">Siatka</button>
+          <button id="media-view-list" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
+            mediaViewMode === 'list'
+              ? 'bg-gold text-black border-gold'
+              : 'text-gray-500 dark:text-gray-300'
+          }">Lista</button>
+        </div>
+      </div>
+      <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl p-6 shadow-sm">
+        ${mediaViewMode === 'list' ? renderList() : renderGrid()}
       </div>
     `;
+
+    const gridBtn = document.getElementById('media-view-grid');
+    const listBtn = document.getElementById('media-view-list');
+    const filterInput = document.getElementById('media-filter');
+    const uploadInput = document.getElementById('media-upload');
+    const deleteButtons = Array.from(container.querySelectorAll('[data-file]'));
+    if (gridBtn)
+      gridBtn.addEventListener('click', () => {
+        mediaViewMode = 'grid';
+        renderMediaLibrary();
+      });
+    if (listBtn)
+      listBtn.addEventListener('click', () => {
+        mediaViewMode = 'list';
+        renderMediaLibrary();
+      });
+    if (filterInput) {
+      filterInput.value = mediaFilterQuery;
+      filterInput.addEventListener('input', (event) => {
+        mediaFilterQuery = event.target.value;
+        renderMediaLibrary();
+        const nextInput = document.getElementById('media-filter');
+        if (nextInput) {
+          nextInput.focus();
+          const pos = mediaFilterQuery.length;
+          nextInput.setSelectionRange(pos, pos);
+        }
+      });
+    }
+    if (uploadInput) {
+      uploadInput.addEventListener('change', async (event) => {
+        const filesToUpload = event.target.files;
+        if (!filesToUpload || !filesToUpload.length) return;
+        for (let file of filesToUpload) {
+          await uploadFileWithResolution(file, () => {});
+        }
+        uploadInput.value = '';
+        loadMediaLibraryTab();
+      });
+    }
+    deleteButtons.forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const name = btn.dataset.file;
+        const target = files.find((file) => file.name === name);
+        const usageLines = target ? buildUsageLines(target) : [];
+        const usageText = usageLines.length
+          ? `To medium jest użyte w:\n- ${usageLines.join('\n- ')}\n\nCzy na pewno usunąć?`
+          : 'Czy na pewno usunąć to medium?';
+        if (!confirm(usageText)) return;
+        await fetch(`${ADMIN_API_URL}/files/${encodeURIComponent(name)}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        loadMediaLibraryTab();
+      });
+    });
   };
 
-  container.innerHTML = `
-    <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-      <div>
-        <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Biblioteka mediów</h2>
-        <p class="text-sm text-gray-500">Zarządzaj obrazami i sprawdzaj, gdzie są używane.</p>
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <input id="media-filter" type="text" placeholder="Filtruj po nazwie lub miejscu użycia" class="w-64 max-w-full rounded-full border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 px-4 py-1.5 text-xs uppercase tracking-widest text-gray-600 dark:text-gray-200 placeholder-gray-400 focus:border-gold focus:outline-none" />
-        <label class="rounded-full border border-gray-200 dark:border-white/10 px-3 py-1.5 text-xs uppercase tracking-widest text-gray-500 hover:text-gold cursor-pointer">
-          Dodaj media
-          <input id="media-upload" type="file" class="hidden" multiple accept="image/*" />
-        </label>
-        <button id="media-view-grid" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
-          mediaViewMode === 'grid'
-            ? 'bg-gold text-black border-gold'
-            : 'text-gray-500 dark:text-gray-300'
-        }">Siatka</button>
-        <button id="media-view-list" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
-          mediaViewMode === 'list'
-            ? 'bg-gold text-black border-gold'
-            : 'text-gray-500 dark:text-gray-300'
-        }">Lista</button>
-      </div>
-    </div>
-    <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl p-6 shadow-sm">
-      ${mediaViewMode === 'list' ? renderList() : renderGrid()}
-    </div>
-  `;
-
-  const gridBtn = document.getElementById('media-view-grid');
-  const listBtn = document.getElementById('media-view-list');
-  const filterInput = document.getElementById('media-filter');
-  const uploadInput = document.getElementById('media-upload');
-  const deleteButtons = Array.from(container.querySelectorAll('[data-file]'));
-  if (gridBtn)
-    gridBtn.addEventListener('click', () => {
-      mediaViewMode = 'grid';
-      loadMediaLibraryTab();
-    });
-  if (listBtn)
-    listBtn.addEventListener('click', () => {
-      mediaViewMode = 'list';
-      loadMediaLibraryTab();
-    });
-  if (filterInput) {
-    filterInput.value = mediaFilterQuery;
-    filterInput.addEventListener('input', (event) => {
-      mediaFilterQuery = event.target.value;
-      loadMediaLibraryTab();
-    });
-  }
-  if (uploadInput) {
-    uploadInput.addEventListener('change', async (event) => {
-      const filesToUpload = event.target.files;
-      if (!filesToUpload || !filesToUpload.length) return;
-      for (let file of filesToUpload) {
-        const formData = new FormData();
-        formData.append('image', file);
-        await fetch(`${ADMIN_API_URL}/upload`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
-      }
-      uploadInput.value = '';
-      loadMediaLibraryTab();
-    });
-  }
-  deleteButtons.forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const name = btn.dataset.file;
-      const target = files.find((file) => file.name === name);
-      const usageLines = target ? buildUsageLines(target) : [];
-      const usageText = usageLines.length
-        ? `To medium jest użyte w:\n- ${usageLines.join('\n- ')}\n\nCzy na pewno usunąć?`
-        : 'Czy na pewno usunąć to medium?';
-      if (!confirm(usageText)) return;
-      await fetch(`${ADMIN_API_URL}/files/${encodeURIComponent(name)}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      loadMediaLibraryTab();
-    });
-  });
+  renderMediaLibrary();
 }
 
 // 4. Settings

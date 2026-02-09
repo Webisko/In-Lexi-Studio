@@ -31,6 +31,19 @@ model Page {
   title            String?
   content          String?
   hero_image       String?
+  home_hero_logo   String?
+  home_gallery_wedding_id Int?
+  home_gallery_portrait_id Int?
+  home_gallery_product_id Int?
+  home_gallery_wedding_images Json?
+  home_gallery_portrait_images Json?
+  home_gallery_product_images Json?
+  home_moments_image String?
+  home_latest_moments_bg String?
+  home_latest_gallery_ids Json?
+  home_testimonial_ids Json?
+  wedding_slider_images Json?
+  portfolio_gallery_ids Json?
   meta_title       String?
   meta_description String?
   seo_image        String?
@@ -44,6 +57,7 @@ model Gallery {
   id          Int           @id @default(autoincrement())
   category    String        // 'wedding' | 'portrait' | 'product'
   name        String?
+  cover_image String?
   items       GalleryItem[]
   testimonial Testimonial?
 }

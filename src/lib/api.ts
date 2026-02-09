@@ -13,6 +13,7 @@ export interface Gallery {
   id: number;
   category: string;
   name?: string;
+  cover_image?: string | null;
   items: GalleryItem[];
 }
 
@@ -22,6 +23,19 @@ export interface Page {
   title?: string;
   content?: string;
   hero_image?: string;
+  home_hero_logo?: string | null;
+  home_gallery_wedding_id?: number | null;
+  home_gallery_portrait_id?: number | null;
+  home_gallery_product_id?: number | null;
+  home_gallery_wedding_images?: string[] | null;
+  home_gallery_portrait_images?: string[] | null;
+  home_gallery_product_images?: string[] | null;
+  home_moments_image?: string | null;
+  home_latest_moments_bg?: string | null;
+  home_latest_gallery_ids?: number[] | null;
+  home_testimonial_ids?: number[] | null;
+  wedding_slider_images?: string[] | null;
+  portfolio_gallery_ids?: number[] | null;
   meta_title?: string;
   meta_description?: string;
   seo_image?: string;
