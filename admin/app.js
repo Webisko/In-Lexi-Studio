@@ -13,6 +13,14 @@ function resolveApiBase() {
 
 const API_URL = resolveApiBase();
 const ADMIN_API_URL = `${API_URL}/admin`;
+const UPLOADS_BASE_URL = API_URL.replace(/\/app\/api$/i, '').replace(/\/api$/i, '');
+
+const resolveUploadsUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  if (path.startsWith('/')) return `${UPLOADS_BASE_URL}${path}`;
+  return `${UPLOADS_BASE_URL}/${path}`;
+};
 
 // --- Global State ---
 let token = localStorage.getItem('token');
@@ -20,6 +28,96 @@ let currentUser = null;
 let resetToken = null;
 let mediaViewMode = 'grid';
 let mediaFilterQuery = '';
+
+const ensureUploadToast = () => {
+  let toast = document.getElementById('upload-toast');
+  if (toast) return toast;
+  toast = document.createElement('div');
+  toast.id = 'upload-toast';
+  toast.className =
+    'fixed bottom-4 right-4 z-[80] hidden w-80 rounded-xl border border-white/10 bg-black/80 p-4 text-white shadow-xl backdrop-blur';
+  toast.innerHTML = `
+    <p id="upload-toast-title" class="text-sm font-semibold">Przesylanie</p>
+    <p id="upload-toast-message" class="mt-1 text-xs text-gray-300">Start...</p>
+    <div class="mt-3 h-1.5 w-full rounded-full bg-white/10">
+      <div id="upload-toast-bar" class="h-1.5 rounded-full bg-gold transition-all" style="width:0%"></div>
+    </div>
+  `;
+  document.body.appendChild(toast);
+  return toast;
+};
+
+const updateUploadToast = ({ title, message, percent, visible }) => {
+  const toast = ensureUploadToast();
+  const titleEl = document.getElementById('upload-toast-title');
+  const messageEl = document.getElementById('upload-toast-message');
+  const barEl = document.getElementById('upload-toast-bar');
+  if (titleEl && title) titleEl.textContent = title;
+  if (messageEl && message) messageEl.textContent = message;
+  if (barEl && typeof percent === 'number') barEl.style.width = `${percent}%`;
+  if (typeof visible === 'boolean') {
+    toast.classList.toggle('hidden', !visible);
+  }
+};
+
+const uploadFileWithProgress = (file, onProgress) => {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${ADMIN_API_URL}/upload`);
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.upload.addEventListener('progress', (event) => {
+      if (!event.lengthComputable) return;
+      onProgress(event.loaded / event.total);
+    });
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText || '{}'));
+        } catch (err) {
+          resolve({});
+        }
+      } else {
+        reject(new Error('Upload failed'));
+      }
+    });
+    xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+    const formData = new FormData();
+    formData.append('image', file);
+    xhr.send(formData);
+  });
+};
+
+const uploadFilesWithProgress = async (fileList, onComplete) => {
+  const files = Array.from(fileList || []);
+  if (!files.length) return;
+  updateUploadToast({ title: 'Przesylanie', message: 'Start...', percent: 0, visible: true });
+
+  for (let i = 0; i < files.length; i += 1) {
+    const file = files[i];
+    const baseMessage = `Plik ${i + 1}/${files.length}: ${file.name}`;
+    dom.mediaStatus.textContent = baseMessage;
+    try {
+      await uploadFileWithProgress(file, (ratio) => {
+        const percent = Math.round(((i + ratio) / files.length) * 100);
+        updateUploadToast({ message: baseMessage, percent });
+      });
+    } catch (err) {
+      updateUploadToast({
+        title: 'Blad',
+        message: `Nie udalo sie przeslac: ${file.name}`,
+        percent: 0,
+      });
+      dom.mediaStatus.textContent = 'Blad przesylania.';
+      setTimeout(() => updateUploadToast({ visible: false }), 3000);
+      return;
+    }
+  }
+
+  updateUploadToast({ title: 'Gotowe', message: 'Pliki przeslane.', percent: 100 });
+  dom.mediaStatus.textContent = 'Gotowe!';
+  setTimeout(() => updateUploadToast({ visible: false }), 2000);
+  if (typeof onComplete === 'function') onComplete();
+};
 
 const getResetTokenFromUrl = () => {
   const params = new URLSearchParams(window.location.search);
@@ -160,27 +258,9 @@ dom.mediaUploadInput.addEventListener('change', async (e) => {
   const files = e.target.files;
   if (!files.length) return;
 
-  dom.mediaStatus.textContent = `Przesyłanie ${files.length} plików...`;
-
-  for (let file of files) {
-    const formData = new FormData();
-    formData.append('image', file);
-
-    try {
-      const res = await fetch(`${ADMIN_API_URL}/upload`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      if (res.ok) {
-        // success
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }
-  dom.mediaStatus.textContent = 'Gotowe!';
-  loadMediaLibrary(); // Refresh grid
+  await uploadFilesWithProgress(files, () => {
+    loadMediaLibrary();
+  });
 });
 
 async function loadMediaLibrary() {
@@ -196,7 +276,7 @@ async function loadMediaLibrary() {
       .map(
         (f) => `
             <div class="cursor-pointer group relative aspect-square bg-gray-900 rounded border border-white/5 overflow-hidden hover:border-gold transition-colors" onclick="selectMedia('${f.url}')">
-                <img src="${f.url}" class="w-full h-full object-cover">
+              <img src="${resolveUploadsUrl(f.url)}" class="w-full h-full object-cover">
                 <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                     <span class="text-xs text-white">Wybierz</span>
                 </div>
@@ -563,7 +643,11 @@ async function loadDashboard() {
                        .map(
                          (g) => `
                         <div class="aspect-[3/4] bg-gray-100 dark:bg-black rounded-lg overflow-hidden relative group cursor-pointer" onclick="editGallery(${g.id})">
-                            ${g.items && g.items.length > 0 ? `<img src="${g.items[0].image_path}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">` : ''}
+                            ${
+                              g.items && g.items.length > 0
+                                ? `<img src="${resolveUploadsUrl(g.items[0].image_path)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">`
+                                : ''
+                            }
                             <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
                                 <p class="text-white font-medium text-sm truncate">${g.name || 'Bez nazwy'}</p>
                                 <p class="text-xs text-gray-400 capitalize">${CATEGORY_MAP[g.category] || g.category}</p>
@@ -934,7 +1018,11 @@ function renderGalleries(galleries) {
                 (g) => `
                 <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl overflow-hidden group hover:border-gold/50 transition-colors shadow-sm">
                     <div class="h-48 bg-gray-100 dark:bg-black/50 relative">
-                        ${g.items && g.items.length > 0 ? `<img src="${g.items[0].image_path}" class="w-full h-full object-cover">` : '<div class="flex items-center justify-center h-full text-gray-500">Brak zdjęć</div>'}
+                        ${
+                          g.items && g.items.length > 0
+                            ? `<img src="${resolveUploadsUrl(g.items[0].image_path)}" class="w-full h-full object-cover">`
+                            : '<div class="flex items-center justify-center h-full text-gray-500">Brak zdjęć</div>'
+                        }
                         <div class="absolute top-2 right-2 bg-black/70 px-2 py-1 rounded text-xs text-gold uppercase tracking-wider font-semibold">
                             ${CATEGORY_MAP[g.category] || g.category}
                         </div>
@@ -1023,7 +1111,7 @@ window.editGallery = async (id) => {
                       .map(
                         (item) => `
                         <div class="relative group aspect-square bg-gray-100 dark:bg-black rounded border border-gray-200 dark:border-white/10 cursor-move overflow-hidden" data-id="${item.id}">
-                            <img src="${item.image_path}" class="w-full h-full object-cover">
+                            <img src="${resolveUploadsUrl(item.image_path)}" class="w-full h-full object-cover">
                             <!-- Overlay -->
                             <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                 <button onclick="deleteGalleryItem(${item.id}, ${id})" class="text-red-500 hover:text-red-400 p-2">
@@ -2103,7 +2191,7 @@ window.setImageField = (inputId, previewId, url) => {
   const preview = document.getElementById(previewId);
   if (preview) {
     if (url) {
-      preview.src = url;
+      preview.src = resolveUploadsUrl(url);
       preview.classList.remove('hidden');
     } else {
       preview.src = '';
