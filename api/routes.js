@@ -466,6 +466,104 @@ router.get('/admin/files', authenticateToken, (req, res) => {
   });
 });
 
+router.get('/admin/media/usage', authenticateToken, async (req, res) => {
+  try {
+    const files = fs
+      .readdirSync(uploadDir)
+      .filter((f) => !isVariantFile(f))
+      .filter((f) => !f.startsWith('.'))
+      .map((f) => ({ name: f, url: `/uploads/${f}` }));
+
+    const pages = await prisma.page.findMany({
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        meta_title: true,
+        hero_image: true,
+        seo_image: true,
+        content: true,
+      },
+    });
+
+    const galleries = await prisma.gallery.findMany({
+      include: { items: true },
+    });
+
+    const testimonials = await prisma.testimonial.findMany({
+      select: { id: true, author: true, avatar_image: true },
+    });
+
+    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+
+    const usageFiles = files.map((file) => {
+      const usage = { pages: [], galleries: [], testimonials: [], settings: [] };
+      const filename = file.name;
+
+      pages.forEach((page) => {
+        const locations = [];
+        if (page.hero_image && page.hero_image.includes(filename)) locations.push('Hero');
+        if (page.seo_image && page.seo_image.includes(filename)) locations.push('SEO');
+        if (page.content && page.content.includes(filename)) locations.push('Treść');
+        if (locations.length) {
+          usage.pages.push({
+            id: page.id,
+            slug: page.slug,
+            title: page.title || page.meta_title || page.slug,
+            locations,
+          });
+        }
+      });
+
+      galleries.forEach((gallery) => {
+        const hasMatch = (gallery.items || []).some(
+          (item) => item.image_path && item.image_path.includes(filename),
+        );
+        if (hasMatch) {
+          usage.galleries.push({
+            id: gallery.id,
+            name: gallery.name,
+            category: gallery.category,
+          });
+        }
+      });
+
+      testimonials.forEach((testimonial) => {
+        if (testimonial.avatar_image && testimonial.avatar_image.includes(filename)) {
+          usage.testimonials.push({
+            id: testimonial.id,
+            author: testimonial.author,
+          });
+        }
+      });
+
+      if (settings) {
+        if (settings.og_image && settings.og_image.includes(filename)) {
+          usage.settings.push('OG Image');
+        }
+        if (settings.favicon && settings.favicon.includes(filename)) {
+          usage.settings.push('Favicon');
+        }
+        if (settings.logo_path && settings.logo_path.includes(filename)) {
+          usage.settings.push('Logo');
+        }
+      }
+
+      const usageCount =
+        usage.pages.length +
+        usage.galleries.length +
+        usage.testimonials.length +
+        usage.settings.length;
+
+      return { ...file, usage, usageCount };
+    });
+
+    res.json({ files: usageFiles });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Page Routes (Admin)
 router.get('/admin/pages', authenticateToken, async (req, res) => {
   const pages = await prisma.page.findMany({
