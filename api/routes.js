@@ -125,21 +125,25 @@ const buildFilePaths = (baseName) => {
   };
 };
 
-const writeWebpVariants = async (buffer, baseName) => {
+const writeWebpVariants = async (buffer, baseName, isWebpSource = false) => {
   const { mainName, variants, mainPath, variantPaths } = buildFilePaths(baseName);
   const image = sharp(buffer).rotate();
   const metadata = await image.metadata();
   const maxSide = Math.max(metadata.width || 0, metadata.height || 0);
 
-  await image
-    .resize({
-      width: MAX_DIMENSION,
-      height: MAX_DIMENSION,
-      fit: 'inside',
-      withoutEnlargement: true,
-    })
-    .webp({ quality: 80 })
-    .toFile(mainPath);
+  if (isWebpSource) {
+    fs.writeFileSync(mainPath, buffer);
+  } else {
+    await image
+      .resize({
+        width: MAX_DIMENSION,
+        height: MAX_DIMENSION,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 80 })
+      .toFile(mainPath);
+  }
 
   const createdVariants = [];
   for (let i = 0; i < VARIANT_SIZES.length; i += 1) {
@@ -449,7 +453,10 @@ router.post('/admin/upload', authenticateToken, upload.single('image'), async (r
 
   try {
     const baseName = buildBaseName();
-    const result = await writeWebpVariants(req.file.buffer, baseName);
+    const isWebpSource =
+      req.file.mimetype === 'image/webp' ||
+      (req.file.originalname && req.file.originalname.toLowerCase().endsWith('.webp'));
+    const result = await writeWebpVariants(req.file.buffer, baseName, isWebpSource);
     res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });
