@@ -1,3 +1,6 @@
+const CMS_APP_VERSION = '2026-02-09-1';
+console.info(`CMS app version: ${CMS_APP_VERSION}`);
+
 function normalizeBaseUrl(url) {
   if (!url) return '';
   return url.endsWith('/') ? url.slice(0, -1) : url;
