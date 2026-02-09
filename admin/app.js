@@ -1501,7 +1501,7 @@ async function loadAnalytics() {
           </div>
           <a href="${umamiDashboardUrl || '#'}" target="_blank" class="text-sm text-gold hover:text-white underline ${
             umamiDashboardUrl ? '' : 'opacity-50 pointer-events-none'
-          }">Otwórz Umami</a>
+          }">Szczegolowa analityka</a>
         </div>
       </div>
       <div id="analytics-content" class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl p-8 shadow-sm"></div>
@@ -1511,8 +1511,9 @@ async function loadAnalytics() {
   const content = document.getElementById('analytics-content');
   const rangeButtons = Array.from(document.querySelectorAll('#analytics-range button'));
 
-  const renderAnalytics = (data, days) => {
+    const renderAnalytics = (data, days) => {
     const stats = data.stats || {};
+      const comparison = stats.comparison || {};
     const active = data.active || {};
     const topPages = data.topPages || [];
     const referrers = data.referrers || [];
@@ -1570,36 +1571,70 @@ async function loadAnalytics() {
         <div class="p-5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/5">
           <p class="text-xs uppercase tracking-widest text-gray-400">Odsłony</p>
           <p class="mt-3 text-3xl font-display text-gray-900 dark:text-white">${formatNumber(
-            stats.pageviews,
+            const buildDelta = (value, prev) => {
+              if (!prev) return '';
+              if (!value) return '';
+              const diff = ((value - prev) / prev) * 100;
+              const sign = diff >= 0 ? '+' : '';
+              const tone = diff >= 0 ? 'text-emerald-500' : 'text-rose-500';
+              return `<span class="ml-2 text-xs ${tone}">${sign}${diff.toFixed(0)}%</span>`;
+            };
+
+            const buildLine = (series, stroke) => {
+              if (!series.length) return '';
+              const width = 320;
+              const height = 120;
+              const maxValue = Math.max(...series.map((point) => point.y || 0), 1);
+              const step = series.length > 1 ? width / (series.length - 1) : width;
+              const points = series
+                .map((point, index) => {
+                  const x = Math.round(index * step);
+                  const y = Math.round(height - ((point.y || 0) / maxValue) * height);
+                  return `${x},${y}`;
+                })
+                .join(' ');
+              return `
+                <svg viewBox="0 0 ${width} ${height}" class="w-full h-32">
+                  <polyline
+                    fill="none"
+                    stroke="${stroke}"
+                    stroke-width="2"
+                    points="${points}"
+                  />
+                </svg>
+              `;
+            };
+
+            content.innerHTML = `
           )}</p>
         </div>
         <div class="p-5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/5">
-          <p class="text-xs uppercase tracking-widest text-gray-400">Unikalni</p>
-          <p class="mt-3 text-3xl font-display text-gray-900 dark:text-white">${formatNumber(
-            stats.visitors,
+                  <p class="mt-3 text-3xl font-display text-gray-900 dark:text-white">${formatNumber(
+                    active.visitors,
+                  )}</p>
           )}</p>
         </div>
         <div class="p-5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/5">
-          <p class="text-xs uppercase tracking-widest text-gray-400">Sesje</p>
-          <p class="mt-3 text-3xl font-display text-gray-900 dark:text-white">${formatNumber(
-            stats.visits,
+                  <p class="mt-3 text-3xl font-display text-gray-900 dark:text-white">${formatNumber(
+                    stats.pageviews,
+                  )}${buildDelta(stats.pageviews, comparison.pageviews)}</p>
           )}</p>
         </div>
       </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 mb-8">
-        <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-black/20 p-6">
+                  <p class="mt-3 text-3xl font-display text-gray-900 dark:text-white">${formatNumber(
+                    stats.visitors,
+                  )}${buildDelta(stats.visitors, comparison.visitors)}</p>
           <div class="flex items-center justify-between">
             <div>
               <h3 class="text-sm uppercase tracking-widest text-gray-400">Ruch (${days} dni)</h3>
-              <p class="mt-2 text-lg font-medium text-gray-900 dark:text-white">Odsłony vs Sesje</p>
-            </div>
-            <div class="text-xs text-gray-400">Skala dzienna</div>
+                  <p class="mt-3 text-3xl font-display text-gray-900 dark:text-white">${formatNumber(
+                    stats.visits,
+                  )}${buildDelta(stats.visits, comparison.visits)}</p>
           </div>
           <div class="mt-6 grid grid-cols-2 gap-6">
             <div>
               <p class="text-xs uppercase tracking-widest text-gray-400">Odsłony</p>
-              <div class="mt-3 flex items-end gap-1 h-28">${buildBars(pageviewsSeries)}</div>
+                <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-black/20 p-6">
             </div>
             <div>
               <p class="text-xs uppercase tracking-widest text-gray-400">Sesje</p>
@@ -1607,21 +1642,66 @@ async function loadAnalytics() {
             </div>
           </div>
         </div>
-        <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-black/20 p-6">
+                  <div class="mt-6 grid grid-cols-1 gap-6">
+                    <div class="rounded-lg border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-black/30 p-4">
+                      <div class="flex items-center justify-between">
+                        <p class="text-xs uppercase tracking-widest text-gray-400">Odsłony</p>
+                        <span class="text-xs text-gray-400">${formatNumber(stats.pageviews)}</span>
+                      </div>
+                      <div class="mt-3">${buildLine(pageviewsSeries, '#D4AF37')}</div>
+                    </div>
+                    <div class="rounded-lg border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-black/30 p-4">
+                      <div class="flex items-center justify-between">
+                        <p class="text-xs uppercase tracking-widest text-gray-400">Sesje</p>
+                        <span class="text-xs text-gray-400">${formatNumber(stats.visits)}</span>
+                      </div>
+                      <div class="mt-3">${buildLine(sessionsSeries, '#7C7A6B')}</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-black/20 p-6">
+                  <h3 class="text-sm uppercase tracking-widest text-gray-400">Zaangazowanie</h3>
+                  <div class="mt-5 space-y-4 text-sm text-gray-700 dark:text-gray-300">
+                    <div class="flex items-center justify-between">
+                      <span>Odbicia</span>
+                      <span class="text-gray-500">${formatNumber(stats.bounces)}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                      <span>Sredni czas</span>
+                      <span class="text-gray-500">${formatNumber(stats.totaltime)}s</span>
+                    </div>
+                  </div>
+                  <div class="mt-6 rounded-lg border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-black/30 p-4">
+                    <p class="text-xs uppercase tracking-widest text-gray-400">Mapa ruchu</p>
+                    <svg viewBox="0 0 360 160" class="mt-4 w-full h-32">
+                      <rect x="0" y="0" width="360" height="160" fill="none" stroke="#26231C" stroke-width="1" rx="12" />
+                      <g fill="#2C2A23">
+                        <circle cx="60" cy="70" r="6" />
+                        <circle cx="90" cy="80" r="4" />
+                        <circle cx="120" cy="65" r="5" />
+                        <circle cx="160" cy="85" r="6" />
+                        <circle cx="210" cy="60" r="5" />
+                        <circle cx="240" cy="90" r="4" />
+                        <circle cx="280" cy="70" r="6" />
+                      </g>
+                      <g fill="#D4AF37">
+                        <circle cx="210" cy="60" r="3" />
+                        <circle cx="120" cy="65" r="3" />
+                        <circle cx="280" cy="70" r="3" />
+                      </g>
+                      <g stroke="#3B372E" stroke-width="1">
+                        <path d="M40 40 L100 50 L140 30" fill="none" />
+                        <path d="M170 40 L230 55 L300 40" fill="none" />
+                      </g>
+                    </svg>
+                    <div class="mt-4 text-xs text-gray-500">Top kraje: ${
+                      countries
+                        .slice(0, 3)
+                        .map((item) => item.x)
+                        .join(', ') || 'Brak danych'
+                    }</div>
+                  </div>
           <h3 class="text-sm uppercase tracking-widest text-gray-400">Zaangazowanie</h3>
-          <div class="mt-5 space-y-4 text-sm text-gray-700 dark:text-gray-300">
-            <div class="flex items-center justify-between">
-              <span>Odbicia</span>
-              <span class="text-gray-500">${formatNumber(stats.bounces)}</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span>Sredni czas</span>
-              <span class="text-gray-500">${formatNumber(stats.totaltime)}s</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-white/70 dark:bg-black/20 p-6">
           <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-4">Top strony (${days} dni)</h3>

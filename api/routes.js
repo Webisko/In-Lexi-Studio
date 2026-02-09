@@ -289,12 +289,13 @@ router.get('/admin/umami/summary', authenticateToken, async (req, res) => {
   try {
     const [stats, active, pageviews, topPages, referrers, countries, devices, browsers] =
       await Promise.all([
-        umamiRequest(`/websites/${websiteId}/stats`, { startAt: start, endAt: end }),
+        umamiRequest(`/websites/${websiteId}/stats`, { startAt: start, endAt: end, compare: 'prev' }),
         umamiRequest(`/websites/${websiteId}/active`),
         umamiRequest(`/websites/${websiteId}/pageviews`, {
           startAt: start,
           endAt: end,
           unit: 'day',
+          compare: 'prev',
         }),
         umamiRequest(`/websites/${websiteId}/metrics`, {
           startAt: start,
