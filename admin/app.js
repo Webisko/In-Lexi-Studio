@@ -1,4 +1,4 @@
-const CMS_APP_VERSION = '2026-02-10-1';
+const CMS_APP_VERSION = '2026-02-10-2';
 console.info(`CMS app version: ${CMS_APP_VERSION}`);
 
 function normalizeBaseUrl(url) {
