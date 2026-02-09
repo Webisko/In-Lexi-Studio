@@ -11,9 +11,9 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  const adminEmail = 'admin@inlexistudio.com';
+  const adminEmail = 'admin@webisko.pl';
   const adminPassword = 'LexiAdmin!2026';
-  const managerEmail = 'manager@inlexistudio.com';
+  const managerEmail = 'info@inlexistudio.com';
   const managerPassword = 'LexiManager!2026';
 
   const adminHash = await bcrypt.hash(adminPassword, 10);
