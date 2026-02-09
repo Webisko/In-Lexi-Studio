@@ -289,7 +289,11 @@ router.get('/admin/umami/summary', authenticateToken, async (req, res) => {
   try {
     const [stats, active, pageviews, topPagesRaw, referrers, countries, devices, browsers] =
       await Promise.all([
-        umamiRequest(`/websites/${websiteId}/stats`, { startAt: start, endAt: end, compare: 'prev' }),
+        umamiRequest(`/websites/${websiteId}/stats`, {
+          startAt: start,
+          endAt: end,
+          compare: 'prev',
+        }),
         umamiRequest(`/websites/${websiteId}/active`),
         umamiRequest(`/websites/${websiteId}/pageviews`, {
           startAt: start,
@@ -464,6 +468,36 @@ router.get('/admin/files', authenticateToken, (req, res) => {
       .filter((f) => !f.name.startsWith('.')); // hide dotfiles
     res.json(fileList);
   });
+});
+
+router.delete('/admin/files/:name', authenticateToken, (req, res) => {
+  const rawName = req.params.name;
+  const safeName = path.basename(rawName);
+  if (!safeName) return res.status(400).json({ error: 'Invalid filename' });
+
+  const targetPath = path.join(uploadDir, safeName);
+  if (!fs.existsSync(targetPath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  const baseName = path.basename(safeName, path.extname(safeName));
+  const filesToDelete = fs
+    .readdirSync(uploadDir)
+    .filter(
+      (file) =>
+        file === safeName ||
+        file.startsWith(`${baseName}-w`) ||
+        file.startsWith(`${baseName}-seo-1200x630`),
+    )
+    .map((file) => path.join(uploadDir, file));
+
+  filesToDelete.forEach((filePath) => {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  });
+
+  res.json({ ok: true, deleted: filesToDelete.length });
 });
 
 router.get('/admin/media/usage', authenticateToken, async (req, res) => {

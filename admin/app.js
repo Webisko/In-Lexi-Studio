@@ -19,6 +19,7 @@ let token = localStorage.getItem('token');
 let currentUser = null;
 let resetToken = null;
 let mediaViewMode = 'grid';
+let mediaFilterQuery = '';
 
 const getResetTokenFromUrl = () => {
   const params = new URLSearchParams(window.location.search);
@@ -1317,12 +1318,21 @@ async function loadMediaLibraryTab() {
     return lines;
   };
 
+  const filterText = mediaFilterQuery.trim().toLowerCase();
+  const filteredFiles = filterText
+    ? files.filter((file) => {
+        const usageText = buildUsageLines(file).join(' ').toLowerCase();
+        return file.name.toLowerCase().includes(filterText) || usageText.includes(filterText);
+      })
+    : files;
+
   const renderGrid = () => {
     return `
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        ${files
+        ${filteredFiles
           .map((file) => {
             const count = file.usageCount || 0;
+            const used = count > 0;
             return `
               <div class="group relative aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-black">
                 <img src="${file.url}" alt="${file.name}" class="h-full w-full object-cover" />
@@ -1330,8 +1340,16 @@ async function loadMediaLibraryTab() {
                   <div class="w-full p-3 text-xs text-white">
                     <p class="truncate">${file.name}</p>
                     <p class="mt-1 text-gold">Użycia: ${count}</p>
+                    <button data-file="${file.name}" class="mt-2 rounded-full border border-white/30 px-2 py-1 text-[10px] uppercase tracking-widest text-white hover:bg-white/10">
+                      Usuń
+                    </button>
                   </div>
                 </div>
+                ${
+                  used
+                    ? '<span class="absolute top-2 left-2 rounded-full bg-black/60 px-2 py-1 text-[10px] uppercase tracking-widest text-gold">Używane</span>'
+                    : ''
+                }
               </div>
             `;
           })
@@ -1343,7 +1361,7 @@ async function loadMediaLibraryTab() {
   const renderList = () => {
     return `
       <div class="space-y-3">
-        ${files
+        ${filteredFiles
           .map((file) => {
             const lines = buildUsageLines(file);
             return `
@@ -1352,7 +1370,12 @@ async function loadMediaLibraryTab() {
                 <div class="flex-1">
                   <div class="flex items-center justify-between">
                     <p class="text-sm font-medium text-gray-900 dark:text-white">${file.name}</p>
-                    <span class="text-xs text-gray-500">Użycia: ${file.usageCount || 0}</span>
+                    <div class="flex items-center gap-3 text-xs text-gray-500">
+                      <span>Użycia: ${file.usageCount || 0}</span>
+                      <button data-file="${file.name}" class="rounded-full border border-gray-200 dark:border-white/10 px-2 py-1 text-[10px] uppercase tracking-widest text-gray-500 hover:text-gold">
+                        Usuń
+                      </button>
+                    </div>
                   </div>
                   <div class="mt-2 space-y-1 text-xs text-gray-500">
                     ${
@@ -1376,7 +1399,12 @@ async function loadMediaLibraryTab() {
         <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Biblioteka mediów</h2>
         <p class="text-sm text-gray-500">Zarządzaj obrazami i sprawdzaj, gdzie są używane.</p>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <input id="media-filter" type="text" placeholder="Filtruj po nazwie lub miejscu użycia" class="w-64 max-w-full rounded-full border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 px-4 py-1.5 text-xs uppercase tracking-widest text-gray-600 dark:text-gray-200 placeholder-gray-400 focus:border-gold focus:outline-none" />
+        <label class="rounded-full border border-gray-200 dark:border-white/10 px-3 py-1.5 text-xs uppercase tracking-widest text-gray-500 hover:text-gold cursor-pointer">
+          Dodaj media
+          <input id="media-upload" type="file" class="hidden" multiple accept="image/*" />
+        </label>
         <button id="media-view-grid" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
           mediaViewMode === 'grid'
             ? 'bg-gold text-black border-gold'
@@ -1396,13 +1424,58 @@ async function loadMediaLibraryTab() {
 
   const gridBtn = document.getElementById('media-view-grid');
   const listBtn = document.getElementById('media-view-list');
-  if (gridBtn) gridBtn.addEventListener('click', () => {
-    mediaViewMode = 'grid';
-    loadMediaLibraryTab();
-  });
-  if (listBtn) listBtn.addEventListener('click', () => {
-    mediaViewMode = 'list';
-    loadMediaLibraryTab();
+  const filterInput = document.getElementById('media-filter');
+  const uploadInput = document.getElementById('media-upload');
+  const deleteButtons = Array.from(container.querySelectorAll('[data-file]'));
+  if (gridBtn)
+    gridBtn.addEventListener('click', () => {
+      mediaViewMode = 'grid';
+      loadMediaLibraryTab();
+    });
+  if (listBtn)
+    listBtn.addEventListener('click', () => {
+      mediaViewMode = 'list';
+      loadMediaLibraryTab();
+    });
+  if (filterInput) {
+    filterInput.value = mediaFilterQuery;
+    filterInput.addEventListener('input', (event) => {
+      mediaFilterQuery = event.target.value;
+      loadMediaLibraryTab();
+    });
+  }
+  if (uploadInput) {
+    uploadInput.addEventListener('change', async (event) => {
+      const filesToUpload = event.target.files;
+      if (!filesToUpload || !filesToUpload.length) return;
+      for (let file of filesToUpload) {
+        const formData = new FormData();
+        formData.append('image', file);
+        await fetch(`${ADMIN_API_URL}/upload`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+      }
+      uploadInput.value = '';
+      loadMediaLibraryTab();
+    });
+  }
+  deleteButtons.forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const name = btn.dataset.file;
+      const target = files.find((file) => file.name === name);
+      const usageLines = target ? buildUsageLines(target) : [];
+      const usageText = usageLines.length
+        ? `To medium jest użyte w:\n- ${usageLines.join('\n- ')}\n\nCzy na pewno usunąć?`
+        : 'Czy na pewno usunąć to medium?';
+      if (!confirm(usageText)) return;
+      await fetch(`${ADMIN_API_URL}/files/${encodeURIComponent(name)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      loadMediaLibraryTab();
+    });
   });
 }
 
