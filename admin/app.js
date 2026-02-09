@@ -864,7 +864,7 @@ window.editPage = async (id) => {
              <div class="space-y-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Miniaturka SEO (og:image)</label>
           <div class="flex items-center gap-4">
-            <img id="seo_image_preview" src="${page.seo_image || ''}" class="w-20 h-20 rounded object-cover border border-gray-200 dark:border-white/10 ${page.seo_image ? '' : 'hidden'}" />
+            <img id="seo_image_preview" src="${resolveUploadsUrl(page.seo_image || '')}" class="w-20 h-20 rounded object-cover border border-gray-200 dark:border-white/10 ${page.seo_image ? '' : 'hidden'}" />
             <div class="flex-1 space-y-2">
               <input type="text" id="seo_image" value="${page.seo_image || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none">
               <div class="flex gap-2">
@@ -893,7 +893,7 @@ window.editPage = async (id) => {
             <div class="space-y-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Zdjęcie główne (Hero)</label>
               <div class="flex items-center gap-4">
-                <img id="hero_image_preview" src="${page.hero_image || ''}" class="w-20 h-20 rounded object-cover border border-gray-200 dark:border-white/10 ${page.hero_image ? '' : 'hidden'}" />
+                <img id="hero_image_preview" src="${resolveUploadsUrl(page.hero_image || '')}" class="w-20 h-20 rounded object-cover border border-gray-200 dark:border-white/10 ${page.hero_image ? '' : 'hidden'}" />
                 <div class="flex-1 space-y-2">
                   <input type="text" id="hero_image" value="${page.hero_image || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none">
                   <div class="flex gap-2">
@@ -1300,7 +1300,7 @@ window.editTestimonial = async (id) => {
             <div class="space-y-2">
               <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Avatar (wymagany)</label>
               <div class="flex items-center gap-4">
-                <img id="t_avatar_preview" src="${t.avatar_image || ''}" class="w-16 h-16 rounded-full object-cover border border-gray-200 dark:border-white/10 ${t.avatar_image ? '' : 'hidden'}" />
+                <img id="t_avatar_preview" src="${resolveUploadsUrl(t.avatar_image || '')}" class="w-16 h-16 rounded-full object-cover border border-gray-200 dark:border-white/10 ${t.avatar_image ? '' : 'hidden'}" />
                 <div class="flex-1 space-y-2">
                   <input type="text" id="t_avatar" value="${t.avatar_image || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none" required>
                   <div class="flex gap-2">
@@ -1637,7 +1637,7 @@ async function loadSettings() {
                   <div class="space-y-2">
                     <label class="text-xs font-bold uppercase tracking-wider text-gray-500">OG Image</label>
                     <div class="flex items-center gap-4">
-                      <img id="s_og_image_preview" src="${s.og_image || ''}" class="w-20 h-20 rounded object-cover border border-gray-200 dark:border-white/10 ${s.og_image ? '' : 'hidden'}" />
+                      <img id="s_og_image_preview" src="${resolveUploadsUrl(s.og_image || '')}" class="w-20 h-20 rounded object-cover border border-gray-200 dark:border-white/10 ${s.og_image ? '' : 'hidden'}" />
                       <div class="flex-1 space-y-2">
                         <input type="text" id="s_og_image" value="${s.og_image || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none">
                         <div class="flex gap-2">
@@ -1650,7 +1650,7 @@ async function loadSettings() {
                   <div class="space-y-2">
                     <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Favicon</label>
                     <div class="flex items-center gap-4">
-                      <img id="s_favicon_preview" src="${s.favicon || ''}" class="w-12 h-12 rounded object-cover border border-gray-200 dark:border-white/10 ${s.favicon ? '' : 'hidden'}" />
+                      <img id="s_favicon_preview" src="${resolveUploadsUrl(s.favicon || '')}" class="w-12 h-12 rounded object-cover border border-gray-200 dark:border-white/10 ${s.favicon ? '' : 'hidden'}" />
                       <div class="flex-1 space-y-2">
                         <input type="text" id="s_favicon" value="${s.favicon || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none">
                         <div class="flex gap-2">
