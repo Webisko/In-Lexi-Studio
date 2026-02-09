@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Camera, Heart, Clock, Users, Sun, Star } from 'lucide-react';
 import type { Page } from '../../lib/api';
+import { getImageUrl } from '../../lib/api';
 
 interface Props {
   page: Page;
@@ -27,7 +28,7 @@ export default function WeddingPhotography({ page }: Props) {
             initial={{ scale: 1.1 }}
             animate={{ scale: 1 }}
             transition={{ duration: 10, ease: 'easeOut' }}
-            src={page.hero_image}
+            src={getImageUrl(page.hero_image)}
             alt={page.title || 'Wedding Photography'}
             className="absolute inset-0 h-full w-full object-cover opacity-60"
           />
