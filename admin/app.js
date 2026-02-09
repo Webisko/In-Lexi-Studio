@@ -1483,7 +1483,7 @@ async function loadAnalytics() {
           <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Analityka (Umami)</h2>
           <p class="text-sm text-gray-500">Podsumowanie ruchu na stronie</p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3">
           <div class="flex gap-2" id="analytics-range">
             ${ranges
               .map(
@@ -1499,6 +1499,12 @@ async function loadAnalytics() {
               )
               .join('')}
           </div>
+          <div class="flex items-center gap-2">
+            <input id="analytics-from" type="date" class="rounded border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-black/20 px-2 py-1 text-xs text-gray-700 dark:text-gray-200" />
+            <span class="text-xs text-gray-400">—</span>
+            <input id="analytics-to" type="date" class="rounded border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-black/20 px-2 py-1 text-xs text-gray-700 dark:text-gray-200" />
+            <button id="analytics-apply" type="button" class="rounded-full border border-gold px-3 py-1.5 text-xs uppercase tracking-widest text-gold hover:bg-gold hover:text-black transition-colors">Filtruj</button>
+          </div>
           <a href="${umamiDashboardUrl || '#'}" target="_blank" class="text-sm text-gold hover:text-white underline ${
             umamiDashboardUrl ? '' : 'opacity-50 pointer-events-none'
           }">Szczegolowa analityka</a>
@@ -1510,10 +1516,104 @@ async function loadAnalytics() {
 
   const content = document.getElementById('analytics-content');
   const rangeButtons = Array.from(document.querySelectorAll('#analytics-range button'));
+  const fromInput = document.getElementById('analytics-from');
+  const toInput = document.getElementById('analytics-to');
+  const applyBtn = document.getElementById('analytics-apply');
 
-    const renderAnalytics = (data, days) => {
+  const toDateInput = (value) => {
+    const date = new Date(value);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const setRangeInputs = (days) => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - days);
+    if (fromInput) fromInput.value = toDateInput(start);
+    if (toInput) toInput.value = toDateInput(end);
+  };
+
+  const buildDelta = (value, prev) => {
+    if (!prev || !value) return '';
+    const diff = ((value - prev) / prev) * 100;
+    const sign = diff >= 0 ? '+' : '';
+    const tone = diff >= 0 ? 'text-emerald-500' : 'text-rose-500';
+    return `<span class="ml-2 text-xs ${tone}">${sign}${diff.toFixed(0)}%</span>`;
+  };
+
+  const buildLine = (series, stroke) => {
+    if (!series.length) return '';
+    const width = 320;
+    const height = 120;
+    const maxValue = Math.max(...series.map((point) => point.y || 0), 1);
+    const step = series.length > 1 ? width / (series.length - 1) : width;
+    const points = series
+      .map((point, index) => {
+        const x = Math.round(index * step);
+        const y = Math.round(height - ((point.y || 0) / maxValue) * height);
+        return `${x},${y}`;
+      })
+      .join(' ');
+    return `
+      <svg viewBox="0 0 ${width} ${height}" class="w-full h-32">
+        <polyline fill="none" stroke="${stroke}" stroke-width="2" points="${points}" />
+      </svg>
+    `;
+  };
+
+  const buildList = (items, emptyLabel) => {
+    if (!items.length) {
+      return `<p class="text-sm text-gray-400">${emptyLabel}</p>`;
+    }
+    return `
+      <div class="space-y-2">
+        ${items
+          .map(
+            (item) => `
+              <div class="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300">
+                <span class="truncate">${item.x || '-'}</span>
+                <span class="ml-4 text-gray-500 dark:text-gray-400">${formatNumber(item.y)}</span>
+              </div>
+            `,
+          )
+          .join('')}
+      </div>
+    `;
+  };
+
+  const buildBarList = (items, emptyLabel) => {
+    if (!items.length) {
+      return `<p class="text-sm text-gray-400">${emptyLabel}</p>`;
+    }
+    const maxValue = Math.max(...items.map((item) => item.y || 0), 1);
+    return `
+      <div class="space-y-3">
+        ${items
+          .map((item) => {
+            const width = Math.round(((item.y || 0) / maxValue) * 100);
+            return `
+              <div>
+                <div class="flex items-center justify-between text-xs text-gray-500">
+                  <span class="truncate">${item.x || '-'}</span>
+                  <span>${formatNumber(item.y)}</span>
+                </div>
+                <div class="mt-2 h-1.5 w-full rounded-full bg-gray-200 dark:bg-white/10">
+                  <div class="h-1.5 rounded-full bg-gold" style="width:${width}%"></div>
+                </div>
+              </div>
+            `;
+          })
+          .join('')}
+      </div>
+    `;
+  };
+
+  const renderAnalytics = (data, days) => {
     const stats = data.stats || {};
-      const comparison = stats.comparison || {};
+    const comparison = stats.comparison || {};
     const active = data.active || {};
     const topPages = data.topPages || [];
     const referrers = data.referrers || [];
@@ -1524,41 +1624,6 @@ async function loadAnalytics() {
     const sessionsSeries = (data.pageviews && data.pageviews.sessions) || [];
 
     if (!content) return;
-
-    const buildBars = (series) => {
-      if (!Array.isArray(series) || series.length === 0) return '';
-      const maxValue = Math.max(...series.map((point) => point.y || 0), 1);
-      return series
-        .map((point) => {
-          const height = Math.max(6, Math.round(((point.y || 0) / maxValue) * 100));
-          return `
-            <div class="flex flex-col items-center gap-1">
-              <div class="w-2 rounded-full bg-gold/80" style="height:${height}px"></div>
-            </div>
-          `;
-        })
-        .join('');
-    };
-
-    const buildList = (items, emptyLabel) => {
-      if (!items.length) {
-        return `<p class="text-sm text-gray-400">${emptyLabel}</p>`;
-      }
-      return `
-        <div class="space-y-2">
-          ${items
-            .map(
-              (item) => `
-                <div class="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300">
-                  <span class="truncate">${item.x || '-'}</span>
-                  <span class="ml-4 text-gray-500 dark:text-gray-400">${formatNumber(item.y)}</span>
-                </div>
-              `,
-            )
-            .join('')}
-        </div>
-      `;
-    };
 
     content.innerHTML = `
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
@@ -1571,141 +1636,95 @@ async function loadAnalytics() {
         <div class="p-5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/5">
           <p class="text-xs uppercase tracking-widest text-gray-400">Odsłony</p>
           <p class="mt-3 text-3xl font-display text-gray-900 dark:text-white">${formatNumber(
-            const buildDelta = (value, prev) => {
-              if (!prev) return '';
-              if (!value) return '';
-              const diff = ((value - prev) / prev) * 100;
-              const sign = diff >= 0 ? '+' : '';
-              const tone = diff >= 0 ? 'text-emerald-500' : 'text-rose-500';
-              return `<span class="ml-2 text-xs ${tone}">${sign}${diff.toFixed(0)}%</span>`;
-            };
-
-            const buildLine = (series, stroke) => {
-              if (!series.length) return '';
-              const width = 320;
-              const height = 120;
-              const maxValue = Math.max(...series.map((point) => point.y || 0), 1);
-              const step = series.length > 1 ? width / (series.length - 1) : width;
-              const points = series
-                .map((point, index) => {
-                  const x = Math.round(index * step);
-                  const y = Math.round(height - ((point.y || 0) / maxValue) * height);
-                  return `${x},${y}`;
-                })
-                .join(' ');
-              return `
-                <svg viewBox="0 0 ${width} ${height}" class="w-full h-32">
-                  <polyline
-                    fill="none"
-                    stroke="${stroke}"
-                    stroke-width="2"
-                    points="${points}"
-                  />
-                </svg>
-              `;
-            };
-
-            content.innerHTML = `
-          )}</p>
+            stats.pageviews,
+          )}${buildDelta(stats.pageviews, comparison.pageviews)}</p>
         </div>
         <div class="p-5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/5">
-                  <p class="mt-3 text-3xl font-display text-gray-900 dark:text-white">${formatNumber(
-                    active.visitors,
-                  )}</p>
-          )}</p>
+          <p class="text-xs uppercase tracking-widest text-gray-400">Unikalni</p>
+          <p class="mt-3 text-3xl font-display text-gray-900 dark:text-white">${formatNumber(
+            stats.visitors,
+          )}${buildDelta(stats.visitors, comparison.visitors)}</p>
         </div>
         <div class="p-5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/5">
-                  <p class="mt-3 text-3xl font-display text-gray-900 dark:text-white">${formatNumber(
-                    stats.pageviews,
-                  )}${buildDelta(stats.pageviews, comparison.pageviews)}</p>
-          )}</p>
+          <p class="text-xs uppercase tracking-widest text-gray-400">Sesje</p>
+          <p class="mt-3 text-3xl font-display text-gray-900 dark:text-white">${formatNumber(
+            stats.visits,
+          )}${buildDelta(stats.visits, comparison.visits)}</p>
         </div>
       </div>
-                  <p class="mt-3 text-3xl font-display text-gray-900 dark:text-white">${formatNumber(
-                    stats.visitors,
-                  )}${buildDelta(stats.visitors, comparison.visitors)}</p>
+
+      <div class="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 mb-8">
+        <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-black/20 p-6">
           <div class="flex items-center justify-between">
             <div>
               <h3 class="text-sm uppercase tracking-widest text-gray-400">Ruch (${days} dni)</h3>
-                  <p class="mt-3 text-3xl font-display text-gray-900 dark:text-white">${formatNumber(
-                    stats.visits,
-                  )}${buildDelta(stats.visits, comparison.visits)}</p>
-          </div>
-          <div class="mt-6 grid grid-cols-2 gap-6">
-            <div>
-              <p class="text-xs uppercase tracking-widest text-gray-400">Odsłony</p>
-                <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-black/20 p-6">
+              <p class="mt-2 text-lg font-medium text-gray-900 dark:text-white">Odsłony vs Sesje</p>
             </div>
-            <div>
-              <p class="text-xs uppercase tracking-widest text-gray-400">Sesje</p>
-              <div class="mt-3 flex items-end gap-1 h-28">${buildBars(sessionsSeries)}</div>
+            <div class="text-xs text-gray-400">Skala dzienna</div>
+          </div>
+          <div class="mt-6 grid grid-cols-1 gap-6">
+            <div class="rounded-lg border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-black/30 p-4">
+              <div class="flex items-center justify-between">
+                <p class="text-xs uppercase tracking-widest text-gray-400">Odsłony</p>
+                <span class="text-xs text-gray-400">${formatNumber(stats.pageviews)}</span>
+              </div>
+              <div class="mt-3">${buildLine(pageviewsSeries, '#D4AF37')}</div>
+            </div>
+            <div class="rounded-lg border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-black/30 p-4">
+              <div class="flex items-center justify-between">
+                <p class="text-xs uppercase tracking-widest text-gray-400">Sesje</p>
+                <span class="text-xs text-gray-400">${formatNumber(stats.visits)}</span>
+              </div>
+              <div class="mt-3">${buildLine(sessionsSeries, '#7C7A6B')}</div>
             </div>
           </div>
         </div>
-                  <div class="mt-6 grid grid-cols-1 gap-6">
-                    <div class="rounded-lg border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-black/30 p-4">
-                      <div class="flex items-center justify-between">
-                        <p class="text-xs uppercase tracking-widest text-gray-400">Odsłony</p>
-                        <span class="text-xs text-gray-400">${formatNumber(stats.pageviews)}</span>
-                      </div>
-                      <div class="mt-3">${buildLine(pageviewsSeries, '#D4AF37')}</div>
-                    </div>
-                    <div class="rounded-lg border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-black/30 p-4">
-                      <div class="flex items-center justify-between">
-                        <p class="text-xs uppercase tracking-widest text-gray-400">Sesje</p>
-                        <span class="text-xs text-gray-400">${formatNumber(stats.visits)}</span>
-                      </div>
-                      <div class="mt-3">${buildLine(sessionsSeries, '#7C7A6B')}</div>
-                    </div>
-                  </div>
-                </div>
-                <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-black/20 p-6">
-                  <h3 class="text-sm uppercase tracking-widest text-gray-400">Zaangazowanie</h3>
-                  <div class="mt-5 space-y-4 text-sm text-gray-700 dark:text-gray-300">
-                    <div class="flex items-center justify-between">
-                      <span>Odbicia</span>
-                      <span class="text-gray-500">${formatNumber(stats.bounces)}</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                      <span>Sredni czas</span>
-                      <span class="text-gray-500">${formatNumber(stats.totaltime)}s</span>
-                    </div>
-                  </div>
-                  <div class="mt-6 rounded-lg border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-black/30 p-4">
-                    <p class="text-xs uppercase tracking-widest text-gray-400">Mapa ruchu</p>
-                    <svg viewBox="0 0 360 160" class="mt-4 w-full h-32">
-                      <rect x="0" y="0" width="360" height="160" fill="none" stroke="#26231C" stroke-width="1" rx="12" />
-                      <g fill="#2C2A23">
-                        <circle cx="60" cy="70" r="6" />
-                        <circle cx="90" cy="80" r="4" />
-                        <circle cx="120" cy="65" r="5" />
-                        <circle cx="160" cy="85" r="6" />
-                        <circle cx="210" cy="60" r="5" />
-                        <circle cx="240" cy="90" r="4" />
-                        <circle cx="280" cy="70" r="6" />
-                      </g>
-                      <g fill="#D4AF37">
-                        <circle cx="210" cy="60" r="3" />
-                        <circle cx="120" cy="65" r="3" />
-                        <circle cx="280" cy="70" r="3" />
-                      </g>
-                      <g stroke="#3B372E" stroke-width="1">
-                        <path d="M40 40 L100 50 L140 30" fill="none" />
-                        <path d="M170 40 L230 55 L300 40" fill="none" />
-                      </g>
-                    </svg>
-                    <div class="mt-4 text-xs text-gray-500">Top kraje: ${
-                      countries
-                        .slice(0, 3)
-                        .map((item) => item.x)
-                        .join(', ') || 'Brak danych'
-                    }</div>
-                  </div>
+        <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-black/20 p-6">
           <h3 class="text-sm uppercase tracking-widest text-gray-400">Zaangazowanie</h3>
+          <div class="mt-5 space-y-4 text-sm text-gray-700 dark:text-gray-300">
+            <div class="flex items-center justify-between">
+              <span>Odbicia</span>
+              <span class="text-gray-500">${formatNumber(stats.bounces)}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>Sredni czas</span>
+              <span class="text-gray-500">${formatNumber(stats.totaltime)}s</span>
+            </div>
+          </div>
+          <div class="mt-6 rounded-lg border border-gray-200 dark:border-white/10 bg-white/70 dark:bg-black/30 p-4">
+            <p class="text-xs uppercase tracking-widest text-gray-400">Mapa ruchu</p>
+            <svg viewBox="0 0 360 160" class="mt-4 w-full h-32">
+              <rect x="0" y="0" width="360" height="160" fill="none" stroke="#26231C" stroke-width="1" rx="12" />
+              <path d="M35 55 L85 40 L110 60 L150 45 L185 70 L205 60 L235 75 L260 65 L305 85" fill="none" stroke="#3B372E" stroke-width="2" />
+              <path d="M70 95 L110 110 L160 100 L200 120 L250 110 L290 120" fill="none" stroke="#3B372E" stroke-width="2" />
+              <g fill="#2C2A23">
+                <circle cx="70" cy="70" r="6" />
+                <circle cx="115" cy="55" r="4" />
+                <circle cx="150" cy="75" r="5" />
+                <circle cx="200" cy="70" r="6" />
+                <circle cx="255" cy="80" r="4" />
+                <circle cx="300" cy="95" r="6" />
+              </g>
+              <g fill="#D4AF37">
+                <circle cx="70" cy="70" r="3" />
+                <circle cx="200" cy="70" r="3" />
+                <circle cx="300" cy="95" r="3" />
+              </g>
+            </svg>
+            <div class="mt-4 text-xs text-gray-500">Top kraje: ${
+              countries
+                .slice(0, 3)
+                .map((item) => item.x)
+                .join(', ') || 'Brak danych'
+            }</div>
+          </div>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-white/70 dark:bg-black/20 p-6">
           <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-4">Top strony (${days} dni)</h3>
-          ${buildList(topPages, 'Brak danych o stronach.')}
+          ${buildBarList(topPages, 'Brak danych o stronach.')}
         </div>
         <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-white/70 dark:bg-black/20 p-6">
           <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-4">Referrery (${days} dni)</h3>
@@ -1732,13 +1751,10 @@ async function loadAnalytics() {
     `;
   };
 
-  const fetchAnalytics = async (days) => {
+  const fetchAnalytics = async (startAt, endAt, days) => {
     if (!content) return;
     content.innerHTML =
       '<div class="loader mx-auto w-10 h-10 rounded-full border-2 border-t-gold"></div>';
-
-    const endAt = Date.now();
-    const startAt = endAt - days * 24 * 60 * 60 * 1000;
 
     try {
       const res = await fetch(
@@ -1755,16 +1771,34 @@ async function loadAnalytics() {
     }
   };
 
+  const applyRange = (days) => {
+    const endAt = Date.now();
+    const startAt = endAt - days * 24 * 60 * 60 * 1000;
+    setRangeInputs(days);
+    fetchAnalytics(startAt, endAt, days);
+  };
+
   rangeButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       rangeButtons.forEach((b) => b.classList.remove('bg-gold', 'text-black', 'border-gold'));
       btn.classList.add('bg-gold', 'text-black', 'border-gold');
       const days = Number(btn.dataset.days || 30);
-      fetchAnalytics(days);
+      applyRange(days);
     });
   });
 
-  fetchAnalytics(30);
+  if (applyBtn) {
+    applyBtn.addEventListener('click', () => {
+      if (!fromInput || !toInput || !fromInput.value || !toInput.value) return;
+      const startAt = new Date(`${fromInput.value}T00:00:00`).getTime();
+      const endAt = new Date(`${toInput.value}T23:59:59`).getTime();
+      const diffDays = Math.max(1, Math.round((endAt - startAt) / (24 * 60 * 60 * 1000)));
+      rangeButtons.forEach((b) => b.classList.remove('bg-gold', 'text-black', 'border-gold'));
+      fetchAnalytics(startAt, endAt, diffDays);
+    });
+  }
+
+  applyRange(30);
 }
 
 // --- Helpers ---
