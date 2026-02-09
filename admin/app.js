@@ -1463,7 +1463,7 @@ async function loadAnalytics() {
     container.innerHTML = `
       <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl p-8 shadow-sm">
         <h2 class="text-2xl font-display text-gray-900 dark:text-white mb-3">Analityka (Umami)</h2>
-        <p class="text-gray-500 dark:text-gray-400">Brak Website ID. Uzupelnij dane w zakladce Ustawienia.</p>
+        <p class="text-gray-500 dark:text-gray-400">Brak Website ID. Uzupełnij dane w zakładce Ustawienia.</p>
       </div>
     `;
     return;
@@ -1507,7 +1507,7 @@ async function loadAnalytics() {
           </div>
           <a href="${umamiDashboardUrl || '#'}" target="_blank" class="text-sm text-gold hover:text-white underline ${
             umamiDashboardUrl ? '' : 'opacity-50 pointer-events-none'
-          }">Szczegolowa analityka</a>
+          }">Szczegółowa analityka</a>
         </div>
       </div>
       <div id="analytics-content" class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl p-8 shadow-sm"></div>
@@ -1760,14 +1760,14 @@ async function loadAnalytics() {
           </div>
         </div>
         <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-black/20 p-6">
-          <h3 class="text-sm uppercase tracking-widest text-gray-400">Zaangazowanie</h3>
+          <h3 class="text-sm uppercase tracking-widest text-gray-400">Zaangażowanie</h3>
           <div class="mt-5 space-y-4 text-sm text-gray-700 dark:text-gray-300">
             <div class="flex items-center justify-between">
               <span>Odbicia</span>
               <span class="text-gray-500">${formatNumber(stats.bounces)}</span>
             </div>
             <div class="flex items-center justify-between">
-              <span>Sredni czas</span>
+              <span>Średni czas</span>
               <span class="text-gray-500">${formatNumber(stats.totaltime)}s</span>
             </div>
           </div>
@@ -1804,21 +1804,21 @@ async function loadAnalytics() {
         </div>
         <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-white/70 dark:bg-black/20 p-6">
           <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-4">Referrery (${days} dni)</h3>
-          ${buildList(referrers, 'Brak danych o zrodlach.')}
+          ${buildList(referrers, 'Brak danych o źródłach.')}
         </div>
         <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-white/70 dark:bg-black/20 p-6">
           <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-4">Kraje (${days} dni)</h3>
           ${buildList(countries, 'Brak danych o krajach.')}
         </div>
         <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-white/70 dark:bg-black/20 p-6">
-          <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-4">Srodowisko</h3>
+          <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-4">Środowisko</h3>
           <div class="grid grid-cols-2 gap-6">
             <div>
-              <p class="text-xs uppercase tracking-widest text-gray-400 mb-3">Urzadzenia</p>
+              <p class="text-xs uppercase tracking-widest text-gray-400 mb-3">Urządzenia</p>
               ${buildList(devices, 'Brak danych')}
             </div>
             <div>
-              <p class="text-xs uppercase tracking-widest text-gray-400 mb-3">Przegladarki</p>
+              <p class="text-xs uppercase tracking-widest text-gray-400 mb-3">Przeglądarki</p>
               ${buildList(browsers, 'Brak danych')}
             </div>
           </div>
