@@ -1,6 +1,13 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { getImageSizes, getImageSrcSet, getImageUrl, getPage, getPagesRequired, getSettings } from '../lib/api';
+import {
+  getImageSizes,
+  getImageSrcSet,
+  getImageUrl,
+  getPage,
+  getPagesRequired,
+  getSettings,
+} from '../lib/api';
 import WeddingPhotography from '../components/pages/WeddingPhotography';
 import About from '../components/pages/About';
 import Approach from '../components/pages/Approach';
@@ -51,7 +58,7 @@ if (!page) {
             decoding="async"
             fetchpriority="high"
             alt={page.title}
-            class="absolute inset-0 w-full h-full object-cover"
+            class="absolute inset-0 w-full h-full object-cover object-center"
           />
           <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
             <h1 class="text-4xl md:text-6xl font-display text-white">{page.title}</h1>

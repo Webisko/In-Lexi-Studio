@@ -40,7 +40,7 @@ export default function Approach({ page }: Props) {
             decoding="async"
             fetchPriority="high"
             alt={page.title}
-            className="absolute inset-0 h-full w-full object-cover opacity-40"
+            className="absolute inset-0 h-full w-full object-cover object-center opacity-40"
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-[#080808]" />

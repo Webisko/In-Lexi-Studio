@@ -35,7 +35,7 @@ export default function WeddingPhotography({ page }: Props) {
             decoding="async"
             fetchPriority="high"
             alt={page.title || 'Wedding Photography'}
-            className="absolute inset-0 h-full w-full object-cover opacity-60"
+            className="absolute inset-0 h-full w-full object-cover object-center opacity-60"
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-[#080808]" />

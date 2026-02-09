@@ -30,7 +30,7 @@ export default function About({ page }: Props) {
             decoding="async"
             fetchPriority="high"
             alt={page.title}
-            className="absolute inset-0 h-full w-full object-cover opacity-50"
+            className="absolute inset-0 h-full w-full object-cover object-center opacity-50"
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-[#080808]" />
