@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { API_URL } from '../lib/api';
 
 type NavigationProps = {
   ctaText?: string;
@@ -7,8 +8,14 @@ type NavigationProps = {
 
 export const Navigation: React.FC<NavigationProps> = ({ ctaText, ctaUrl }) => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [pages, setPages] = useState<Array<{ id: number; slug: string; title?: string }>>([]);
+  const [isLoadingPages, setIsLoadingPages] = useState(false);
+  const [pagesError, setPagesError] = useState<string | null>(null);
   const resolvedCtaText = ctaText || 'get in touch';
   const resolvedCtaUrl = ctaUrl || '/contact';
+  const baseUrl = import.meta.env.BASE_URL || '/';
+  const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -18,6 +25,51 @@ export const Navigation: React.FC<NavigationProps> = ({ ctaText, ctaUrl }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    if (pages.length > 0 || isLoadingPages) return;
+
+    const loadPages = async () => {
+      setIsLoadingPages(true);
+      setPagesError(null);
+      try {
+        const res = await fetch(`${API_URL}/pages`);
+        if (!res.ok) throw new Error('Failed to load pages');
+        const data = await res.json();
+        setPages(Array.isArray(data) ? data : []);
+      } catch (err) {
+        setPagesError('Nie udalo sie pobrac stron.');
+      } finally {
+        setIsLoadingPages(false);
+      }
+    };
+
+    loadPages();
+  }, [isMenuOpen, pages.length, isLoadingPages]);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMenuOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isMenuOpen]);
+
+  const buildPageUrl = (slug: string) => {
+    const normalized = String(slug || '').replace(/^\/+/, '');
+    if (!normalized || normalized === 'home') return normalizedBaseUrl;
+    return `${normalizedBaseUrl}${normalized}`;
+  };
+
+  const orderedPages = useMemo(() => {
+    return [...pages].sort((a, b) => {
+      const aTitle = a.title || '';
+      const bTitle = b.title || '';
+      return aTitle.localeCompare(bTitle, 'pl');
+    });
+  }, [pages]);
+
   return (
     <>
       <nav
@@ -26,7 +78,12 @@ export const Navigation: React.FC<NavigationProps> = ({ ctaText, ctaUrl }) => {
         <div className="flex w-full items-center justify-between">
           {/* Left: Custom Menu Icon */}
           <div className="flex w-1/3 justify-start">
-            <button className="group relative flex h-10 w-10 items-center justify-center focus:outline-none">
+            <button
+              type="button"
+              onClick={() => setIsMenuOpen(true)}
+              className="group relative flex h-10 w-10 items-center justify-center focus:outline-none"
+              aria-label="Open menu"
+            >
               <div className="flex flex-col items-start gap-[6px] transition-all duration-300 group-hover:gap-[8px]">
                 <span className="h-[1px] w-8 origin-right bg-white transition-all duration-300 group-hover:bg-gold"></span>
                 <span className="h-[1px] w-5 bg-white transition-all delay-75 duration-300 group-hover:w-8 group-hover:bg-gold"></span>
@@ -54,7 +111,78 @@ export const Navigation: React.FC<NavigationProps> = ({ ctaText, ctaUrl }) => {
         </div>
       </nav>
 
-      {/* Full Screen Menu Overlay (Hidden logic) */}
+      {isMenuOpen && (
+        <div className="fixed inset-0 z-[60]">
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'radial-gradient(circle at 70% 25%, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.08) 28%, rgba(255, 255, 255, 0) 52%), linear-gradient(135deg, #43564d 0%, #2a3a33 52%, #1b2521 100%)',
+            }}
+          />
+          <div className="pointer-events-none absolute -right-24 -top-24 h-[60vh] w-[60vh] rounded-full border border-white/40 bg-white/10" />
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen(false)}
+            className="absolute inset-0 h-full w-full cursor-pointer"
+            aria-label="Close menu"
+          />
+          <div className="relative z-10 flex h-full w-full flex-col px-8 py-10 md:px-14">
+            <div className="flex flex-wrap items-center justify-between gap-6">
+              <div>
+                <p className="text-xs uppercase tracking-[0.4em] text-white/60">Mega Menu</p>
+                <h2 className="font-display text-4xl text-white md:text-5xl">Wybierz stronę</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMenuOpen(false)}
+                className="rounded-full border border-white/30 px-4 py-2 text-xs uppercase tracking-widest text-white transition-colors hover:bg-white/10"
+              >
+                Zamknij
+              </button>
+            </div>
+            <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {isLoadingPages && (
+                <div className="col-span-full text-sm text-white/70">Ladowanie stron...</div>
+              )}
+              {pagesError && (
+                <div className="col-span-full rounded-xl border border-white/20 bg-white/10 p-6 text-sm text-white/80">
+                  {pagesError}
+                </div>
+              )}
+              {!isLoadingPages && !pagesError && orderedPages.length === 0 && (
+                <div className="col-span-full rounded-xl border border-white/20 bg-white/10 p-6 text-sm text-white/80">
+                  Brak stron do wyswietlenia.
+                </div>
+              )}
+              {!isLoadingPages &&
+                !pagesError &&
+                orderedPages.map((page) => {
+                  const url = buildPageUrl(page.slug);
+                  const title = page.title || page.slug || 'Bez tytulu';
+                  const normalized = String(page.slug || '').replace(/^\/+/, '');
+                  const label =
+                    !normalized || normalized === 'home' ? 'Strona glowna' : `/${normalized}`;
+                  return (
+                    <a
+                      key={page.id}
+                      href={url}
+                      className="group rounded-xl border border-white/15 bg-white/5 p-5 text-white/80 transition hover:border-white/40 hover:bg-white/10"
+                    >
+                      <p className="text-xs uppercase tracking-[0.3em] text-white/50">{label}</p>
+                      <h3 className="mt-3 font-display text-2xl text-white group-hover:text-white">
+                        {title}
+                      </h3>
+                      <p className="mt-2 text-xs uppercase tracking-[0.25em] text-white/60">
+                        Otworz strone
+                      </p>
+                    </a>
+                  );
+                })}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
