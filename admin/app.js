@@ -1519,108 +1519,133 @@ async function loadAnalytics() {
     const countries = data.countries || [];
     const devices = data.devices || [];
     const browsers = data.browsers || [];
+    const pageviewsSeries = (data.pageviews && data.pageviews.pageviews) || [];
+    const sessionsSeries = (data.pageviews && data.pageviews.sessions) || [];
 
     if (!content) return;
 
+    const buildBars = (series) => {
+      if (!Array.isArray(series) || series.length === 0) return '';
+      const maxValue = Math.max(...series.map((point) => point.y || 0), 1);
+      return series
+        .map((point) => {
+          const height = Math.max(6, Math.round(((point.y || 0) / maxValue) * 100));
+          return `
+            <div class="flex flex-col items-center gap-1">
+              <div class="w-2 rounded-full bg-gold/80" style="height:${height}px"></div>
+            </div>
+          `;
+        })
+        .join('');
+    };
+
+    const buildList = (items, emptyLabel) => {
+      if (!items.length) {
+        return `<p class="text-sm text-gray-400">${emptyLabel}</p>`;
+      }
+      return `
+        <div class="space-y-2">
+          ${items
+            .map(
+              (item) => `
+                <div class="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300">
+                  <span class="truncate">${item.x || '-'}</span>
+                  <span class="ml-4 text-gray-500 dark:text-gray-400">${formatNumber(item.y)}</span>
+                </div>
+              `,
+            )
+            .join('')}
+        </div>
+      `;
+    };
+
     content.innerHTML = `
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div class="p-4 rounded-lg bg-gray-50 dark:bg-black/20">
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+        <div class="p-5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/5">
           <p class="text-xs uppercase tracking-widest text-gray-400">Aktywni teraz</p>
-          <p class="mt-2 text-2xl font-display text-gray-900 dark:text-white">${formatNumber(
+          <p class="mt-3 text-3xl font-display text-gray-900 dark:text-white">${formatNumber(
             active.visitors,
           )}</p>
         </div>
-        <div class="p-4 rounded-lg bg-gray-50 dark:bg-black/20">
+        <div class="p-5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/5">
           <p class="text-xs uppercase tracking-widest text-gray-400">Odsłony</p>
-          <p class="mt-2 text-2xl font-display text-gray-900 dark:text-white">${formatNumber(
+          <p class="mt-3 text-3xl font-display text-gray-900 dark:text-white">${formatNumber(
             stats.pageviews,
           )}</p>
         </div>
-        <div class="p-4 rounded-lg bg-gray-50 dark:bg-black/20">
+        <div class="p-5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/5">
           <p class="text-xs uppercase tracking-widest text-gray-400">Unikalni</p>
-          <p class="mt-2 text-2xl font-display text-gray-900 dark:text-white">${formatNumber(
+          <p class="mt-3 text-3xl font-display text-gray-900 dark:text-white">${formatNumber(
             stats.visitors,
           )}</p>
         </div>
-        <div class="p-4 rounded-lg bg-gray-50 dark:bg-black/20">
+        <div class="p-5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/5">
           <p class="text-xs uppercase tracking-widest text-gray-400">Sesje</p>
-          <p class="mt-2 text-2xl font-display text-gray-900 dark:text-white">${formatNumber(
+          <p class="mt-3 text-3xl font-display text-gray-900 dark:text-white">${formatNumber(
             stats.visits,
           )}</p>
         </div>
       </div>
 
+      <div class="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 mb-8">
+        <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-black/20 p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm uppercase tracking-widest text-gray-400">Ruch (${days} dni)</h3>
+              <p class="mt-2 text-lg font-medium text-gray-900 dark:text-white">Odsłony vs Sesje</p>
+            </div>
+            <div class="text-xs text-gray-400">Skala dzienna</div>
+          </div>
+          <div class="mt-6 grid grid-cols-2 gap-6">
+            <div>
+              <p class="text-xs uppercase tracking-widest text-gray-400">Odsłony</p>
+              <div class="mt-3 flex items-end gap-1 h-28">${buildBars(pageviewsSeries)}</div>
+            </div>
+            <div>
+              <p class="text-xs uppercase tracking-widest text-gray-400">Sesje</p>
+              <div class="mt-3 flex items-end gap-1 h-28">${buildBars(sessionsSeries)}</div>
+            </div>
+          </div>
+        </div>
+        <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-black/20 p-6">
+          <h3 class="text-sm uppercase tracking-widest text-gray-400">Zaangazowanie</h3>
+          <div class="mt-5 space-y-4 text-sm text-gray-700 dark:text-gray-300">
+            <div class="flex items-center justify-between">
+              <span>Odbicia</span>
+              <span class="text-gray-500">${formatNumber(stats.bounces)}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>Sredni czas</span>
+              <span class="text-gray-500">${formatNumber(stats.totaltime)}s</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-3">Top strony (${days} dni)</h3>
-          <div class="space-y-2">
-            ${topPages
-              .map(
-                (item) => `
-                  <div class="flex justify-between text-sm text-gray-700 dark:text-gray-300">
-                    <span class="truncate">${item.x || '-'}</span>
-                    <span class="ml-4">${formatNumber(item.y)}</span>
-                  </div>
-                `,
-              )
-              .join('')}
-          </div>
+        <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-white/70 dark:bg-black/20 p-6">
+          <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-4">Top strony (${days} dni)</h3>
+          ${buildList(topPages, 'Brak danych o stronach.')}
         </div>
-        <div>
-          <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-3">Referrery (${days} dni)</h3>
-          <div class="space-y-2">
-            ${referrers
-              .map(
-                (item) => `
-                  <div class="flex justify-between text-sm text-gray-700 dark:text-gray-300">
-                    <span class="truncate">${item.x || 'Direct'}</span>
-                    <span class="ml-4">${formatNumber(item.y)}</span>
-                  </div>
-                `,
-              )
-              .join('')}
-          </div>
+        <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-white/70 dark:bg-black/20 p-6">
+          <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-4">Referrery (${days} dni)</h3>
+          ${buildList(referrers, 'Brak danych o zrodlach.')}
         </div>
-        <div>
-          <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-3">Kraje (${days} dni)</h3>
-          <div class="space-y-2">
-            ${countries
-              .map(
-                (item) => `
-                  <div class="flex justify-between text-sm text-gray-700 dark:text-gray-300">
-                    <span class="truncate">${item.x || '-'}</span>
-                    <span class="ml-4">${formatNumber(item.y)}</span>
-                  </div>
-                `,
-              )
-              .join('')}
-          </div>
+        <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-white/70 dark:bg-black/20 p-6">
+          <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-4">Kraje (${days} dni)</h3>
+          ${buildList(countries, 'Brak danych o krajach.')}
         </div>
-        <div>
-          <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-3">Urządzenia / Przeglądarki</h3>
-          <div class="space-y-2">
-            ${devices
-              .map(
-                (item) => `
-                  <div class="flex justify-between text-sm text-gray-700 dark:text-gray-300">
-                    <span class="truncate">${item.x || '-'}</span>
-                    <span class="ml-4">${formatNumber(item.y)}</span>
-                  </div>
-                `,
-              )
-              .join('')}
-          </div>
-          <div class="mt-4 space-y-2">
-            ${browsers
-              .map(
-                (item) => `
-                  <div class="flex justify-between text-sm text-gray-700 dark:text-gray-300">
-                    <span class="truncate">${item.x || '-'}</span>
-                    <span class="ml-4">${formatNumber(item.y)}</span>
-                  </div>
-                `,
-              )
-              .join('')}
+        <div class="rounded-xl border border-gray-200 dark:border-white/5 bg-white/70 dark:bg-black/20 p-6">
+          <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-4">Srodowisko</h3>
+          <div class="grid grid-cols-2 gap-6">
+            <div>
+              <p class="text-xs uppercase tracking-widest text-gray-400 mb-3">Urzadzenia</p>
+              ${buildList(devices, 'Brak danych')}
+            </div>
+            <div>
+              <p class="text-xs uppercase tracking-widest text-gray-400 mb-3">Przegladarki</p>
+              ${buildList(browsers, 'Brak danych')}
+            </div>
           </div>
         </div>
       </div>
