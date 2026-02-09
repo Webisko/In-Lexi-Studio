@@ -62,6 +62,7 @@ export interface Settings {
   cta_url?: string;
   footer_text?: string;
   privacy_url?: string;
+  mega_menu_image?: string;
   email?: string;
   phone?: string;
   instagram?: string;

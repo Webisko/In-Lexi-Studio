@@ -4,9 +4,16 @@ import { API_URL } from '../lib/api';
 type NavigationProps = {
   ctaText?: string;
   ctaUrl?: string;
+  megaMenuImage?: string;
+  instagramUrl?: string;
 };
 
-export const Navigation: React.FC<NavigationProps> = ({ ctaText, ctaUrl }) => {
+export const Navigation: React.FC<NavigationProps> = ({
+  ctaText,
+  ctaUrl,
+  megaMenuImage,
+  instagramUrl,
+}) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [pages, setPages] = useState<Array<{ id: number; slug: string; title?: string }>>([]);
@@ -18,6 +25,8 @@ export const Navigation: React.FC<NavigationProps> = ({ ctaText, ctaUrl }) => {
   const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
   const megaMenuBgUrl = `${normalizedBaseUrl}In-Lexi-Studio_tlo.webp`;
   const megaMenuOverlayUrl = `${normalizedBaseUrl}In-Lexi-Studio-nakladka.webp`;
+  const megaMenuImageUrl = megaMenuImage || megaMenuBgUrl;
+  const resolvedInstagramUrl = instagramUrl || '';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -65,11 +74,38 @@ export const Navigation: React.FC<NavigationProps> = ({ ctaText, ctaUrl }) => {
   };
 
   const orderedPages = useMemo(() => {
-    return [...pages].sort((a, b) => {
-      const aTitle = a.title || '';
-      const bTitle = b.title || '';
-      return aTitle.localeCompare(bTitle, 'pl');
-    });
+    const normalizeSlug = (slug: string) =>
+      String(slug || '')
+        .replace(/^\/+/, '')
+        .toLowerCase();
+    const normalizeTitle = (title?: string) => (title || '').toLowerCase().replace(/\s+/g, '');
+    const shouldExclude = (page: { slug: string; title?: string }) => {
+      const slug = normalizeSlug(page.slug);
+      const title = (page.title || '').toLowerCase();
+      const compactTitle = normalizeTitle(page.title);
+      if (!slug || slug === 'home' || slug === 'index' || slug === '/') return true;
+      if (slug === 'in-lexi-studio' || slug === 'inlexistudio') return true;
+      if (compactTitle === 'inlexistudio') return true;
+      if (title.includes('home') && title.includes('legacy')) return true;
+      return false;
+    };
+
+    const filtered = pages.filter((page) => !shouldExclude(page));
+    const bySlug = new Map(filtered.map((page) => [normalizeSlug(page.slug), page]));
+    const order = [
+      'wedding',
+      'portrait',
+      'product',
+      'my-approach',
+      'approach',
+      'about',
+      'about-me',
+      'portfolio',
+    ];
+
+    return order
+      .map((slug) => bySlug.get(slug))
+      .filter((page): page is { id: number; slug: string; title?: string } => Boolean(page));
   }, [pages]);
 
   return (
@@ -146,7 +182,7 @@ export const Navigation: React.FC<NavigationProps> = ({ ctaText, ctaUrl }) => {
                 <div
                   className="h-full w-full"
                   style={{
-                    backgroundImage: `url(${megaMenuBgUrl})`,
+                    backgroundImage: `url(${megaMenuImageUrl})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center center',
                   }}
@@ -154,11 +190,7 @@ export const Navigation: React.FC<NavigationProps> = ({ ctaText, ctaUrl }) => {
               </div>
             </div>
             <div className="flex h-full flex-1 flex-col overflow-y-auto px-2 py-4 text-white lg:px-10 lg:py-10">
-              <div className="flex items-center justify-between gap-6">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.4em] text-white/60">Mega Menu</p>
-                  <h2 className="font-display text-4xl text-white md:text-5xl">Wybierz strone</h2>
-                </div>
+              <div className="flex items-center justify-end">
                 <button
                   type="button"
                   onClick={() => setIsMenuOpen(false)}
@@ -169,9 +201,7 @@ export const Navigation: React.FC<NavigationProps> = ({ ctaText, ctaUrl }) => {
               </div>
 
               <div className="mt-10 flex-1">
-                {isLoadingPages && (
-                  <div className="text-sm text-white/70">Ladowanie stron...</div>
-                )}
+                {isLoadingPages && <div className="text-sm text-white/70">Ladowanie stron...</div>}
                 {pagesError && (
                   <div className="rounded-xl border border-white/20 bg-white/10 p-6 text-sm text-white/80">
                     {pagesError}
@@ -187,9 +217,6 @@ export const Navigation: React.FC<NavigationProps> = ({ ctaText, ctaUrl }) => {
                   orderedPages.map((page, index) => {
                     const url = buildPageUrl(page.slug);
                     const title = page.title || page.slug || 'Bez tytulu';
-                    const normalized = String(page.slug || '').replace(/^\/+/, '');
-                    const label =
-                      !normalized || normalized === 'home' ? 'Strona glowna' : `/${normalized}`;
                     const indexLabel = String(index + 1).padStart(2, '0');
                     return (
                       <a
@@ -205,22 +232,27 @@ export const Navigation: React.FC<NavigationProps> = ({ ctaText, ctaUrl }) => {
                           <h3 className="font-display text-3xl leading-tight text-white/70 transition group-hover:text-white md:text-4xl">
                             {title}
                           </h3>
-                          <p className="mt-2 text-[10px] uppercase tracking-[0.3em] text-white/40">
-                            {label}
-                          </p>
                         </div>
-                        <span className="text-xs uppercase tracking-[0.3em] text-white/30 transition group-hover:text-gold">
-                          Otworz
-                        </span>
                       </a>
                     );
                   })}
               </div>
 
               <div className="mt-10 flex flex-col gap-6 border-t border-white/10 pt-6 md:flex-row md:items-center md:justify-between">
-                <div className="text-xs uppercase tracking-[0.35em] text-white/50">
-                  In Lexi Studio
-                </div>
+                {resolvedInstagramUrl ? (
+                  <a
+                    href={resolvedInstagramUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs uppercase tracking-[0.35em] text-white/50 transition hover:text-gold"
+                  >
+                    Follow me
+                  </a>
+                ) : (
+                  <span className="text-xs uppercase tracking-[0.35em] text-white/50">
+                    Follow me
+                  </span>
+                )}
                 <a
                   href={resolvedCtaUrl}
                   className="inline-flex items-center justify-center rounded-full border border-gold px-6 py-3 text-[11px] uppercase tracking-[0.3em] text-gold transition hover:bg-gold hover:text-black"

@@ -98,6 +98,7 @@ model Settings {
   footer_text        String?
   privacy_url        String?
   logo_path String?
+  mega_menu_image String?
   email     String?
   phone     String?
   instagram String?

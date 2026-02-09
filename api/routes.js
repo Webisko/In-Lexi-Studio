@@ -506,13 +506,11 @@ router.post('/admin/upload', authenticateToken, upload.single('image'), async (r
     const existingPath = path.join(uploadDir, `${requestedBase}.webp`);
 
     if (fs.existsSync(existingPath) && !overwrite) {
-      return res
-        .status(409)
-        .json({
-          error: 'File exists',
-          baseName: requestedBase,
-          url: `/uploads/${requestedBase}.webp`,
-        });
+      return res.status(409).json({
+        error: 'File exists',
+        baseName: requestedBase,
+        url: `/uploads/${requestedBase}.webp`,
+      });
     }
 
     if (overwrite) {
@@ -654,6 +652,9 @@ router.get('/admin/media/usage', authenticateToken, async (req, res) => {
         }
         if (settings.logo_path && settings.logo_path.includes(filename)) {
           usage.settings.push('Logo');
+        }
+        if (settings.mega_menu_image && settings.mega_menu_image.includes(filename)) {
+          usage.settings.push('Mega menu');
         }
       }
 

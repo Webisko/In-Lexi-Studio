@@ -11,6 +11,7 @@ const resolvedTitle = title && title !== siteName ? `${title} | ${siteName}` : s
 const metaDescription = description || settings?.meta_description || 'In Lexi Studio Photography';
 const ogImage = seoImage || settings?.og_image;
 const ogImageUrl = ogImage ? getImageUrl(ogImage) : '';
+const megaMenuImageUrl = settings?.mega_menu_image ? getImageUrl(settings.mega_menu_image) : '';
 const faviconUrl = settings?.favicon
   ? getImageUrl(settings.favicon)
   : `${import.meta.env.BASE_URL.replace(/\/$/, '')}/favicon.svg`;
@@ -57,7 +58,13 @@ const bodyHtml = settings?.body_html;
     {headHtml && <Fragment set:html={headHtml} />}
   </head>
   <body class="bg-dark-bg text-off-white overflow-x-hidden flex flex-col min-h-screen">
-    <Navigation client:load ctaText={settings?.cta_text} ctaUrl={settings?.cta_url} />
+    <Navigation
+      client:load
+      ctaText={settings?.cta_text}
+      ctaUrl={settings?.cta_url}
+      megaMenuImage={megaMenuImageUrl}
+      instagramUrl={settings?.instagram}
+    />
     <main class="flex-grow">
       <slot />
     </main>

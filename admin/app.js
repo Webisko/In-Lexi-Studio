@@ -2938,6 +2938,23 @@ async function loadSettings() {
                  </div>
 
                  <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
+                   <h4 class="text-gold font-display font-medium">Mega menu</h4>
+                   <div class="space-y-2">
+                     <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Zdjęcie po lewej stronie</label>
+                     <div class="flex items-center gap-4">
+                       <img id="s_mega_menu_image_preview" src="${resolveUploadsUrl(s.mega_menu_image || '')}" class="w-20 h-20 rounded object-cover border border-gray-200 dark:border-white/10 ${s.mega_menu_image ? '' : 'hidden'}" />
+                       <div class="flex-1 space-y-2">
+                         <input type="text" id="s_mega_menu_image" value="${s.mega_menu_image || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none">
+                         <div class="flex gap-2">
+                           <button type="button" onclick="openMediaPicker().then(url => setImageField('s_mega_menu_image','s_mega_menu_image_preview',url))" class="bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Wybierz</button>
+                           <button type="button" onclick="clearImageField('s_mega_menu_image','s_mega_menu_image_preview')" class="bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Usuń</button>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+
+                 <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
                    <h4 class="text-gold font-display font-medium">SEO (Domyślne)</h4>
                    <div>
                     <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Meta Tytuł</label>
@@ -3063,6 +3080,7 @@ async function loadSettings() {
       cta_url: document.getElementById('s_cta_url').value,
       footer_text: document.getElementById('s_footer_text').value,
       privacy_url: document.getElementById('s_privacy_url').value,
+      mega_menu_image: document.getElementById('s_mega_menu_image').value,
       umami_script_url: document.getElementById('s_umami_script_url').value,
       umami_website_id: document.getElementById('s_umami_website_id').value,
       umami_domains: document.getElementById('s_umami_domains').value,
