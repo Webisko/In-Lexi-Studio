@@ -20,7 +20,11 @@ const UPLOADS_BASE_URL = `${API_URL.replace(/\/api$/i, '')}/uploads`;
 
 const resolveUploadsUrl = (path) => {
   if (!path) return '';
-  if (path.startsWith('http')) return path;
+  if (path.startsWith('http')) {
+    return /\/app\/uploads\//i.test(path)
+      ? path
+      : path.replace(/\/uploads\//i, '/app/uploads/');
+  }
   if (/^\/?uploads\//i.test(path)) {
     const trimmed = path.replace(/^\/?uploads\//i, '');
     return `${UPLOADS_BASE_URL}/${trimmed}`;
@@ -283,7 +287,7 @@ async function loadMediaLibrary() {
       .map(
         (f) => `
             <div class="cursor-pointer group relative aspect-square bg-gray-900 rounded border border-white/5 overflow-hidden hover:border-gold transition-colors" onclick="selectMedia('${f.url}')">
-              <img src="${resolveUploadsUrl(f.url)}" class="w-full h-full object-cover">
+              <img src="${resolveUploadsUrl(f.url)}" class="w-full h-full object-cover" onerror="console.error('Media preview failed', this.src)">
                 <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                     <span class="text-xs text-white">Wybierz</span>
                 </div>
@@ -1438,7 +1442,7 @@ async function loadMediaLibraryTab() {
             const used = count > 0;
             return `
               <div class="group relative aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-black">
-                <img src="${file.url}" alt="${file.name}" class="h-full w-full object-cover" />
+                <img src="${resolveUploadsUrl(file.url)}" alt="${file.name}" class="h-full w-full object-cover" onerror="console.error('Media grid failed', this.src)" />
                 <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end">
                   <div class="w-full p-3 text-xs text-white">
                     <p class="truncate">${file.name}</p>
@@ -1469,7 +1473,7 @@ async function loadMediaLibraryTab() {
             const lines = buildUsageLines(file);
             return `
               <div class="flex items-start gap-4 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black/20 p-4">
-                <img src="${file.url}" alt="${file.name}" class="h-16 w-16 rounded object-cover border border-gray-200 dark:border-white/10" />
+                <img src="${resolveUploadsUrl(file.url)}" alt="${file.name}" class="h-16 w-16 rounded object-cover border border-gray-200 dark:border-white/10" onerror="console.error('Media list failed', this.src)" />
                 <div class="flex-1">
                   <div class="flex items-center justify-between">
                     <p class="text-sm font-medium text-gray-900 dark:text-white">${file.name}</p>
