@@ -1,5 +1,6 @@
 export const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:1337/api';
 export const BASE_URL = import.meta.env.PUBLIC_BASE_URL || 'http://localhost:1337';
+const UPLOADS_URL = `${API_URL.replace(/\/api$/i, '')}/uploads`;
 
 export interface GalleryItem {
   id: number;
@@ -96,6 +97,10 @@ export const getSettings = () => fetchApi<Settings>('/settings');
 export const getImageUrl = (path?: string) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
+  if (/^\/?uploads\//i.test(path)) {
+    const trimmed = path.replace(/^\/?uploads\//i, '');
+    return `${UPLOADS_URL}/${trimmed}`;
+  }
   return `${BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
@@ -112,9 +117,7 @@ export const getImageSrcSet = (path?: string, widths: number[] = IMAGE_VARIANT_W
   return widths.map((width) => `${addVariantSuffix(url, width)} ${width}w`).join(', ');
 };
 
-export const getImageSizes = (
-  preset: 'hero' | 'gallery' | 'half' | 'content' = 'content',
-) => {
+export const getImageSizes = (preset: 'hero' | 'gallery' | 'half' | 'content' = 'content') => {
   switch (preset) {
     case 'hero':
       return '100vw';

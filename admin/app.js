@@ -13,11 +13,15 @@ function resolveApiBase() {
 
 const API_URL = resolveApiBase();
 const ADMIN_API_URL = `${API_URL}/admin`;
-const UPLOADS_BASE_URL = API_URL.replace(/\/app\/api$/i, '').replace(/\/api$/i, '');
+const UPLOADS_BASE_URL = `${API_URL.replace(/\/api$/i, '')}/uploads`;
 
 const resolveUploadsUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
+  if (/^\/?uploads\//i.test(path)) {
+    const trimmed = path.replace(/^\/?uploads\//i, '');
+    return `${UPLOADS_BASE_URL}/${trimmed}`;
+  }
   if (path.startsWith('/')) return `${UPLOADS_BASE_URL}${path}`;
   return `${UPLOADS_BASE_URL}/${path}`;
 };
