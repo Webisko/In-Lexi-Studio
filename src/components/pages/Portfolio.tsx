@@ -123,6 +123,8 @@ export default function Portfolio({ page }: Props) {
                 <img
                   src={item.src}
                   alt={item.category}
+                  loading="lazy"
+                  decoding="async"
                   className="h-auto w-full transform grayscale transition-all duration-700 group-hover:scale-105 group-hover:grayscale-0"
                 />
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-4 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
@@ -158,6 +160,8 @@ export default function Portfolio({ page }: Props) {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               src={selectedImage}
+              loading="eager"
+              decoding="async"
               className="max-h-full max-w-full object-contain shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             />

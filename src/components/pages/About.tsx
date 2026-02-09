@@ -90,6 +90,8 @@ export default function About({ page }: Props) {
               <img
                 src="https://inlexistudio.com/wp-content/uploads/2023/11/In-Lexi-Studio-Wedding-Photography-Glasgow-Scotland-1-1.jpg"
                 alt="Portrait of the photographer"
+                loading="lazy"
+                decoding="async"
                 className="absolute inset-0 z-10 h-full w-full object-cover grayscale transition-all duration-700 hover:grayscale-0"
               />
             </motion.div>
@@ -159,6 +161,8 @@ export default function About({ page }: Props) {
               <img
                 src="https://inlexistudio.com/wp-content/uploads/2023/07/In-Lexi-Studio-Wedding-Photography-Glasgow-Scotland-1-15.jpg"
                 alt="Passion for photography"
+                loading="lazy"
+                decoding="async"
                 className="absolute inset-0 z-10 h-full w-full object-cover grayscale transition-all duration-700 hover:grayscale-0"
               />
             </motion.div>

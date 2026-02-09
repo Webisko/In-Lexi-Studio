@@ -16,6 +16,8 @@ export const AboutFeature: React.FC = () => {
               <img
                 src="https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?q=80&w=400&auto=format&fit=crop"
                 alt="Detail 1"
+                loading="lazy"
+                decoding="async"
                 className="h-full w-full object-cover opacity-60 grayscale transition-all duration-700 hover:grayscale-0"
               />
             </div>
@@ -25,6 +27,8 @@ export const AboutFeature: React.FC = () => {
                 <img
                   src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=800&auto=format&fit=crop"
                   alt="Photographer"
+                  loading="lazy"
+                  decoding="async"
                   className="h-full w-full object-cover shadow-2xl"
                 />
                 <div className="pointer-events-none absolute inset-0 m-4 border border-white/10" />
@@ -44,6 +48,8 @@ export const AboutFeature: React.FC = () => {
               <img
                 src="https://images.unsplash.com/photo-1606800052052-a08af7148866?q=80&w=400&auto=format&fit=crop"
                 alt="Detail 2"
+                loading="lazy"
+                decoding="async"
                 className="h-full w-full object-cover"
               />
             </div>

@@ -66,6 +66,8 @@ export const LatestMoments: React.FC = () => {
             <img
               src={moment.image}
               alt={moment.title}
+              loading="lazy"
+              decoding="async"
               className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-110"
             />
 
