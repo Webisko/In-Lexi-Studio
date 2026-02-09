@@ -31,6 +31,7 @@ export interface Testimonial {
   author: string;
   content?: string;
   rating: number;
+  avatar_image?: string;
 }
 
 export interface Settings {

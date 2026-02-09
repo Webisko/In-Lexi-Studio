@@ -1,6 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { getPage, getPagesRequired, getSettings } from '../lib/api';
+import { getPage, getPagesRequired, getSettings, getImageUrl } from '../lib/api';
 import WeddingPhotography from '../components/pages/WeddingPhotography';
 import About from '../components/pages/About';
 import Approach from '../components/pages/Approach';
@@ -41,7 +41,7 @@ if (!page) {
       page.hero_image && (
         <div class="relative w-full h-[50vh] min-h-[400px]">
           <img
-            src={page.hero_image}
+            src={getImageUrl(page.hero_image)}
             alt={page.title}
             class="absolute inset-0 w-full h-full object-cover"
           />
