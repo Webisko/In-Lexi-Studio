@@ -1,6 +1,27 @@
 import React from 'react';
 
-export const Footer: React.FC = () => {
+type FooterProps = {
+  siteName?: string;
+  email?: string;
+  phone?: string;
+  instagram?: string;
+  facebook?: string;
+  footerText?: string;
+  privacyUrl?: string;
+};
+
+export const Footer: React.FC<FooterProps> = ({
+  siteName,
+  email,
+  phone,
+  instagram,
+  facebook,
+  footerText,
+  privacyUrl,
+}) => {
+  const resolvedSiteName = siteName || 'In Lexi Studio';
+  const resolvedFooterText =
+    footerText || `© ${new Date().getFullYear()} ${resolvedSiteName} | All rights reserved`;
   return (
     <footer id="contact" className="bg-dark-bg px-6 pb-8 pt-24 text-white md:px-12">
       <div className="container mx-auto">
@@ -39,9 +60,30 @@ export const Footer: React.FC = () => {
               Contact Info
             </h4>
             <ul className="space-y-4 font-sans text-xs uppercase tracking-widest text-gray-300">
-              <li className="cursor-pointer transition-colors hover:text-white">Element #1</li>
-              <li className="cursor-pointer transition-colors hover:text-white">Element #2</li>
-              <li className="cursor-pointer transition-colors hover:text-white">Element #3</li>
+              {email ? (
+                <li className="transition-colors hover:text-white">{email}</li>
+              ) : (
+                <li className="text-gray-500">Email not set</li>
+              )}
+              {phone ? (
+                <li className="transition-colors hover:text-white">{phone}</li>
+              ) : (
+                <li className="text-gray-500">Phone not set</li>
+              )}
+              {instagram ? (
+                <li>
+                  <a href={instagram} className="transition-colors hover:text-white">
+                    Instagram
+                  </a>
+                </li>
+              ) : null}
+              {facebook ? (
+                <li>
+                  <a href={facebook} className="transition-colors hover:text-white">
+                    Facebook
+                  </a>
+                </li>
+              ) : null}
             </ul>
           </div>
         </div>
@@ -53,11 +95,17 @@ export const Footer: React.FC = () => {
           </div>
 
           <div>
-            <span>© 2026 In Lexi Studio | All rights reserved</span>
+            <span>{resolvedFooterText}</span>
           </div>
 
           <div>
-            <span className="cursor-pointer transition-colors hover:text-gold">Privacy policy</span>
+            {privacyUrl ? (
+              <a href={privacyUrl} className="transition-colors hover:text-gold">
+                Privacy policy
+              </a>
+            ) : (
+              <span className="text-gray-600">Privacy policy</span>
+            )}
           </div>
         </div>
       </div>

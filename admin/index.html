@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="api-base" content="https://inlexistudio.com/app/api" />
     <title>In Lexi CMS</title>
     <link rel="stylesheet" href="style.css" />
     <script src="https://cdn.tailwindcss.com"></script>
@@ -66,38 +67,132 @@
           <p class="text-xs uppercase tracking-[0.3em] text-gray-400">Studio Management</p>
         </div>
 
-        <form id="login-form" class="space-y-6">
-          <div>
-            <label class="mb-2 block text-xs uppercase tracking-wider text-gray-500">Email</label>
-            <input
-              type="email"
-              id="email"
-              class="w-full rounded border border-white/10 bg-black/50 p-3 text-white placeholder-gray-600 transition-all focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
-              placeholder="admin@inlexi.com"
-              required
-            />
-          </div>
-          <div>
-            <label class="mb-2 block text-xs uppercase tracking-wider text-gray-500">Hasło</label>
-            <input
-              type="password"
-              id="password"
-              class="w-full rounded border border-white/10 bg-black/50 p-3 text-white placeholder-gray-600 transition-all focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
-              placeholder="••••••••"
-              required
-            />
-          </div>
+        <div id="login-panel">
+          <form id="login-form" class="space-y-6">
+            <div>
+              <label class="mb-2 block text-xs uppercase tracking-wider text-gray-500">Email</label>
+              <input
+                type="email"
+                id="email"
+                class="w-full rounded border border-white/10 bg-black/50 p-3 text-white placeholder-gray-600 transition-all focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+                placeholder="admin@inlexi.com"
+                required
+              />
+            </div>
+            <div>
+              <label class="mb-2 block text-xs uppercase tracking-wider text-gray-500">Hasło</label>
+              <input
+                type="password"
+                id="password"
+                class="w-full rounded border border-white/10 bg-black/50 p-3 text-white placeholder-gray-600 transition-all focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              class="hover:bg-gold-hover w-full rounded bg-gold px-4 py-3 font-bold text-black shadow-[0_0_20px_rgba(212,175,55,0.2)] transition-colors"
+            >
+              Zaloguj się
+            </button>
+          </form>
           <button
-            type="submit"
-            class="hover:bg-gold-hover w-full rounded bg-gold px-4 py-3 font-bold text-black shadow-[0_0_20px_rgba(212,175,55,0.2)] transition-colors"
+            id="forgot-link"
+            type="button"
+            class="mt-4 w-full text-center text-xs uppercase tracking-widest text-gray-400 hover:text-gold"
           >
-            Zaloguj się
+            Zapomniałem hasła
           </button>
-        </form>
-        <p
-          id="login-error"
-          class="mt-4 hidden rounded bg-red-500/10 p-2 text-center text-sm text-red-500"
-        ></p>
+          <p
+            id="login-error"
+            class="mt-4 hidden rounded bg-red-500/10 p-2 text-center text-sm text-red-500"
+          ></p>
+          <p
+            id="login-message"
+            class="mt-4 hidden rounded bg-emerald-500/10 p-2 text-center text-sm text-emerald-400"
+          ></p>
+        </div>
+
+        <div id="forgot-panel" class="hidden">
+          <form id="forgot-form" class="space-y-6">
+            <div>
+              <label class="mb-2 block text-xs uppercase tracking-wider text-gray-500">Email</label>
+              <input
+                type="email"
+                id="forgot-email"
+                class="w-full rounded border border-white/10 bg-black/50 p-3 text-white placeholder-gray-600 transition-all focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+                placeholder="admin@inlexi.com"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              class="hover:bg-gold-hover w-full rounded bg-gold px-4 py-3 font-bold text-black shadow-[0_0_20px_rgba(212,175,55,0.2)] transition-colors"
+            >
+              Wyślij link resetu
+            </button>
+          </form>
+          <p
+            id="forgot-message"
+            class="mt-4 hidden rounded bg-emerald-500/10 p-2 text-center text-sm text-emerald-400"
+          ></p>
+          <button
+            id="back-to-login-from-forgot"
+            type="button"
+            class="mt-4 w-full text-center text-xs uppercase tracking-widest text-gray-400 hover:text-gold"
+          >
+            Wróć do logowania
+          </button>
+        </div>
+
+        <div id="reset-panel" class="hidden">
+          <form id="reset-form" class="space-y-6">
+            <div>
+              <label class="mb-2 block text-xs uppercase tracking-wider text-gray-500"
+                >Nowe hasło</label
+              >
+              <input
+                type="password"
+                id="reset-password"
+                class="w-full rounded border border-white/10 bg-black/50 p-3 text-white placeholder-gray-600 transition-all focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+                placeholder="••••••••"
+                required
+              />
+              <p class="mt-2 text-xs text-gray-500">
+                Min. 10 znaków, wielka i mała litera, cyfra oraz znak specjalny.
+              </p>
+            </div>
+            <div>
+              <label class="mb-2 block text-xs uppercase tracking-wider text-gray-500"
+                >Powtórz hasło</label
+              >
+              <input
+                type="password"
+                id="reset-password-confirm"
+                class="w-full rounded border border-white/10 bg-black/50 p-3 text-white placeholder-gray-600 transition-all focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              class="hover:bg-gold-hover w-full rounded bg-gold px-4 py-3 font-bold text-black shadow-[0_0_20px_rgba(212,175,55,0.2)] transition-colors"
+            >
+              Ustaw nowe hasło
+            </button>
+          </form>
+          <p
+            id="reset-message"
+            class="mt-4 hidden rounded bg-red-500/10 p-2 text-center text-sm text-red-500"
+          ></p>
+          <button
+            id="back-to-login-from-reset"
+            type="button"
+            class="mt-4 w-full text-center text-xs uppercase tracking-widest text-gray-400 hover:text-gold"
+          >
+            Wróć do logowania
+          </button>
+        </div>
       </div>
     </div>
 
@@ -230,6 +325,25 @@
             </svg>
             Ustawienia
           </button>
+          <button
+            class="nav-btn group flex w-full items-center rounded-md px-4 py-3 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/5 dark:hover:text-white"
+            data-tab="analytics"
+          >
+            <svg
+              class="mr-3 h-5 w-5 text-gray-500 group-hover:text-gold"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M11 3v18m4-16v16m4-12v12M7 7v10M3 11v6"
+              />
+            </svg>
+            Analityka
+          </button>
         </nav>
 
         <div class="border-t border-gray-200 p-4 dark:border-white/5">
@@ -308,6 +422,7 @@
         <div id="tab-galleries" class="tab-content mx-auto hidden max-w-6xl"></div>
         <div id="tab-testimonials" class="tab-content mx-auto hidden max-w-6xl"></div>
         <div id="tab-settings" class="tab-content mx-auto hidden max-w-6xl"></div>
+        <div id="tab-analytics" class="tab-content mx-auto hidden max-w-6xl"></div>
       </main>
     </div>
 

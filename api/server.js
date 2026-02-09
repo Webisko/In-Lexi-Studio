@@ -7,12 +7,27 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 1337;
+const PROXY_PREFIX = '/app';
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+
+// Strip /app prefix when the proxy does not rewrite paths
+app.use((req, res, next) => {
+  if (req.url === PROXY_PREFIX) {
+    req.url = '/';
+    return next();
+  }
+
+  if (req.url.startsWith(`${PROXY_PREFIX}/`)) {
+    req.url = req.url.slice(PROXY_PREFIX.length);
+  }
+
+  return next();
+});
 
 // Paths relative to THIS file (api/server.js)
 // Using __dirname is the most reliable way to find sibling folders

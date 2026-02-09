@@ -135,7 +135,7 @@ const PAGES = [
     content: '<p>Get in touch with us.</p>',
   },
   {
-    slug: 'home',
+    slug: '/',
     title: 'In Lexi Studio',
     meta_title: 'In Lexi Studio - Wedding & Portrait Photography',
     meta_description:
@@ -153,6 +153,8 @@ const PAGES = [
         <p>My approach is rooted in authentic storytelling. I blend into the background to capture candid moments while stepping in gently when needed to create artistic portraits. The result is a collection of images that are both natural and cinematic.</p>
       `,
     hero_image: '/uploads/ILS-68-glowna.webp',
+    is_home: true,
+    seo_use_hero: true,
   },
 ];
 

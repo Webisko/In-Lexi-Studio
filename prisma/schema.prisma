@@ -12,6 +12,17 @@ model User {
   email    String @unique
   password String
   role     String @default("ADMIN") // "ADMIN" or "MANAGER"
+  passwordResetTokens PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  token_hash String   @unique
+  expires_at DateTime
+  used_at    DateTime?
+  created_at DateTime @default(now())
 }
 
 model Page {
@@ -23,6 +34,9 @@ model Page {
   meta_title       String?
   meta_description String?
   seo_image        String?
+  sort_order       Int      @default(0)
+  is_home          Boolean  @default(false)
+  seo_use_hero     Boolean  @default(true)
   updated_at       DateTime @default(now()) @updatedAt
 }
 
@@ -47,6 +61,7 @@ model GalleryItem {
 model Testimonial {
   id         Int      @id @default(autoincrement())
   author     String
+  avatar_image String?
   content    String?
   rating     Int      @default(5)
   approved   Boolean  @default(false)
@@ -57,9 +72,24 @@ model Testimonial {
 model Settings {
   id        Int     @id @default(autoincrement())
   site_name String?
+  meta_title       String?
+  meta_description String?
+  og_image         String?
+  favicon          String?
+  canonical_base_url String?
+  head_html          String?
+  body_html          String?
+  cta_text           String?
+  cta_url            String?
+  footer_text        String?
+  privacy_url        String?
   logo_path String?
   email     String?
   phone     String?
   instagram String?
   facebook  String?
+  umami_script_url   String?
+  umami_website_id   String?
+  umami_domains      String?
+  umami_dashboard_url String?
 }

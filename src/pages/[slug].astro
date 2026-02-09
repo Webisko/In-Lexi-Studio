@@ -1,13 +1,16 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { getPage, getPages } from '../lib/api';
+import { getPage, getPagesRequired, getSettings } from '../lib/api';
 import WeddingPhotography from '../components/pages/WeddingPhotography';
 import About from '../components/pages/About';
 import Approach from '../components/pages/Approach';
 import Portfolio from '../components/pages/Portfolio';
 
 export async function getStaticPaths() {
-  const pages = (await getPages()) || [];
+  const pages = await getPagesRequired();
+  if (!pages || pages.length === 0) {
+    throw new Error('No pages returned from API. Aborting static path generation.');
+  }
   console.log('Re-generating paths with data from API:', pages.length, 'pages found.');
   return pages
     .filter((p) => p.slug && p.slug !== '/' && p.slug !== 'home')
@@ -19,12 +22,19 @@ export async function getStaticPaths() {
 
 const { page } = Astro.props;
 
+const settings = await getSettings();
+
 if (!page) {
   return Astro.redirect('/404');
 }
 ---
 
-<Layout title={page.meta_title || page.title} description={page.meta_description}>
+<Layout
+  title={page.meta_title || page.title || settings?.meta_title || settings?.site_name}
+  description={page.meta_description || settings?.meta_description}
+  seoImage={page.seo_image || page.hero_image}
+  settings={settings}
+>
   <main class="pt-24">
     {/* Hero Section if Image Exists */}
     {

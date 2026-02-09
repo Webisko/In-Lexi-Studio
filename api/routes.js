@@ -6,6 +6,9 @@ const multer = require('multer');
 const path = require('path');
 const sharp = require('sharp');
 const fs = require('fs');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
 
 // --- Uploads Config ---
 const uploadDir = path.join(__dirname, '../public/uploads');
@@ -13,22 +16,169 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  },
-});
-const upload = multer({ storage });
+const MAX_DIMENSION = 2560;
+const VARIANT_SIZES = [1920, 1440, 960, 480, 160];
+const SEO_SIZE = { width: 1200, height: 630 };
+const RESET_TOKEN_TTL_MINUTES = Number(process.env.RESET_TOKEN_TTL_MINUTES || 60);
+const RESET_BASE_URL = process.env.RESET_BASE_URL || 'https://admin.inlexistudio.com';
+
+let resetMailer;
+const resolveResetMailer = () => {
+  if (resetMailer !== undefined) return resetMailer;
+
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const port = Number(process.env.SMTP_PORT || 587);
+  const secure = process.env.SMTP_SECURE === 'true';
+
+  if (!host || !user || !pass) {
+    resetMailer = null;
+    return resetMailer;
+  }
+
+  resetMailer = nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: { user, pass },
+  });
+
+  return resetMailer;
+};
+
+const sendResetEmail = async (email, resetLink) => {
+  const mailer = resolveResetMailer();
+  if (!mailer) {
+    console.log(`[Password reset] ${email} -> ${resetLink}`);
+    return;
+  }
+
+  const from = process.env.SMTP_FROM || 'In Lexi Studio <no-reply@inlexistudio.com>';
+  await mailer.sendMail({
+    from,
+    to: email,
+    subject: 'Reset hasla do CMS',
+    text: `Aby ustawic nowe haslo, otworz link: ${resetLink}`,
+    html: `
+      <p>Aby ustawic nowe haslo, otworz link:</p>
+      <p><a href="${resetLink}">${resetLink}</a></p>
+      <p>Link wygasa po ${RESET_TOKEN_TTL_MINUTES} minutach.</p>
+    `,
+  });
+};
+
+const validatePassword = (password) => {
+  if (!password || password.length < 10) return 'Haslo musi miec co najmniej 10 znakow.';
+  if (!/[A-Z]/.test(password)) return 'Haslo musi zawierac wielka litere.';
+  if (!/[a-z]/.test(password)) return 'Haslo musi zawierac mala litere.';
+  if (!/[0-9]/.test(password)) return 'Haslo musi zawierac cyfre.';
+  if (!/[^A-Za-z0-9]/.test(password)) return 'Haslo musi zawierac znak specjalny.';
+  return null;
+};
+
+const upload = multer({ storage: multer.memoryStorage() });
+
+const isVariantFile = (name) => /-w\d+\.webp$/i.test(name) || /-seo-1200x630\.webp$/i.test(name);
+
+const buildBaseName = () => `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+
+const buildFilePaths = (baseName) => {
+  const mainName = `${baseName}.webp`;
+  const variants = VARIANT_SIZES.map((size) => `${baseName}-w${size}.webp`);
+  return {
+    mainName,
+    variants,
+    mainPath: path.join(uploadDir, mainName),
+    variantPaths: variants.map((name) => path.join(uploadDir, name)),
+  };
+};
+
+const writeWebpVariants = async (buffer, baseName) => {
+  const { mainName, variants, mainPath, variantPaths } = buildFilePaths(baseName);
+  const image = sharp(buffer).rotate();
+  const metadata = await image.metadata();
+  const maxSide = Math.max(metadata.width || 0, metadata.height || 0);
+
+  await image
+    .resize({
+      width: MAX_DIMENSION,
+      height: MAX_DIMENSION,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .webp({ quality: 80 })
+    .toFile(mainPath);
+
+  const createdVariants = [];
+  for (let i = 0; i < VARIANT_SIZES.length; i += 1) {
+    const size = VARIANT_SIZES[i];
+    if (maxSide && maxSide < size) continue;
+    await sharp(buffer)
+      .rotate()
+      .resize({ width: size, height: size, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toFile(variantPaths[i]);
+    createdVariants.push({ size, url: `/uploads/${variants[i]}` });
+  }
+
+  return {
+    url: `/uploads/${mainName}`,
+    filename: mainName,
+    variants: createdVariants,
+  };
+};
+
+const getPathFromUrl = (url) => {
+  if (!url) return null;
+  const filename = path.basename(url);
+  return path.join(uploadDir, filename);
+};
+
+const ensureSeoImage = async (sourceUrl) => {
+  if (!sourceUrl) return null;
+  if (/-seo-1200x630\.webp$/i.test(sourceUrl)) return sourceUrl;
+
+  const sourcePath = getPathFromUrl(sourceUrl);
+  if (!sourcePath || !fs.existsSync(sourcePath)) return sourceUrl;
+
+  const baseName = path.basename(sourcePath, path.extname(sourcePath));
+  const seoName = `${baseName}-seo-1200x630.webp`;
+  const seoPath = path.join(uploadDir, seoName);
+
+  if (!fs.existsSync(seoPath)) {
+    await sharp(sourcePath)
+      .rotate()
+      .resize(SEO_SIZE.width, SEO_SIZE.height, { fit: 'cover', position: 'centre' })
+      .webp({ quality: 80 })
+      .toFile(seoPath);
+  }
+
+  return `/uploads/${seoName}`;
+};
 
 // --- Public Routes ---
 
 // Get all pages (slugs) - Required for Static Site Generation
 router.get('/pages', async (req, res) => {
   try {
-    const pages = await prisma.page.findMany();
+    const pages = await prisma.page.findMany({
+      orderBy: [{ sort_order: 'asc' }, { updated_at: 'desc' }],
+    });
     res.json(pages);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get home page
+router.get('/pages/home', async (req, res) => {
+  try {
+    let page = await prisma.page.findFirst({ where: { is_home: true } });
+    if (!page) page = await prisma.page.findFirst({ where: { slug: '/' } });
+    if (!page) page = await prisma.page.findFirst({ where: { slug: 'home' } });
+    if (!page) return res.status(404).json({ error: 'Page not found' });
+    res.json(page);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -98,6 +248,79 @@ router.get('/settings', async (req, res) => {
 
 router.post('/admin/login', login);
 
+router.post('/admin/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+
+  try {
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+
+    if (user) {
+      await prisma.passwordResetToken.deleteMany({ where: { user_id: user.id } });
+
+      const token = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60 * 1000);
+      const resetLink = `${RESET_BASE_URL}/?reset=${token}`;
+
+      await prisma.passwordResetToken.create({
+        data: {
+          user_id: user.id,
+          token_hash: tokenHash,
+          expires_at: expiresAt,
+        },
+      });
+
+      await sendResetEmail(user.email, resetLink);
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to start password reset' });
+  }
+});
+
+router.post('/admin/reset-password', async (req, res) => {
+  const { token: rawToken, password } = req.body;
+  if (!rawToken || !password) return res.status(400).json({ error: 'Token and password required' });
+
+  const validationError = validatePassword(password);
+  if (validationError) return res.status(400).json({ error: validationError });
+
+  try {
+    const tokenHash = crypto.createHash('sha256').update(String(rawToken)).digest('hex');
+    const resetToken = await prisma.passwordResetToken.findFirst({
+      where: {
+        token_hash: tokenHash,
+        used_at: null,
+        expires_at: { gt: new Date() },
+      },
+    });
+
+    if (!resetToken) return res.status(400).json({ error: 'Invalid or expired token' });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: resetToken.user_id },
+        data: { password: hashedPassword },
+      }),
+      prisma.passwordResetToken.update({
+        where: { id: resetToken.id },
+        data: { used_at: new Date() },
+      }),
+      prisma.passwordResetToken.deleteMany({
+        where: { user_id: resetToken.user_id, id: { not: resetToken.id } },
+      }),
+    ]);
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
 router.get('/admin/verify', authenticateToken, (req, res) => {
   res.json({ valid: true, user: req.user });
 });
@@ -106,16 +329,20 @@ router.get('/admin/verify', authenticateToken, (req, res) => {
 router.post('/admin/upload', authenticateToken, upload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-  res.json({
-    url: `/uploads/${req.file.filename}`,
-    filename: req.file.filename,
-  });
+  try {
+    const baseName = buildBaseName();
+    const result = await writeWebpVariants(req.file.buffer, baseName);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 router.get('/admin/files', authenticateToken, (req, res) => {
   fs.readdir(uploadDir, (err, files) => {
     if (err) return res.status(500).json({ error: 'Failed to list files' });
     const fileList = files
+      .filter((f) => !isVariantFile(f))
       .map((f) => ({
         name: f,
         url: `/uploads/${f}`,
@@ -127,19 +354,77 @@ router.get('/admin/files', authenticateToken, (req, res) => {
 
 // Page Routes (Admin)
 router.get('/admin/pages', authenticateToken, async (req, res) => {
-  const pages = await prisma.page.findMany();
+  const pages = await prisma.page.findMany({
+    orderBy: [{ sort_order: 'asc' }, { updated_at: 'desc' }],
+  });
   res.json(pages);
 });
 router.put('/admin/pages/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
-  // Ensure we are updating correct fields based on new schema
-  const data = req.body;
+  const data = { ...req.body };
+  const pageId = Number(id);
+
+  if (data.is_home) {
+    data.slug = '/';
+  }
+
+  if (data.seo_use_hero) {
+    data.seo_image = data.hero_image ? await ensureSeoImage(data.hero_image) : null;
+  } else if (data.seo_image) {
+    data.seo_image = await ensureSeoImage(data.seo_image);
+  }
+
+  if (data.is_home) {
+    await prisma.page.updateMany({
+      where: { is_home: true, NOT: { id: pageId } },
+      data: { is_home: false },
+    });
+
+    const conflict = await prisma.page.findFirst({
+      where: { slug: '/', NOT: { id: pageId } },
+    });
+    if (conflict) {
+      await prisma.page.update({
+        where: { id: conflict.id },
+        data: { slug: `home-${conflict.id}` },
+      });
+    }
+  }
+
   const page = await prisma.page.update({ where: { id: Number(id) }, data });
   res.json(page);
 });
 router.post('/admin/pages', authenticateToken, async (req, res) => {
-  const page = await prisma.page.create({ data: req.body });
+  const data = { ...req.body };
+
+  if (data.is_home) {
+    data.slug = '/';
+    await prisma.page.updateMany({
+      where: { is_home: true },
+      data: { is_home: false },
+    });
+  }
+
+  if (data.seo_use_hero) {
+    data.seo_image = data.hero_image ? await ensureSeoImage(data.hero_image) : null;
+  } else if (data.seo_image) {
+    data.seo_image = await ensureSeoImage(data.seo_image);
+  }
+
+  const page = await prisma.page.create({ data });
   res.json(page);
+});
+
+router.post('/admin/pages/reorder', authenticateToken, async (req, res) => {
+  const { items } = req.body;
+  const updates = items.map((id, index) =>
+    prisma.page.update({
+      where: { id: Number(id) },
+      data: { sort_order: index },
+    }),
+  );
+  await prisma.$transaction(updates);
+  res.json({ success: true });
 });
 
 // Galleries (Admin)

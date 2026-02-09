@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
-export const Navigation: React.FC = () => {
+type NavigationProps = {
+  ctaText?: string;
+  ctaUrl?: string;
+};
+
+export const Navigation: React.FC<NavigationProps> = ({ ctaText, ctaUrl }) => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const resolvedCtaText = ctaText || 'get in touch';
+  const resolvedCtaUrl = ctaUrl || '/contact';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -38,10 +45,10 @@ export const Navigation: React.FC = () => {
           {/* Right: GET IN TOUCH */}
           <div className="flex w-1/3 justify-end">
             <a
-              href="/contact"
+              href={resolvedCtaUrl}
               className="border-b border-transparent pb-1 font-sans text-[10px] uppercase tracking-[0.2em] text-white transition-colors hover:border-gold hover:text-gold md:text-xs"
             >
-              get in touch
+              {resolvedCtaText}
             </a>
           </div>
         </div>

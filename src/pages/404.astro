@@ -1,0 +1,18 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Page Not Found" description="The page you are looking for does not exist.">
+  <main class="min-h-[60vh] pt-24">
+    <section class="container mx-auto px-4 py-20 text-center">
+      <h1 class="font-display text-4xl md:text-6xl">404</h1>
+      <p class="mt-4 text-lg text-white/70">Page not found.</p>
+      <a
+        class="mt-10 inline-flex items-center justify-center rounded-full border border-white/20 px-6 py-3 text-sm uppercase tracking-wider text-white transition-colors hover:border-gold hover:text-gold"
+        href={import.meta.env.BASE_URL}
+      >
+        Back to home
+      </a>
+    </section>
+  </main>
+</Layout>

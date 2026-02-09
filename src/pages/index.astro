@@ -1,5 +1,5 @@
 ---
-import { Navigation } from '../components/Navigation';
+import Layout from '../layouts/Layout.astro';
 import { Hero } from '../components/Hero';
 import { GallerySlider } from '../components/GallerySlider';
 import { WelcomeSection } from '../components/WelcomeSection';
@@ -8,13 +8,13 @@ import { LatestMoments } from '../components/LatestMoments';
 import { Collage } from '../components/Collage';
 import { Testimonials } from '../components/Testimonials';
 import FAQ from '../components/FAQ.astro';
-import { Footer } from '../components/Footer';
-import '../styles/global.css';
-import { getPage, getGalleries, getTestimonials } from '../lib/api';
+import { getHomePage, getGalleries, getTestimonials, getSettings } from '../lib/api';
 
-const homePage = await getPage('home');
+const homePage = await getHomePage();
+const homePageData = homePage || {};
 const testimonials = (await getTestimonials()) || [];
 const galleries = await getGalleries();
+const settings = await getSettings();
 
 const galleryMap: Record<string, any[]> = {};
 if (galleries) {
@@ -28,36 +28,20 @@ if (!galleryMap['portrait']) galleryMap['portrait'] = [];
 if (!galleryMap['product']) galleryMap['product'] = [];
 ---
 
-<html lang="en" class="scroll-smooth">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
-    <link
-      rel="icon"
-      type="image/svg+xml"
-      href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/favicon.svg`}
-    />
-    <title>In Lexi Studio</title>
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Montserrat:wght@200;300;400;500&display=swap"
-      rel="stylesheet"
-    />
-  </head>
-  <body class="bg-dark-bg text-off-white overflow-x-hidden">
-    <Navigation client:load />
-    <main>
-      <Hero client:load data={homePage} />
-      <GallerySlider client:visible data={galleryMap} />
-      <WelcomeSection />
-      <AboutFeature />
-      <LatestMoments />
-      <Collage />
-      <Testimonials client:load data={testimonials} />
-      <FAQ />
-      <Footer />
-    </main>
-  </body>
-</html>
+<Layout
+  title={homePage?.meta_title || homePage?.title || settings?.meta_title || settings?.site_name}
+  description={homePage?.meta_description || settings?.meta_description}
+  seoImage={homePage?.seo_image || homePage?.hero_image}
+  settings={settings}
+>
+  <main>
+    <Hero client:load data={homePageData} />
+    <GallerySlider client:visible data={galleryMap} />
+    <WelcomeSection />
+    <AboutFeature />
+    <LatestMoments />
+    <Collage />
+    <Testimonials client:load data={testimonials} />
+    <FAQ />
+  </main>
+</Layout>

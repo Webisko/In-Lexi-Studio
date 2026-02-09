@@ -1,15 +1,48 @@
-const API_URL = 'http://localhost:1337/api';
-const ADMIN_API_URL = 'http://localhost:1337/api/admin';
+function normalizeBaseUrl(url) {
+  if (!url) return '';
+  return url.endsWith('/') ? url.slice(0, -1) : url;
+}
+
+function resolveApiBase() {
+  const meta = document.querySelector('meta[name="api-base"]');
+  const metaValue = meta && meta.getAttribute('content');
+  if (metaValue) return normalizeBaseUrl(metaValue);
+
+  return normalizeBaseUrl(`${window.location.origin}/app/api`);
+}
+
+const API_URL = resolveApiBase();
+const ADMIN_API_URL = `${API_URL}/admin`;
 
 // --- Global State ---
 let token = localStorage.getItem('token');
 let currentUser = null;
+let resetToken = null;
+
+const getResetTokenFromUrl = () => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('reset');
+};
 
 // --- Selectors ---
 const dom = {
   loginScreen: document.getElementById('login-screen'),
   loginForm: document.getElementById('login-form'),
   loginError: document.getElementById('login-error'),
+  loginMessage: document.getElementById('login-message'),
+  loginPanel: document.getElementById('login-panel'),
+  forgotLink: document.getElementById('forgot-link'),
+  forgotPanel: document.getElementById('forgot-panel'),
+  forgotForm: document.getElementById('forgot-form'),
+  forgotEmail: document.getElementById('forgot-email'),
+  forgotMessage: document.getElementById('forgot-message'),
+  backToLoginFromForgot: document.getElementById('back-to-login-from-forgot'),
+  resetPanel: document.getElementById('reset-panel'),
+  resetForm: document.getElementById('reset-form'),
+  resetPassword: document.getElementById('reset-password'),
+  resetPasswordConfirm: document.getElementById('reset-password-confirm'),
+  resetMessage: document.getElementById('reset-message'),
+  backToLoginFromReset: document.getElementById('back-to-login-from-reset'),
   dashboard: document.getElementById('dashboard'),
   logoutBtns: document.querySelectorAll('#logout-btn'),
   navBtns: document.querySelectorAll('.nav-btn'),
@@ -28,8 +61,11 @@ const dom = {
 };
 
 // --- Initialization ---
+resetToken = getResetTokenFromUrl();
 if (token) {
   verifyToken();
+} else if (resetToken) {
+  showReset(resetToken);
 } else {
   showLogin();
 }
@@ -44,6 +80,11 @@ if (savedTheme === 'light') {
 
 // --- Event Listeners ---
 dom.loginForm.addEventListener('submit', handleLogin);
+if (dom.forgotLink) dom.forgotLink.addEventListener('click', showForgot);
+if (dom.forgotForm) dom.forgotForm.addEventListener('submit', handleForgotPassword);
+if (dom.backToLoginFromForgot) dom.backToLoginFromForgot.addEventListener('click', showLogin);
+if (dom.resetForm) dom.resetForm.addEventListener('submit', handleResetPassword);
+if (dom.backToLoginFromReset) dom.backToLoginFromReset.addEventListener('click', showLogin);
 dom.closeModalBtn.addEventListener('click', closeModal);
 dom.closeMediaBtn.addEventListener('click', () => dom.mediaModal.classList.add('hidden'));
 
@@ -188,11 +229,33 @@ function parseJwt(token) {
   }
 }
 
+function setStatusMessage(element, message, tone) {
+  if (!element) return;
+  element.textContent = message;
+  element.classList.remove('hidden');
+  element.classList.toggle('text-emerald-400', tone === 'success');
+  element.classList.toggle('bg-emerald-500/10', tone === 'success');
+  element.classList.toggle('text-red-500', tone === 'error');
+  element.classList.toggle('bg-red-500/10', tone === 'error');
+}
+
+function validatePasswordStrength(password) {
+  if (!password || password.length < 10) {
+    return 'Haslo musi miec co najmniej 10 znakow.';
+  }
+  if (!/[A-Z]/.test(password)) return 'Haslo musi zawierac wielka litere.';
+  if (!/[a-z]/.test(password)) return 'Haslo musi zawierac mala litere.';
+  if (!/[0-9]/.test(password)) return 'Haslo musi zawierac cyfre.';
+  if (!/[^A-Za-z0-9]/.test(password)) return 'Haslo musi zawierac znak specjalny.';
+  return null;
+}
+
 async function handleLogin(e) {
   e.preventDefault();
   const email = document.getElementById('email').value;
   const password = document.getElementById('password').value;
   dom.loginError.classList.add('hidden');
+  dom.loginMessage?.classList.add('hidden');
 
   try {
     const res = await fetch(`${ADMIN_API_URL}/login`, {
@@ -215,6 +278,73 @@ async function handleLogin(e) {
   }
 }
 
+async function handleForgotPassword(e) {
+  e.preventDefault();
+  const email = dom.forgotEmail?.value.trim();
+  if (!email) return;
+  dom.forgotMessage?.classList.add('hidden');
+
+  try {
+    const res = await fetch(`${ADMIN_API_URL}/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Nie udalo sie wyslac linku resetu.');
+    }
+
+    setStatusMessage(
+      dom.forgotMessage,
+      'Jesli email istnieje w systemie, wyslalismy link do resetu hasla.',
+      'success',
+    );
+  } catch (err) {
+    setStatusMessage(dom.forgotMessage, err.message, 'error');
+  }
+}
+
+async function handleResetPassword(e) {
+  e.preventDefault();
+  const password = dom.resetPassword?.value || '';
+  const confirm = dom.resetPasswordConfirm?.value || '';
+  dom.resetMessage?.classList.add('hidden');
+
+  if (!resetToken) {
+    setStatusMessage(dom.resetMessage, 'Brak tokenu resetu. Otworz link z maila.', 'error');
+    return;
+  }
+
+  const validationError = validatePasswordStrength(password);
+  if (validationError) {
+    setStatusMessage(dom.resetMessage, validationError, 'error');
+    return;
+  }
+
+  if (password !== confirm) {
+    setStatusMessage(dom.resetMessage, 'Hasla musza byc takie same.', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${ADMIN_API_URL}/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: resetToken, password }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) throw new Error(data.error || 'Nie udalo sie ustawic hasla.');
+
+    showLogin();
+    setStatusMessage(dom.loginMessage, 'Haslo zostalo ustawione. Zaloguj sie.', 'success');
+  } catch (err) {
+    setStatusMessage(dom.resetMessage, err.message, 'error');
+  }
+}
+
 async function verifyToken() {
   try {
     const res = await fetch(`${ADMIN_API_URL}/verify`, {
@@ -227,8 +357,12 @@ async function verifyToken() {
 
       // Settings Tab Visibility based on Role
       const settingsTab = document.querySelector('[data-tab="settings"]');
+      const analyticsTab = document.querySelector('[data-tab="analytics"]');
       if (currentUser.role !== 'ADMIN' && settingsTab) {
         settingsTab.classList.add('hidden'); // Hide Settings for non-admins
+      }
+      if (currentUser.role !== 'ADMIN' && analyticsTab) {
+        analyticsTab.classList.add('hidden');
       }
 
       showDashboard();
@@ -243,6 +377,47 @@ async function verifyToken() {
 function showLogin() {
   dom.loginScreen.classList.remove('hidden');
   dom.dashboard.classList.add('hidden');
+  dom.loginPanel?.classList.remove('hidden');
+  dom.forgotPanel?.classList.add('hidden');
+  dom.resetPanel?.classList.add('hidden');
+  dom.loginError?.classList.add('hidden');
+  dom.loginMessage?.classList.add('hidden');
+  dom.forgotMessage?.classList.add('hidden');
+  dom.resetMessage?.classList.add('hidden');
+
+  resetToken = null;
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('reset')) {
+    params.delete('reset');
+    const newQuery = params.toString();
+    const newUrl = newQuery ? `${window.location.pathname}?${newQuery}` : window.location.pathname;
+    window.history.replaceState(null, '', newUrl);
+  }
+}
+
+function showForgot() {
+  dom.loginScreen.classList.remove('hidden');
+  dom.dashboard.classList.add('hidden');
+  dom.loginPanel?.classList.add('hidden');
+  dom.forgotPanel?.classList.remove('hidden');
+  dom.resetPanel?.classList.add('hidden');
+  dom.loginError?.classList.add('hidden');
+  dom.loginMessage?.classList.add('hidden');
+  dom.forgotMessage?.classList.add('hidden');
+  dom.resetMessage?.classList.add('hidden');
+}
+
+function showReset(tokenValue) {
+  resetToken = tokenValue;
+  dom.loginScreen.classList.remove('hidden');
+  dom.dashboard.classList.add('hidden');
+  dom.loginPanel?.classList.add('hidden');
+  dom.forgotPanel?.classList.add('hidden');
+  dom.resetPanel?.classList.remove('hidden');
+  dom.loginError?.classList.add('hidden');
+  dom.loginMessage?.classList.add('hidden');
+  dom.forgotMessage?.classList.add('hidden');
+  dom.resetMessage?.classList.add('hidden');
 }
 
 function showDashboard() {
@@ -265,6 +440,7 @@ function switchTab(tabName) {
   if (tabName === 'galleries') loadGalleries();
   if (tabName === 'testimonials') loadTestimonials();
   if (tabName === 'settings') loadSettings();
+  if (tabName === 'analytics') loadAnalytics();
 }
 
 // --- Modules ---
@@ -287,12 +463,26 @@ async function loadDashboard() {
     }
   };
 
+  const safeFetchNoAuth = async (url) => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(res.statusText);
+      return await res.json();
+    } catch (e) {
+      console.warn(`Failed to fetch ${url}`, e);
+      return null;
+    }
+  };
+
   // Parallel fetch for stats
   const [pages, testimonials, galleries] = await Promise.all([
     safeFetch(`${ADMIN_API_URL}/pages`),
     safeFetch(`${ADMIN_API_URL}/testimonials`),
     safeFetch(`${ADMIN_API_URL}/galleries`),
   ]);
+
+  const settings = await safeFetchNoAuth(`${API_URL}/settings`);
+  const umamiDashboardUrl = resolveUmamiDashboardUrl(settings);
 
   // Remove manual await json calls since safeFetch does it
   /*
@@ -364,7 +554,7 @@ async function loadDashboard() {
                         <div class="aspect-[3/4] bg-gray-100 dark:bg-black rounded-lg overflow-hidden relative group cursor-pointer" onclick="editGallery(${g.id})">
                             ${g.items && g.items.length > 0 ? `<img src="${g.items[0].image_path}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">` : ''}
                             <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                                <p class="text-white font-medium text-sm truncate">${g.name_pl}</p>
+                                <p class="text-white font-medium text-sm truncate">${g.name || 'Bez nazwy'}</p>
                                 <p class="text-xs text-gray-400 capitalize">${CATEGORY_MAP[g.category] || g.category}</p>
                             </div>
                         </div>
@@ -401,8 +591,12 @@ async function loadDashboard() {
 
                 <div class="bg-white dark:bg-dark-secondary p-6 rounded-xl shadow-sm border border-gray-200 dark:border-white/5">
                     <h4 class="font-bold text-gray-900 dark:text-white mb-4">Analityka</h4>
-                     <a href="http://localhost:3000" target="_blank" class="flex items-center justify-between p-3 rounded bg-gray-50 dark:bg-black/20 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group">
-                        <span class="text-sm text-gray-600 dark:text-gray-300">Otwórz Umami</span>
+                     <a href="${umamiDashboardUrl || '#'}" target="_blank" class="flex items-center justify-between p-3 rounded bg-gray-50 dark:bg-black/20 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group ${
+                       umamiDashboardUrl ? '' : 'opacity-50 pointer-events-none'
+                     }">
+                        <span class="text-sm text-gray-600 dark:text-gray-300">${
+                          umamiDashboardUrl ? 'Otwórz Umami' : 'Skonfiguruj Umami'
+                        }</span>
                         <svg class="w-4 h-4 text-gray-400 group-hover:text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                     </a>
                 </div>
@@ -428,7 +622,7 @@ async function loadPages() {
   }
 
   // Auto-seed Home Page logic in UI if missing
-  const hasHome = pages.find((p) => p.slug === '/' || p.slug === 'home');
+  const hasHome = pages.find((p) => p.is_home || p.slug === '/' || p.slug === 'home');
 
   if (pages.length === 0 || !hasHome) {
     // Just visually show a button to seed, or we could auto-seed. Let's show a button.
@@ -463,20 +657,25 @@ function renderPagesTable(pages, showSeedBtn, container) {
             <table class="w-full text-left">
                 <thead class="bg-gray-50 dark:bg-white/5 text-gray-400 text-xs uppercase tracking-wider">
                     <tr>
+                        <th class="px-3 py-4"></th>
                         <th class="px-6 py-4">Tytuł</th>
                         <th class="px-6 py-4">Slug</th>
                         <th class="px-6 py-4">Ostatnia Modyfikacja</th>
                         <th class="px-6 py-4 text-right">Akcje</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-white/5 text-sm text-gray-600 dark:text-gray-300">
+                <tbody id="pages-table-body" class="divide-y divide-gray-200 dark:divide-white/5 text-sm text-gray-600 dark:text-gray-300">
                     ${pages
                       .map(
                         (p) => `
-                        <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                            <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">${p.title || '(Bez tytułu)'}</td>
+                        <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors" data-id="${p.id}">
+                            <td class="px-3 py-4 text-gray-400 cursor-move drag-handle" title="Przeciągnij, aby zmienić kolejność">&#9776;</td>
+                            <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                              ${p.title || '(Bez tytułu)'}
+                              ${p.is_home ? '<span class="ml-2 text-xs uppercase tracking-wider text-gold">Home</span>' : ''}
+                            </td>
                             <td class="px-6 py-4 text-gray-500 dark:text-gray-500">${p.slug}</td>
-                            <td class="px-6 py-4">${new Date(p.updatedAt).toLocaleDateString()}</td>
+                            <td class="px-6 py-4">${new Date(p.updated_at || p.updatedAt || Date.now()).toLocaleDateString()}</td>
                             <td class="px-6 py-4 text-right">
                                 <button onclick="editPage(${p.id})" class="text-gold hover:text-black dark:hover:text-white transition-colors font-medium">Edytuj</button>
                             </td>
@@ -488,6 +687,22 @@ function renderPagesTable(pages, showSeedBtn, container) {
             </table>
         </div>
     `;
+
+  const tbody = document.getElementById('pages-table-body');
+  if (tbody) {
+    Sortable.create(tbody, {
+      animation: 150,
+      handle: '.drag-handle',
+      onEnd: async () => {
+        const ids = Array.from(tbody.children).map((row) => row.dataset.id);
+        await fetch(`${ADMIN_API_URL}/pages/reorder`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ items: ids }),
+        });
+      },
+    });
+  }
 }
 
 window.seedHomePage = async () => {
@@ -497,10 +712,10 @@ window.seedHomePage = async () => {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         slug: '/',
-        title_pl: 'Strona Główna',
-        title_en: 'Home Page',
-        content_pl: '<p>Witaj na stronie głównej.</p>',
-        content_en: '<p>Welcome to the home page.</p>',
+        title: 'In Lexi Studio',
+        content: '<p>Welcome to the home page.</p>',
+        is_home: true,
+        seo_use_hero: true,
       }),
     });
     loadPages();
@@ -517,6 +732,9 @@ window.editPage = async (id) => {
     meta_title: '',
     meta_description: '',
     seo_image: '',
+    is_home: false,
+    seo_use_hero: true,
+    slug: '',
   };
   const res = await fetch(`${ADMIN_API_URL}/pages`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -534,17 +752,29 @@ window.editPage = async (id) => {
              <div class="space-y-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Meta Tytuł</label>
                 <input type="text" id="meta_title" value="${page.meta_title || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold font-medium">
+          <p class="text-xs text-gray-500">Długość: <span id="meta_title_count">0</span> / 50-60</p>
             </div>
              <div class="space-y-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Meta Opis</label>
                 <textarea id="meta_description" class="w-full h-20 bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold font-medium">${page.meta_description || ''}</textarea>
+          <p class="text-xs text-gray-500">Długość: <span id="meta_description_count">0</span> / 140-160</p>
             </div>
              <div class="space-y-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Miniaturka SEO (og:image)</label>
-                <div class="flex gap-4 items-center">
-                    <input type="text" id="seo_image" value="${page.seo_image || ''}" class="flex-1 bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none">
-                    <button type="button" onclick="openMediaPicker().then(url => { document.getElementById('seo_image').value = url; })" class="bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Wybierz</button>
-                </div>
+          <div class="flex items-center gap-4">
+            <img id="seo_image_preview" src="${page.seo_image || ''}" class="w-20 h-20 rounded object-cover border border-gray-200 dark:border-white/10 ${page.seo_image ? '' : 'hidden'}" />
+            <div class="flex-1 space-y-2">
+              <input type="text" id="seo_image" value="${page.seo_image || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none">
+              <div class="flex gap-2">
+                            <button type="button" id="seo_image_pick" onclick="openMediaPicker().then(url => setImageField('seo_image','seo_image_preview',url))" class="bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Wybierz</button>
+                            <button type="button" id="seo_image_clear" onclick="clearImageField('seo_image','seo_image_preview')" class="bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Usuń</button>
+              </div>
+            </div>
+          </div>
+          <label class="mt-3 flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
+            <input type="checkbox" id="seo_use_hero" ${page.seo_use_hero ? 'checked' : ''} class="w-4 h-4 accent-gold" />
+            Użyj zdjęcia głównego (Hero) jako og:image
+          </label>
             </div>
         </div>
     </div>
@@ -560,11 +790,27 @@ window.editPage = async (id) => {
             
             <div class="space-y-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Zdjęcie główne (Hero)</label>
-                <div class="flex gap-4 items-center">
-                    <input type="text" id="hero_image" value="${page.hero_image || ''}" class="flex-1 bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none">
-                    <button type="button" onclick="openMediaPicker().then(url => { document.getElementById('hero_image').value = url; })" class="bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Wybierz</button>
+              <div class="flex items-center gap-4">
+                <img id="hero_image_preview" src="${page.hero_image || ''}" class="w-20 h-20 rounded object-cover border border-gray-200 dark:border-white/10 ${page.hero_image ? '' : 'hidden'}" />
+                <div class="flex-1 space-y-2">
+                  <input type="text" id="hero_image" value="${page.hero_image || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none">
+                  <div class="flex gap-2">
+                    <button type="button" onclick="openMediaPicker().then(url => setImageField('hero_image','hero_image_preview',url))" class="bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Wybierz</button>
+                    <button type="button" onclick="clearImageField('hero_image','hero_image_preview')" class="bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Usuń</button>
+                  </div>
                 </div>
+              </div>
             </div>
+
+            <div class="space-y-2">
+              <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Slug</label>
+              <input type="text" id="slug" value="${page.slug || ''}" class="w-full bg-gray-100 dark:bg-black/30 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-500 dark:text-gray-400 outline-none" disabled>
+            </div>
+
+            <label class="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
+              <input type="checkbox" id="is_home" ${page.is_home ? 'checked' : ''} class="w-4 h-4 accent-gold" />
+              To jest strona główna (slug zostanie ustawiony na "/")
+            </label>
 
             <div class="space-y-2 h-[400px] flex flex-col">
                 <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Treść</label>
@@ -581,6 +827,29 @@ window.editPage = async (id) => {
 
   openModal('Edycja strony', html);
   initTinyMCE();
+  applySeoUseHeroState();
+  initMetaCounters();
+
+  const isHome = document.getElementById('is_home');
+  if (isHome) {
+    isHome.addEventListener('change', () => {
+      const slugInput = document.getElementById('slug');
+      if (slugInput) slugInput.value = isHome.checked ? '/' : page.slug || '';
+    });
+  }
+
+  const seoUseHero = document.getElementById('seo_use_hero');
+  if (seoUseHero) {
+    seoUseHero.addEventListener('change', applySeoUseHeroState);
+  }
+
+  const heroInput = document.getElementById('hero_image');
+  if (heroInput) {
+    heroInput.addEventListener('input', () => {
+      const seoUse = document.getElementById('seo_use_hero');
+      if (seoUse && seoUse.checked) applySeoUseHeroState();
+    });
+  }
 
   document.getElementById('page-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -590,6 +859,7 @@ window.editPage = async (id) => {
       title: document.getElementById('title').value,
       content: document.getElementById('content').value,
       hero_image: document.getElementById('hero_image').value,
+      is_home: document.getElementById('is_home')?.checked || false,
     };
 
     // Add SEO Link data if admin
@@ -597,6 +867,7 @@ window.editPage = async (id) => {
       data.meta_title = document.getElementById('meta_title').value;
       data.meta_description = document.getElementById('meta_description').value;
       data.seo_image = document.getElementById('seo_image').value;
+      data.seo_use_hero = document.getElementById('seo_use_hero')?.checked || false;
     }
 
     await fetch(`${ADMIN_API_URL}/pages/${id}`, {
@@ -682,7 +953,7 @@ window.filterGalleries = (category) => {
 window.editGallery = async (id) => {
   // ... (rest of editGallery remains same, skipping for brevity, will rely on original file if not replaced)
 
-  let gallery = { category: 'wedding', name_pl: '', name_en: '', items: [] };
+  let gallery = { category: 'wedding', name: '', items: [] };
   if (id) {
     const res = await fetch(`${ADMIN_API_URL}/galleries`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -705,12 +976,8 @@ window.editGallery = async (id) => {
                         </select>
                     </div>
                     <div class="space-y-2">
-                        <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Nazwa (PL)</label>
-                        <input type="text" id="name_pl" value="${gallery.name_pl || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold font-medium">
-                    </div>
-                    <div class="space-y-2">
-                        <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Nazwa (EN)</label>
-                        <input type="text" id="name_en" value="${gallery.name_en || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold font-medium">
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Nazwa</label>
+                      <input type="text" id="name" value="${gallery.name || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold font-medium">
                     </div>
                     
                     <button type="submit" class="w-full bg-gold text-black py-2 rounded font-bold hover:bg-gold-hover transition-colors">Zapisz Ustawienia</button>
@@ -768,8 +1035,7 @@ window.editGallery = async (id) => {
     e.preventDefault();
     const data = {
       category: document.getElementById('category').value,
-      name_pl: document.getElementById('name_pl').value,
-      name_en: document.getElementById('name_en').value,
+      name: document.getElementById('name').value,
     };
     const method = id ? 'PUT' : 'POST';
     const url = id ? `${ADMIN_API_URL}/galleries/${id}` : `${ADMIN_API_URL}/galleries`;
@@ -818,7 +1084,7 @@ window.handleGalleryAddImages = async (galleryId) => {
       body: JSON.stringify({
         gallery_id: galleryId,
         image_path: url,
-        title_en: 'Image',
+        title: 'Image',
       }),
     });
     // Reload Modal
@@ -857,6 +1123,7 @@ async function loadTestimonials() {
              <table class="w-full text-left">
                 <thead class="bg-gray-50 dark:bg-white/5 text-gray-400 text-xs uppercase tracking-wider">
                     <tr>
+                    <th class="px-6 py-4">Avatar</th>
                         <th class="px-6 py-4">Klient</th>
                         <!-- <th class="px-6 py-4">Ocena</th> -->
                         <th class="px-6 py-4">Status</th>
@@ -868,6 +1135,9 @@ async function loadTestimonials() {
                       .map(
                         (t) => `
                         <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                          <td class="px-6 py-4">
+                            ${t.avatar_image ? `<img src="${t.avatar_image}" class="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-white/10" />` : '<span class="text-xs text-gray-400">Brak</span>'}
+                          </td>
                             <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">${t.author}</td>
                              <!-- <td class="px-6 py-4 text-gold tracking-widest">${'★'.repeat(t.rating)}${'☆'.repeat(5 - t.rating)}</td> -->
                             <td class="px-6 py-4">
@@ -890,7 +1160,14 @@ async function loadTestimonials() {
 }
 
 window.editTestimonial = async (id) => {
-  let t = { author: '', rating: 5, content: '', approved: false, gallery_id: null };
+  let t = {
+    author: '',
+    rating: 5,
+    content: '',
+    approved: false,
+    gallery_id: null,
+    avatar_image: '',
+  };
   // Fetch galleries for dropdown
   const gRes = await fetch(`${ADMIN_API_URL}/galleries`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -912,6 +1189,20 @@ window.editTestimonial = async (id) => {
                     <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Autor</label>
                     <input type="text" id="t_author" value="${t.author}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium" required>
                 </div>
+            </div>
+
+            <div class="space-y-2">
+              <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Avatar (wymagany)</label>
+              <div class="flex items-center gap-4">
+                <img id="t_avatar_preview" src="${t.avatar_image || ''}" class="w-16 h-16 rounded-full object-cover border border-gray-200 dark:border-white/10 ${t.avatar_image ? '' : 'hidden'}" />
+                <div class="flex-1 space-y-2">
+                  <input type="text" id="t_avatar" value="${t.avatar_image || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none" required>
+                  <div class="flex gap-2">
+                    <button type="button" onclick="openMediaPicker().then(url => setImageField('t_avatar','t_avatar_preview',url))" class="bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Wybierz</button>
+                    <button type="button" onclick="clearImageField('t_avatar','t_avatar_preview')" class="bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Usuń</button>
+                  </div>
+                </div>
+              </div>
             </div>
             
             <div class="space-y-2">
@@ -951,6 +1242,7 @@ window.editTestimonial = async (id) => {
       rating: 5,
       content: document.getElementById('t_content').value,
       approved: document.getElementById('t_approved').checked,
+      avatar_image: document.getElementById('t_avatar').value,
       gallery_id: document.getElementById('t_gallery').value
         ? Number(document.getElementById('t_gallery').value)
         : null,
@@ -1016,12 +1308,92 @@ async function loadSettings() {
                     </div>
                  </div>
 
+                 <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
+                   <h4 class="text-gold font-display font-medium">SEO (Domyślne)</h4>
+                   <div>
+                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Meta Tytuł</label>
+                    <input type="text" id="s_meta_title" value="${s.meta_title || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                    <p class="text-xs text-gray-500">Długość: <span id="s_meta_title_count">0</span> / 50-60</p>
+                  </div>
+                  <div>
+                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Meta Opis</label>
+                    <textarea id="s_meta_description" class="w-full h-20 bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">${s.meta_description || ''}</textarea>
+                    <p class="text-xs text-gray-500">Długość: <span id="s_meta_description_count">0</span> / 140-160</p>
+                  </div>
+                  <div class="space-y-2">
+                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500">OG Image</label>
+                    <div class="flex items-center gap-4">
+                      <img id="s_og_image_preview" src="${s.og_image || ''}" class="w-20 h-20 rounded object-cover border border-gray-200 dark:border-white/10 ${s.og_image ? '' : 'hidden'}" />
+                      <div class="flex-1 space-y-2">
+                        <input type="text" id="s_og_image" value="${s.og_image || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none">
+                        <div class="flex gap-2">
+                          <button type="button" onclick="openMediaPicker().then(url => setImageField('s_og_image','s_og_image_preview',url))" class="bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Wybierz</button>
+                          <button type="button" onclick="clearImageField('s_og_image','s_og_image_preview')" class="bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Usuń</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="space-y-2">
+                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Favicon</label>
+                    <div class="flex items-center gap-4">
+                      <img id="s_favicon_preview" src="${s.favicon || ''}" class="w-12 h-12 rounded object-cover border border-gray-200 dark:border-white/10 ${s.favicon ? '' : 'hidden'}" />
+                      <div class="flex-1 space-y-2">
+                        <input type="text" id="s_favicon" value="${s.favicon || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none">
+                        <div class="flex gap-2">
+                          <button type="button" onclick="openMediaPicker().then(url => setImageField('s_favicon','s_favicon_preview',url))" class="bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Wybierz</button>
+                          <button type="button" onclick="clearImageField('s_favicon','s_favicon_preview')" class="bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Usuń</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                 </div>
+
+                  <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
+                    <h4 class="text-gold font-display font-medium">CTA i stopka</h4>
+                    <div class="grid grid-cols-2 gap-6">
+                      <div>
+                        <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Tekst CTA</label>
+                        <input type="text" id="s_cta_text" value="${s.cta_text || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                      </div>
+                      <div>
+                        <label class="text-xs font-bold uppercase tracking-wider text-gray-500">URL CTA</label>
+                        <input type="text" id="s_cta_url" value="${s.cta_url || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                      </div>
+                    </div>
+                    <div>
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Tekst stopki</label>
+                      <input type="text" id="s_footer_text" value="${s.footer_text || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                    </div>
+                    <div>
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">URL polityki prywatnosci</label>
+                      <input type="text" id="s_privacy_url" value="${s.privacy_url || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                    </div>
+                  </div>
+
+                  <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
+                    <h4 class="text-gold font-display font-medium">Zaawansowane</h4>
+                    <div>
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Canonical base URL</label>
+                      <input type="text" id="s_canonical_base_url" value="${s.canonical_base_url || ''}" placeholder="https://inlexistudio.com" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                    </div>
+                    <div>
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Dodatkowy kod w HEAD</label>
+                      <textarea id="s_head_html" class="w-full h-24 bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">${s.head_html || ''}</textarea>
+                    </div>
+                    <div>
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Dodatkowy kod przed zamknieciem BODY</label>
+                      <textarea id="s_body_html" class="w-full h-24 bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">${s.body_html || ''}</textarea>
+                    </div>
+                  </div>
+
                  <div class="pt-6">
                     <button type="submit" class="w-full bg-gold text-black py-3 rounded font-bold hover:bg-gold-hover transition-colors shadow-lg shadow-gold/10">Zapisz Ustawienia</button>
                  </div>
              </form>
         </div>
     `;
+
+  initMetaCounters();
 
   document.getElementById('settings-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -1031,6 +1403,17 @@ async function loadSettings() {
       phone: document.getElementById('s_phone').value,
       instagram: document.getElementById('s_instagram').value,
       facebook: document.getElementById('s_facebook').value,
+      meta_title: document.getElementById('s_meta_title').value,
+      meta_description: document.getElementById('s_meta_description').value,
+      og_image: document.getElementById('s_og_image').value,
+      favicon: document.getElementById('s_favicon').value,
+      canonical_base_url: document.getElementById('s_canonical_base_url').value,
+      head_html: document.getElementById('s_head_html').value,
+      body_html: document.getElementById('s_body_html').value,
+      cta_text: document.getElementById('s_cta_text').value,
+      cta_url: document.getElementById('s_cta_url').value,
+      footer_text: document.getElementById('s_footer_text').value,
+      privacy_url: document.getElementById('s_privacy_url').value,
     };
     await fetch(`${ADMIN_API_URL}/settings`, {
       method: 'PUT',
@@ -1041,7 +1424,139 @@ async function loadSettings() {
   });
 }
 
+// 5. Analytics (Umami)
+async function loadAnalytics() {
+  const container = document.getElementById('tab-analytics');
+  container.innerHTML =
+    '<div class="loader mx-auto w-10 h-10 rounded-full border-2 border-t-gold"></div>';
+
+  const res = await fetch(`${API_URL}/settings`);
+  const s = await res.json();
+  const umamiDashboardUrl = resolveUmamiDashboardUrl(s);
+
+  container.innerHTML = `
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Analityka (Umami)</h2>
+            <a href="${umamiDashboardUrl || '#'}" target="_blank" class="text-sm text-gold hover:text-white underline ${
+              umamiDashboardUrl ? '' : 'opacity-50 pointer-events-none'
+            }">Otwórz Umami</a>
+        </div>
+        <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl p-8 shadow-sm">
+             <form id="analytics-form" class="space-y-6">
+                 <div>
+                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Umami Script URL</label>
+                    <input type="text" id="umami_script_url" value="${s.umami_script_url || ''}" placeholder="https://analytics.example.com/script.js" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                 </div>
+                 <div>
+                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Umami Website ID</label>
+                    <input type="text" id="umami_website_id" value="${s.umami_website_id || ''}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                 </div>
+                 <div>
+                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Dozwolone domeny (opcjonalnie)</label>
+                    <input type="text" id="umami_domains" value="${s.umami_domains || ''}" placeholder="inlexistudio.com" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                 </div>
+                 <div>
+                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Umami Dashboard URL (opcjonalnie)</label>
+                    <input type="text" id="umami_dashboard_url" value="${s.umami_dashboard_url || ''}" placeholder="https://analytics.example.com" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                 </div>
+                 <div class="pt-4">
+                    <button type="submit" class="w-full bg-gold text-black py-3 rounded font-bold hover:bg-gold-hover transition-colors shadow-lg shadow-gold/10">Zapisz ustawienia analityki</button>
+                 </div>
+             </form>
+        </div>
+    `;
+
+  document.getElementById('analytics-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+      umami_script_url: document.getElementById('umami_script_url').value,
+      umami_website_id: document.getElementById('umami_website_id').value,
+      umami_domains: document.getElementById('umami_domains').value,
+      umami_dashboard_url: document.getElementById('umami_dashboard_url').value,
+    };
+    await fetch(`${ADMIN_API_URL}/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(data),
+    });
+    alert('Ustawienia analityki zapisane!');
+  });
+}
+
 // --- Helpers ---
+window.setImageField = (inputId, previewId, url) => {
+  const input = document.getElementById(inputId);
+  if (input) input.value = url || '';
+  const preview = document.getElementById(previewId);
+  if (preview) {
+    if (url) {
+      preview.src = url;
+      preview.classList.remove('hidden');
+    } else {
+      preview.src = '';
+      preview.classList.add('hidden');
+    }
+  }
+};
+
+window.clearImageField = (inputId, previewId) => {
+  window.setImageField(inputId, previewId, '');
+};
+
+function initMetaCounters() {
+  const counters = [
+    { input: 'meta_title', counter: 'meta_title_count' },
+    { input: 'meta_description', counter: 'meta_description_count' },
+    { input: 's_meta_title', counter: 's_meta_title_count' },
+    { input: 's_meta_description', counter: 's_meta_description_count' },
+  ];
+
+  counters.forEach(({ input, counter }) => {
+    const inputEl = document.getElementById(input);
+    const counterEl = document.getElementById(counter);
+    if (!inputEl || !counterEl) return;
+    const update = () => {
+      counterEl.textContent = inputEl.value.length.toString();
+    };
+    update();
+    inputEl.addEventListener('input', update);
+  });
+}
+
+function applySeoUseHeroState() {
+  const useHero = document.getElementById('seo_use_hero');
+  const heroInput = document.getElementById('hero_image');
+  const seoInput = document.getElementById('seo_image');
+  const seoPick = document.getElementById('seo_image_pick');
+  const seoClear = document.getElementById('seo_image_clear');
+
+  if (!useHero || !seoInput) return;
+
+  const heroValue = heroInput ? heroInput.value : '';
+  if (useHero.checked) {
+    if (!seoInput.dataset.customValue) {
+      seoInput.dataset.customValue = seoInput.value;
+    }
+    window.setImageField('seo_image', 'seo_image_preview', heroValue || '');
+    seoInput.disabled = true;
+    if (seoPick) seoPick.disabled = true;
+    if (seoClear) seoClear.disabled = true;
+  } else {
+    const custom = seoInput.dataset.customValue || '';
+    window.setImageField('seo_image', 'seo_image_preview', custom);
+    seoInput.disabled = false;
+    if (seoPick) seoPick.disabled = false;
+    if (seoClear) seoClear.disabled = false;
+  }
+}
+
+function resolveUmamiDashboardUrl(settings) {
+  if (!settings) return '';
+  if (settings.umami_dashboard_url) return settings.umami_dashboard_url;
+  if (!settings.umami_script_url) return '';
+  return settings.umami_script_url.replace(/\/script\.js$/i, '');
+}
+
 function openModal(title, content) {
   dom.modalTitle.textContent = title;
   dom.modalContent.innerHTML = content;

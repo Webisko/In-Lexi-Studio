@@ -10,7 +10,12 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.astro
 *.local
+.env
+inlexistudio.db
+dokument-logowania-cms.md
+logowanie-ssh.md
 
 # Editor directories and files
 .vscode/*
