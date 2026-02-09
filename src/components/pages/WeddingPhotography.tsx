@@ -31,6 +31,9 @@ export default function WeddingPhotography({ page }: Props) {
             src={getImageUrl(page.hero_image)}
             srcSet={getImageSrcSet(page.hero_image) || undefined}
             sizes={getImageSrcSet(page.hero_image) ? getImageSizes('hero') : undefined}
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
             alt={page.title || 'Wedding Photography'}
             className="absolute inset-0 h-full w-full object-cover opacity-60"
           />

@@ -101,6 +101,8 @@ export const Lightbox: React.FC<LightboxProps> = ({
             <img
               src={images[currentIndex].src}
               alt={images[currentIndex].alt}
+              loading="eager"
+              decoding="async"
               className="max-h-[90vh] max-w-full object-contain"
             />
           </motion.div>

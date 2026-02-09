@@ -41,6 +41,9 @@ export const Hero: React.FC<HeroProps> = ({ data }) => {
           src={bgImage}
           srcSet={bgSrcSet || undefined}
           sizes={bgSizes}
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
           alt="Hero Background"
           className="h-full w-full object-cover object-center"
         />

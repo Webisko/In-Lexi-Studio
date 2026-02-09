@@ -63,6 +63,8 @@ export const Testimonials: React.FC<TestimonialsProps> = ({ data }) => {
                   src={currentImage}
                   srcSet={currentSrcSet || undefined}
                   sizes={currentSizes}
+                  loading="lazy"
+                  decoding="async"
                   alt={current.author}
                   className="h-full w-full object-cover shadow-2xl"
                 />

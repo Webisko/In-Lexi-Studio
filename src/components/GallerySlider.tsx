@@ -212,6 +212,8 @@ export const GallerySlider: React.FC<GallerySliderProps> = ({ data }) => {
                   src={img.src}
                   srcSet={img.srcSet || undefined}
                   sizes={img.srcSet ? img.sizes : undefined}
+                  loading="lazy"
+                  decoding="async"
                   alt={img.alt}
                   className="pointer-events-none h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                   draggable={false}

@@ -47,6 +47,9 @@ if (!page) {
             src={heroSrc}
             srcset={heroSrcSet || undefined}
             sizes={heroSrcSet ? heroSizes : undefined}
+            loading="eager"
+            decoding="async"
+            fetchpriority="high"
             alt={page.title}
             class="absolute inset-0 w-full h-full object-cover"
           />
