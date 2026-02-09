@@ -1,6 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { getPage, getPagesRequired, getSettings, getImageUrl } from '../lib/api';
+import { getImageSizes, getImageSrcSet, getImageUrl, getPage, getPagesRequired, getSettings } from '../lib/api';
 import WeddingPhotography from '../components/pages/WeddingPhotography';
 import About from '../components/pages/About';
 import Approach from '../components/pages/Approach';
@@ -23,6 +23,9 @@ export async function getStaticPaths() {
 const { page } = Astro.props;
 
 const settings = await getSettings();
+const heroSrc = page?.hero_image ? getImageUrl(page.hero_image) : '';
+const heroSrcSet = page?.hero_image ? getImageSrcSet(page.hero_image) : '';
+const heroSizes = heroSrcSet ? getImageSizes('hero') : '';
 
 if (!page) {
   return Astro.redirect('/404');
@@ -41,7 +44,9 @@ if (!page) {
       page.hero_image && (
         <div class="relative w-full h-[50vh] min-h-[400px]">
           <img
-            src={getImageUrl(page.hero_image)}
+            src={heroSrc}
+            srcset={heroSrcSet || undefined}
+            sizes={heroSrcSet ? heroSizes : undefined}
             alt={page.title}
             class="absolute inset-0 w-full h-full object-cover"
           />

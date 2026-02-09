@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Quote } from 'lucide-react';
 
 import type { Testimonial } from '../lib/api';
-import { getImageUrl } from '../lib/api';
+import { getImageSizes, getImageSrcSet, getImageUrl } from '../lib/api';
 
 interface TestimonialsProps {
   data: Testimonial[];
@@ -38,6 +38,8 @@ export const Testimonials: React.FC<TestimonialsProps> = ({ data }) => {
   const fallbackImage =
     'https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=1000&auto=format&fit=crop';
   const currentImage = current.avatar_image ? getImageUrl(current.avatar_image) : fallbackImage;
+  const currentSrcSet = current.avatar_image ? getImageSrcSet(current.avatar_image) : '';
+  const currentSizes = currentSrcSet ? getImageSizes('half') : undefined;
 
   return (
     <section className="relative overflow-hidden bg-[#151c19] py-24 text-white md:py-32">
@@ -59,6 +61,8 @@ export const Testimonials: React.FC<TestimonialsProps> = ({ data }) => {
               >
                 <img
                   src={currentImage}
+                  srcSet={currentSrcSet || undefined}
+                  sizes={currentSizes}
                   alt={current.author}
                   className="h-full w-full object-cover shadow-2xl"
                 />

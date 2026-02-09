@@ -5,7 +5,7 @@ import { currentCategory, type GalleryCategory } from '../store/galleryStore';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Lightbox } from './Lightbox';
 import type { GalleryItem } from '../lib/api';
-import { getImageUrl } from '../lib/api';
+import { getImageSizes, getImageSrcSet, getImageUrl } from '../lib/api';
 
 type SliderLayout = {
   slideWidthVw: number;
@@ -31,6 +31,8 @@ export const GallerySlider: React.FC<GallerySliderProps> = ({ data }) => {
   const originalImages = (data[category] || []).map((item) => ({
     id: item.id,
     src: getImageUrl(item.image_path),
+    srcSet: getImageSrcSet(item.image_path),
+    sizes: getImageSizes('gallery'),
     alt: item.alt || item.title || 'Gallery Image',
   }));
   const [currentIndex, setCurrentIndex] = useState(originalImages.length);
@@ -208,6 +210,8 @@ export const GallerySlider: React.FC<GallerySliderProps> = ({ data }) => {
               >
                 <img
                   src={img.src}
+                  srcSet={img.srcSet || undefined}
+                  sizes={img.srcSet ? img.sizes : undefined}
                   alt={img.alt}
                   className="pointer-events-none h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                   draggable={false}

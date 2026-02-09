@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Lightbulb, Eye, HeartHandshake, Camera } from 'lucide-react';
 import type { Page } from '../../lib/api';
-import { getImageUrl } from '../../lib/api';
+import { getImageSizes, getImageSrcSet, getImageUrl } from '../../lib/api';
 
 interface Props {
   page: Page;
@@ -34,6 +34,8 @@ export default function Approach({ page }: Props) {
             animate={{ scale: 1 }}
             transition={{ duration: 10, ease: 'easeOut' }}
             src={getImageUrl(page.hero_image)}
+            srcSet={getImageSrcSet(page.hero_image) || undefined}
+            sizes={getImageSrcSet(page.hero_image) ? getImageSizes('hero') : undefined}
             alt={page.title}
             className="absolute inset-0 h-full w-full object-cover opacity-40"
           />

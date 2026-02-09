@@ -98,3 +98,32 @@ export const getImageUrl = (path?: string) => {
   if (path.startsWith('http')) return path;
   return `${BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 };
+
+const IMAGE_VARIANT_WIDTHS = [160, 480, 960, 1440, 1920];
+
+const addVariantSuffix = (url: string, width: number) =>
+  url.replace(/\.webp(\?.*)?$/i, `-w${width}.webp$1`);
+
+export const getImageSrcSet = (path?: string, widths: number[] = IMAGE_VARIANT_WIDTHS) => {
+  if (!path) return '';
+  if (!/\/uploads\//i.test(path)) return '';
+  const url = getImageUrl(path);
+  if (!/\.webp(\?.*)?$/i.test(url)) return '';
+  return widths.map((width) => `${addVariantSuffix(url, width)} ${width}w`).join(', ');
+};
+
+export const getImageSizes = (
+  preset: 'hero' | 'gallery' | 'half' | 'content' = 'content',
+) => {
+  switch (preset) {
+    case 'hero':
+      return '100vw';
+    case 'gallery':
+      return '(max-width: 639px) 80vw, (max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw';
+    case 'half':
+      return '(max-width: 767px) 100vw, 50vw';
+    case 'content':
+    default:
+      return '(max-width: 1023px) 100vw, 900px';
+  }
+};
