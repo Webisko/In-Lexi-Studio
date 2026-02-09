@@ -21,6 +21,8 @@ const VARIANT_SIZES = [1920, 1440, 960, 480, 160];
 const SEO_SIZE = { width: 1200, height: 630 };
 const RESET_TOKEN_TTL_MINUTES = Number(process.env.RESET_TOKEN_TTL_MINUTES || 60);
 const RESET_BASE_URL = process.env.RESET_BASE_URL || 'https://admin.inlexistudio.com';
+const UMAMI_API_URL = process.env.UMAMI_API_URL || 'https://api.umami.is/v1';
+const UMAMI_API_KEY = process.env.UMAMI_API_KEY;
 
 let resetMailer;
 const resolveResetMailer = () => {
@@ -75,6 +77,35 @@ const validatePassword = (password) => {
   if (!/[0-9]/.test(password)) return 'Haslo musi zawierac cyfre.';
   if (!/[^A-Za-z0-9]/.test(password)) return 'Haslo musi zawierac znak specjalny.';
   return null;
+};
+
+const buildUmamiUrl = (endpoint, params = {}) => {
+  const url = new URL(`${UMAMI_API_URL}${endpoint}`);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      url.searchParams.set(key, String(value));
+    }
+  });
+  return url.toString();
+};
+
+const umamiRequest = async (endpoint, params) => {
+  if (!UMAMI_API_KEY) {
+    throw new Error('Umami API key not configured');
+  }
+
+  const res = await fetch(buildUmamiUrl(endpoint, params), {
+    headers: {
+      Accept: 'application/json',
+      'x-umami-api-key': UMAMI_API_KEY,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Umami API error ${res.status}`);
+  }
+
+  return res.json();
 };
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -247,6 +278,71 @@ router.get('/settings', async (req, res) => {
 // --- Admin Routes ---
 
 router.post('/admin/login', login);
+
+router.get('/admin/umami/summary', authenticateToken, async (req, res) => {
+  const { websiteId, startAt, endAt } = req.query;
+  if (!websiteId) return res.status(400).json({ error: 'websiteId is required' });
+
+  const end = Number(endAt) || Date.now();
+  const start = Number(startAt) || end - 30 * 24 * 60 * 60 * 1000;
+
+  try {
+    const [stats, active, pageviews, topPages, referrers, countries, devices, browsers] =
+      await Promise.all([
+        umamiRequest(`/websites/${websiteId}/stats`, { startAt: start, endAt: end }),
+        umamiRequest(`/websites/${websiteId}/active`),
+        umamiRequest(`/websites/${websiteId}/pageviews`, {
+          startAt: start,
+          endAt: end,
+          unit: 'day',
+        }),
+        umamiRequest(`/websites/${websiteId}/metrics`, {
+          startAt: start,
+          endAt: end,
+          type: 'path',
+          limit: 10,
+        }),
+        umamiRequest(`/websites/${websiteId}/metrics`, {
+          startAt: start,
+          endAt: end,
+          type: 'referrer',
+          limit: 10,
+        }),
+        umamiRequest(`/websites/${websiteId}/metrics`, {
+          startAt: start,
+          endAt: end,
+          type: 'country',
+          limit: 8,
+        }),
+        umamiRequest(`/websites/${websiteId}/metrics`, {
+          startAt: start,
+          endAt: end,
+          type: 'device',
+          limit: 6,
+        }),
+        umamiRequest(`/websites/${websiteId}/metrics`, {
+          startAt: start,
+          endAt: end,
+          type: 'browser',
+          limit: 6,
+        }),
+      ]);
+
+    res.json({
+      stats,
+      active,
+      pageviews,
+      topPages,
+      referrers,
+      countries,
+      devices,
+      browsers,
+      range: { startAt: start, endAt: end },
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message || 'Failed to load analytics' });
+  }
+});
 
 router.post('/admin/forgot-password', async (req, res) => {
   const { email } = req.body;

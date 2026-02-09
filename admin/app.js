@@ -1386,6 +1386,26 @@ async function loadSettings() {
                     </div>
                   </div>
 
+                  <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
+                    <h4 class="text-gold font-display font-medium">Analityka (Umami)</h4>
+                    <div>
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Umami Script URL</label>
+                      <input type="text" id="s_umami_script_url" value="${s.umami_script_url || ''}" placeholder="https://cloud.umami.is/script.js" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                    </div>
+                    <div>
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Umami Website ID</label>
+                      <input type="text" id="s_umami_website_id" value="${s.umami_website_id || ''}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                    </div>
+                    <div>
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Dozwolone domeny (opcjonalnie)</label>
+                      <input type="text" id="s_umami_domains" value="${s.umami_domains || ''}" placeholder="inlexistudio.com" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                    </div>
+                    <div>
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Umami Dashboard URL (opcjonalnie)</label>
+                      <input type="text" id="s_umami_dashboard_url" value="${s.umami_dashboard_url || ''}" placeholder="https://cloud.umami.is" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                    </div>
+                  </div>
+
                  <div class="pt-6">
                     <button type="submit" class="w-full bg-gold text-black py-3 rounded font-bold hover:bg-gold-hover transition-colors shadow-lg shadow-gold/10">Zapisz Ustawienia</button>
                  </div>
@@ -1414,6 +1434,10 @@ async function loadSettings() {
       cta_url: document.getElementById('s_cta_url').value,
       footer_text: document.getElementById('s_footer_text').value,
       privacy_url: document.getElementById('s_privacy_url').value,
+      umami_script_url: document.getElementById('s_umami_script_url').value,
+      umami_website_id: document.getElementById('s_umami_website_id').value,
+      umami_domains: document.getElementById('s_umami_domains').value,
+      umami_dashboard_url: document.getElementById('s_umami_dashboard_url').value,
     };
     await fetch(`${ADMIN_API_URL}/settings`, {
       method: 'PUT',
@@ -1430,57 +1454,212 @@ async function loadAnalytics() {
   container.innerHTML =
     '<div class="loader mx-auto w-10 h-10 rounded-full border-2 border-t-gold"></div>';
 
-  const res = await fetch(`${API_URL}/settings`);
-  const s = await res.json();
+  const settingsRes = await fetch(`${API_URL}/settings`);
+  const s = await settingsRes.json();
   const umamiDashboardUrl = resolveUmamiDashboardUrl(s);
+  const websiteId = s.umami_website_id;
+
+  if (!websiteId) {
+    container.innerHTML = `
+      <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl p-8 shadow-sm">
+        <h2 class="text-2xl font-display text-gray-900 dark:text-white mb-3">Analityka (Umami)</h2>
+        <p class="text-gray-500 dark:text-gray-400">Brak Website ID. Uzupelnij dane w zakladce Ustawienia.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const formatNumber = (value) => new Intl.NumberFormat('pl-PL').format(value || 0);
+  const ranges = [
+    { label: '7 dni', days: 7 },
+    { label: '30 dni', days: 30 },
+    { label: '90 dni', days: 90 },
+  ];
 
   container.innerHTML = `
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Analityka (Umami)</h2>
-            <a href="${umamiDashboardUrl || '#'}" target="_blank" class="text-sm text-gold hover:text-white underline ${
-              umamiDashboardUrl ? '' : 'opacity-50 pointer-events-none'
-            }">Otwórz Umami</a>
+    <div class="flex flex-col gap-6">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Analityka (Umami)</h2>
+          <p class="text-sm text-gray-500">Podsumowanie ruchu na stronie</p>
         </div>
-        <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl p-8 shadow-sm">
-             <form id="analytics-form" class="space-y-6">
-                 <div>
-                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Umami Script URL</label>
-                    <input type="text" id="umami_script_url" value="${s.umami_script_url || ''}" placeholder="https://analytics.example.com/script.js" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
-                 </div>
-                 <div>
-                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Umami Website ID</label>
-                    <input type="text" id="umami_website_id" value="${s.umami_website_id || ''}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
-                 </div>
-                 <div>
-                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Dozwolone domeny (opcjonalnie)</label>
-                    <input type="text" id="umami_domains" value="${s.umami_domains || ''}" placeholder="inlexistudio.com" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
-                 </div>
-                 <div>
-                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Umami Dashboard URL (opcjonalnie)</label>
-                    <input type="text" id="umami_dashboard_url" value="${s.umami_dashboard_url || ''}" placeholder="https://analytics.example.com" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
-                 </div>
-                 <div class="pt-4">
-                    <button type="submit" class="w-full bg-gold text-black py-3 rounded font-bold hover:bg-gold-hover transition-colors shadow-lg shadow-gold/10">Zapisz ustawienia analityki</button>
-                 </div>
-             </form>
+        <div class="flex items-center gap-3">
+          <div class="flex gap-2" id="analytics-range">
+            ${ranges
+              .map(
+                (range, index) => `
+                  <button type="button" data-days="${range.days}" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
+                    index === 1
+                      ? 'bg-gold text-black border-gold'
+                      : 'text-gray-500 dark:text-gray-300'
+                  }">
+                    ${range.label}
+                  </button>
+                `,
+              )
+              .join('')}
+          </div>
+          <a href="${umamiDashboardUrl || '#'}" target="_blank" class="text-sm text-gold hover:text-white underline ${
+            umamiDashboardUrl ? '' : 'opacity-50 pointer-events-none'
+          }">Otwórz Umami</a>
         </div>
-    `;
+      </div>
+      <div id="analytics-content" class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl p-8 shadow-sm"></div>
+    </div>
+  `;
 
-  document.getElementById('analytics-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const data = {
-      umami_script_url: document.getElementById('umami_script_url').value,
-      umami_website_id: document.getElementById('umami_website_id').value,
-      umami_domains: document.getElementById('umami_domains').value,
-      umami_dashboard_url: document.getElementById('umami_dashboard_url').value,
-    };
-    await fetch(`${ADMIN_API_URL}/settings`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(data),
+  const content = document.getElementById('analytics-content');
+  const rangeButtons = Array.from(document.querySelectorAll('#analytics-range button'));
+
+  const renderAnalytics = (data, days) => {
+    const stats = data.stats || {};
+    const active = data.active || {};
+    const topPages = data.topPages || [];
+    const referrers = data.referrers || [];
+    const countries = data.countries || [];
+    const devices = data.devices || [];
+    const browsers = data.browsers || [];
+
+    if (!content) return;
+
+    content.innerHTML = `
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div class="p-4 rounded-lg bg-gray-50 dark:bg-black/20">
+          <p class="text-xs uppercase tracking-widest text-gray-400">Aktywni teraz</p>
+          <p class="mt-2 text-2xl font-display text-gray-900 dark:text-white">${formatNumber(
+            active.visitors,
+          )}</p>
+        </div>
+        <div class="p-4 rounded-lg bg-gray-50 dark:bg-black/20">
+          <p class="text-xs uppercase tracking-widest text-gray-400">Odsłony</p>
+          <p class="mt-2 text-2xl font-display text-gray-900 dark:text-white">${formatNumber(
+            stats.pageviews,
+          )}</p>
+        </div>
+        <div class="p-4 rounded-lg bg-gray-50 dark:bg-black/20">
+          <p class="text-xs uppercase tracking-widest text-gray-400">Unikalni</p>
+          <p class="mt-2 text-2xl font-display text-gray-900 dark:text-white">${formatNumber(
+            stats.visitors,
+          )}</p>
+        </div>
+        <div class="p-4 rounded-lg bg-gray-50 dark:bg-black/20">
+          <p class="text-xs uppercase tracking-widest text-gray-400">Sesje</p>
+          <p class="mt-2 text-2xl font-display text-gray-900 dark:text-white">${formatNumber(
+            stats.visits,
+          )}</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+          <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-3">Top strony (${days} dni)</h3>
+          <div class="space-y-2">
+            ${topPages
+              .map(
+                (item) => `
+                  <div class="flex justify-between text-sm text-gray-700 dark:text-gray-300">
+                    <span class="truncate">${item.x || '-'}</span>
+                    <span class="ml-4">${formatNumber(item.y)}</span>
+                  </div>
+                `,
+              )
+              .join('')}
+          </div>
+        </div>
+        <div>
+          <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-3">Referrery (${days} dni)</h3>
+          <div class="space-y-2">
+            ${referrers
+              .map(
+                (item) => `
+                  <div class="flex justify-between text-sm text-gray-700 dark:text-gray-300">
+                    <span class="truncate">${item.x || 'Direct'}</span>
+                    <span class="ml-4">${formatNumber(item.y)}</span>
+                  </div>
+                `,
+              )
+              .join('')}
+          </div>
+        </div>
+        <div>
+          <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-3">Kraje (${days} dni)</h3>
+          <div class="space-y-2">
+            ${countries
+              .map(
+                (item) => `
+                  <div class="flex justify-between text-sm text-gray-700 dark:text-gray-300">
+                    <span class="truncate">${item.x || '-'}</span>
+                    <span class="ml-4">${formatNumber(item.y)}</span>
+                  </div>
+                `,
+              )
+              .join('')}
+          </div>
+        </div>
+        <div>
+          <h3 class="text-sm uppercase tracking-widest text-gray-400 mb-3">Urządzenia / Przeglądarki</h3>
+          <div class="space-y-2">
+            ${devices
+              .map(
+                (item) => `
+                  <div class="flex justify-between text-sm text-gray-700 dark:text-gray-300">
+                    <span class="truncate">${item.x || '-'}</span>
+                    <span class="ml-4">${formatNumber(item.y)}</span>
+                  </div>
+                `,
+              )
+              .join('')}
+          </div>
+          <div class="mt-4 space-y-2">
+            ${browsers
+              .map(
+                (item) => `
+                  <div class="flex justify-between text-sm text-gray-700 dark:text-gray-300">
+                    <span class="truncate">${item.x || '-'}</span>
+                    <span class="ml-4">${formatNumber(item.y)}</span>
+                  </div>
+                `,
+              )
+              .join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
+  const fetchAnalytics = async (days) => {
+    if (!content) return;
+    content.innerHTML =
+      '<div class="loader mx-auto w-10 h-10 rounded-full border-2 border-t-gold"></div>';
+
+    const endAt = Date.now();
+    const startAt = endAt - days * 24 * 60 * 60 * 1000;
+
+    try {
+      const res = await fetch(
+        `${ADMIN_API_URL}/umami/summary?websiteId=${encodeURIComponent(
+          websiteId,
+        )}&startAt=${startAt}&endAt=${endAt}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Nie udalo sie pobrac danych');
+      renderAnalytics(data, days);
+    } catch (err) {
+      content.innerHTML = `<p class="text-red-500">${err.message}</p>`;
+    }
+  };
+
+  rangeButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      rangeButtons.forEach((b) => b.classList.remove('bg-gold', 'text-black', 'border-gold'));
+      btn.classList.add('bg-gold', 'text-black', 'border-gold');
+      const days = Number(btn.dataset.days || 30);
+      fetchAnalytics(days);
     });
-    alert('Ustawienia analityki zapisane!');
   });
+
+  fetchAnalytics(30);
 }
 
 // --- Helpers ---
