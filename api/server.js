@@ -8,6 +8,7 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 1337;
 const PROXY_PREFIX = '/app';
+const ADMIN_REDIRECT_URL = 'https://admin.inlexistudio.com';
 
 // Middleware
 app.use(cors());
@@ -45,12 +46,9 @@ app.use('/uploads', express.static(PUBLIC_UPLOADS_DIR));
 // API Routes
 app.use('/api', routes);
 
-// Serve Admin Panel (Static Files)
-app.use('/admin', express.static(ADMIN_DIR));
-
-// SPA Fallback for Admin (Must be before any other catch-alls)
-app.get(/^\/admin($|\/)/, (req, res) => {
-  res.sendFile(path.join(ADMIN_DIR, 'index.html'));
+// Redirect legacy admin path to the admin subdomain
+app.use('/admin', (req, res) => {
+  res.redirect(301, ADMIN_REDIRECT_URL);
 });
 
 // Root Route - Health Check (Crucial for debugging)
