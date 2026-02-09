@@ -1557,9 +1557,22 @@ async function loadAnalytics() {
         return `${x},${y}`;
       })
       .join(' ');
+    const circles = series
+      .map((point, index) => {
+        const x = Math.round(index * step);
+        const y = Math.round(height - ((point.y || 0) / maxValue) * height);
+        const label = new Date(point.x).toLocaleDateString('pl-PL');
+        return `
+          <circle cx="${x}" cy="${y}" r="2" fill="${stroke}">
+            <title>${label}: ${formatNumber(point.y)}</title>
+          </circle>
+        `;
+      })
+      .join('');
     return `
       <svg viewBox="0 0 ${width} ${height}" class="w-full h-32">
         <polyline fill="none" stroke="${stroke}" stroke-width="2" points="${points}" />
+        ${circles}
       </svg>
     `;
   };
@@ -1584,6 +1597,26 @@ async function loadAnalytics() {
     `;
   };
 
+  const buildSparkline = (series) => {
+    if (!Array.isArray(series) || series.length === 0) return '';
+    const width = 80;
+    const height = 24;
+    const maxValue = Math.max(...series.map((point) => point.y || 0), 1);
+    const step = series.length > 1 ? width / (series.length - 1) : width;
+    const points = series
+      .map((point, index) => {
+        const x = Math.round(index * step);
+        const y = Math.round(height - ((point.y || 0) / maxValue) * height);
+        return `${x},${y}`;
+      })
+      .join(' ');
+    return `
+      <svg viewBox="0 0 ${width} ${height}" class="w-20 h-6">
+        <polyline fill="none" stroke="#D4AF37" stroke-width="2" points="${points}" />
+      </svg>
+    `;
+  };
+
   const buildBarList = (items, emptyLabel) => {
     if (!items.length) {
       return `<p class="text-sm text-gray-400">${emptyLabel}</p>`;
@@ -1600,8 +1633,11 @@ async function loadAnalytics() {
                   <span class="truncate">${item.x || '-'}</span>
                   <span>${formatNumber(item.y)}</span>
                 </div>
-                <div class="mt-2 h-1.5 w-full rounded-full bg-gray-200 dark:bg-white/10">
-                  <div class="h-1.5 rounded-full bg-gold" style="width:${width}%"></div>
+                <div class="mt-2 flex items-center justify-between gap-3">
+                  <div class="h-1.5 flex-1 rounded-full bg-gray-200 dark:bg-white/10">
+                    <div class="h-1.5 rounded-full bg-gold" style="width:${width}%"></div>
+                  </div>
+                  ${buildSparkline(item.series || [])}
                 </div>
               </div>
             `;
@@ -1609,6 +1645,50 @@ async function loadAnalytics() {
           .join('')}
       </div>
     `;
+  };
+
+  const mapCoords = {
+    Poland: { x: 215, y: 70 },
+    Germany: { x: 205, y: 72 },
+    France: { x: 190, y: 78 },
+    Spain: { x: 175, y: 90 },
+    Italy: { x: 205, y: 88 },
+    'United Kingdom': { x: 178, y: 60 },
+    Ireland: { x: 168, y: 62 },
+    Netherlands: { x: 198, y: 68 },
+    Belgium: { x: 194, y: 72 },
+    Sweden: { x: 220, y: 50 },
+    Norway: { x: 210, y: 48 },
+    Finland: { x: 232, y: 46 },
+    Switzerland: { x: 200, y: 80 },
+    Austria: { x: 215, y: 80 },
+    Denmark: { x: 205, y: 60 },
+    Portugal: { x: 165, y: 92 },
+    'United States': { x: 70, y: 80 },
+    Canada: { x: 60, y: 60 },
+    Mexico: { x: 75, y: 98 },
+    Brazil: { x: 115, y: 120 },
+    Argentina: { x: 115, y: 140 },
+    Australia: { x: 300, y: 120 },
+    'New Zealand': { x: 325, y: 130 },
+    Japan: { x: 295, y: 75 },
+    China: { x: 270, y: 82 },
+    India: { x: 250, y: 96 },
+    Turkey: { x: 235, y: 88 },
+  };
+
+  const buildMapDots = (items) => {
+    return items
+      .map((item) => {
+        const coords = mapCoords[item.x];
+        if (!coords) return '';
+        return `
+          <circle cx="${coords.x}" cy="${coords.y}" r="3" fill="#D4AF37">
+            <title>${item.x}: ${formatNumber(item.y)}</title>
+          </circle>
+        `;
+      })
+      .join('');
   };
 
   const renderAnalytics = (data, days) => {
@@ -1705,11 +1785,7 @@ async function loadAnalytics() {
                 <circle cx="255" cy="80" r="4" />
                 <circle cx="300" cy="95" r="6" />
               </g>
-              <g fill="#D4AF37">
-                <circle cx="70" cy="70" r="3" />
-                <circle cx="200" cy="70" r="3" />
-                <circle cx="300" cy="95" r="3" />
-              </g>
+              ${buildMapDots(countries.slice(0, 6))}
             </svg>
             <div class="mt-4 text-xs text-gray-500">Top kraje: ${
               countries

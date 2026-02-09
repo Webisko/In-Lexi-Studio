@@ -287,7 +287,7 @@ router.get('/admin/umami/summary', authenticateToken, async (req, res) => {
   const start = Number(startAt) || end - 30 * 24 * 60 * 60 * 1000;
 
   try {
-    const [stats, active, pageviews, topPages, referrers, countries, devices, browsers] =
+    const [stats, active, pageviews, topPagesRaw, referrers, countries, devices, browsers] =
       await Promise.all([
         umamiRequest(`/websites/${websiteId}/stats`, { startAt: start, endAt: end, compare: 'prev' }),
         umamiRequest(`/websites/${websiteId}/active`),
@@ -328,6 +328,23 @@ router.get('/admin/umami/summary', authenticateToken, async (req, res) => {
           limit: 6,
         }),
       ]);
+
+    const topPages = await Promise.all(
+      topPagesRaw.map(async (item, index) => {
+        if (index > 4) return item;
+        try {
+          const series = await umamiRequest(`/websites/${websiteId}/pageviews`, {
+            startAt: start,
+            endAt: end,
+            unit: 'day',
+            path: item.x,
+          });
+          return { ...item, series: series.pageviews || [] };
+        } catch (err) {
+          return { ...item, series: [] };
+        }
+      }),
+    );
 
     res.json({
       stats,
