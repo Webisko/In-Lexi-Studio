@@ -1,4 +1,4 @@
-const CMS_APP_VERSION = '2026-02-10-2';
+const CMS_APP_VERSION = '2026-02-10-3';
 console.info(`CMS app version: ${CMS_APP_VERSION}`);
 
 function normalizeBaseUrl(url) {
@@ -17,6 +17,7 @@ function resolveApiBase() {
 const API_URL = resolveApiBase();
 const ADMIN_API_URL = `${API_URL}/admin`;
 const UPLOADS_BASE_URL = `${API_URL.replace(/\/api$/i, '')}/uploads`;
+const SITE_BASE_URL = API_URL.replace(/\/api$/i, '');
 
 const resolveUploadsUrl = (path) => {
   if (!path) return '';
@@ -326,6 +327,11 @@ const dom = {
   mediaUploadInput: document.getElementById('global-file-upload'),
   mediaStatus: document.getElementById('media-status'),
   themeToggle: document.getElementById('theme-toggle'),
+  megaMenu: document.getElementById('mega-menu'),
+  megaMenuToggle: document.getElementById('mega-menu-toggle'),
+  megaMenuClose: document.getElementById('mega-menu-close'),
+  megaMenuBackdrop: document.getElementById('mega-menu-backdrop'),
+  megaMenuList: document.getElementById('mega-menu-list'),
 };
 
 // --- Initialization ---
@@ -368,6 +374,93 @@ dom.themeToggle.addEventListener('click', () => {
     document.documentElement.classList.add('dark');
     localStorage.setItem('theme', 'dark');
   }
+});
+
+const buildPageUrl = (slug) => {
+  const normalized = String(slug || '').replace(/^\/+/, '');
+  if (!normalized || normalized === 'home') return `${SITE_BASE_URL}/`;
+  return `${SITE_BASE_URL}/${normalized}`;
+};
+
+const renderMegaMenuPages = (pages) => {
+  if (!dom.megaMenuList) return;
+  if (!Array.isArray(pages) || pages.length === 0) {
+    dom.megaMenuList.innerHTML =
+      '<div class="col-span-full rounded-xl border border-white/20 bg-white/10 p-6 text-sm text-white/80">Brak stron do wyswietlenia.</div>';
+    return;
+  }
+
+  const ordered = [...pages].sort((a, b) => {
+    const orderDiff = Number(a.sort_order || 0) - Number(b.sort_order || 0);
+    if (orderDiff !== 0) return orderDiff;
+    const aDate = new Date(a.updated_at || a.updatedAt || 0).getTime();
+    const bDate = new Date(b.updated_at || b.updatedAt || 0).getTime();
+    return bDate - aDate;
+  });
+
+  dom.megaMenuList.innerHTML = ordered
+    .map((page) => {
+      const title = page.title || page.slug || 'Bez tytulu';
+      const slug = page.slug || '';
+      const normalized = String(slug || '').replace(/^\/+/, '');
+      const label = !normalized || normalized === 'home' ? 'Strona glowna' : `/${normalized}`;
+      const url = buildPageUrl(slug);
+      return `
+        <a
+          href="${url}"
+          target="_blank"
+          class="group rounded-xl border border-white/15 bg-white/5 p-5 text-white/80 transition hover:border-white/40 hover:bg-white/10"
+        >
+          <p class="text-xs uppercase tracking-[0.3em] text-white/50">${label}</p>
+          <h3 class="mt-3 font-display text-2xl text-white group-hover:text-white">${title}</h3>
+          <p class="mt-2 text-xs uppercase tracking-[0.25em] text-white/60">Otworz strone</p>
+        </a>
+      `;
+    })
+    .join('');
+};
+
+const loadMegaMenuPages = async () => {
+  if (!dom.megaMenuList) return;
+  dom.megaMenuList.innerHTML =
+    '<div class="col-span-full flex items-center justify-center py-12 text-sm text-white/70">Ladowanie stron...</div>';
+  try {
+    const res = await fetch(`${ADMIN_API_URL}/pages`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Failed to load pages');
+    const pages = await res.json();
+    renderMegaMenuPages(pages || []);
+  } catch (err) {
+    dom.megaMenuList.innerHTML =
+      '<div class="col-span-full rounded-xl border border-white/20 bg-white/10 p-6 text-sm text-white/80">Nie udalo sie pobrac stron.</div>';
+  }
+};
+
+const openMegaMenu = async () => {
+  if (!dom.megaMenu) return;
+  dom.megaMenu.classList.remove('hidden');
+  document.body.classList.add('overflow-hidden');
+  await loadMegaMenuPages();
+};
+
+const closeMegaMenu = () => {
+  if (!dom.megaMenu) return;
+  dom.megaMenu.classList.add('hidden');
+  document.body.classList.remove('overflow-hidden');
+};
+
+if (dom.megaMenuToggle) {
+  dom.megaMenuToggle.addEventListener('click', openMegaMenu);
+}
+if (dom.megaMenuClose) {
+  dom.megaMenuClose.addEventListener('click', closeMegaMenu);
+}
+if (dom.megaMenuBackdrop) {
+  dom.megaMenuBackdrop.addEventListener('click', closeMegaMenu);
+}
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') closeMegaMenu();
 });
 
 dom.logoutBtns.forEach((btn) =>
@@ -754,9 +847,9 @@ async function loadDashboard() {
   const maxGalleryCards = window.innerWidth < 768 ? 4 : 6;
   const recentGalleries = galleries.slice(0, maxGalleryCards);
 
-    const greetingName = currentUser?.role === 'ADMIN' ? 'Filip' : 'Alex';
+  const greetingName = currentUser?.role === 'ADMIN' ? 'Filip' : 'Alex';
 
-    container.innerHTML = `
+  container.innerHTML = `
       <div class="mb-8">
         <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white mb-2">Dzień dobry, ${greetingName}</h2>
         <p class="text-gray-500">Oto co dzieje się dzisiaj w studio.</p>
