@@ -49,6 +49,11 @@ jobs:
           ./api ./prisma ./admin ./app.js ./package.json ./package-lock.json \
           ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:domains/inlexistudio.com/cms-app/
 
+      - name: Deploy CMS Admin (admin.inlexistudio.com)
+        run: |
+          rsync -avz -e "ssh -p ${{ secrets.SSH_PORT }}" --delete \
+          ./admin/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:domains/admin.inlexistudio.com/public_html/
+
       - name: Configure Passenger & Restart
         run: |
           ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
