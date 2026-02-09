@@ -112,7 +112,22 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 const isVariantFile = (name) => /-w\d+\.webp$/i.test(name) || /-seo-1200x630\.webp$/i.test(name);
 
-const buildBaseName = () => `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+const sanitizeBaseName = (name) => {
+  const parsed = path.parse(name || '').name.toLowerCase();
+  const safe = parsed.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return safe || `upload-${Date.now()}`;
+};
+
+const buildBaseName = (originalName) => {
+  const base = sanitizeBaseName(originalName);
+  let candidate = base;
+  let counter = 1;
+  while (fs.existsSync(path.join(uploadDir, `${candidate}.webp`))) {
+    candidate = `${base}-${counter}`;
+    counter += 1;
+  }
+  return candidate;
+};
 
 const buildFilePaths = (baseName) => {
   const mainName = `${baseName}.webp`;
@@ -452,7 +467,7 @@ router.post('/admin/upload', authenticateToken, upload.single('image'), async (r
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   try {
-    const baseName = buildBaseName();
+    const baseName = buildBaseName(req.file.originalname);
     const isWebpSource =
       req.file.mimetype === 'image/webp' ||
       (req.file.originalname && req.file.originalname.toLowerCase().endsWith('.webp'));
