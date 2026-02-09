@@ -45,8 +45,7 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background: url('https://inlexistudio.com/wp-content/uploads/tekstura.webp') center/cover
-    no-repeat;
+  background: url('/In-Lexi-Studio_tlo.webp') center/cover no-repeat;
   z-index: -2;
   pointer-events: none;
 }
@@ -58,8 +57,7 @@ body::after {
   right: 0;
   top: 50%;
   height: 85vh;
-  background: url('https://inlexistudio.com/wp-content/uploads/In-Lexi-Studio-1000X1000-2-1.webp')
-    center/auto 85vh no-repeat;
+  background: url('/In-Lexi-Studio-nakladka.webp') center/auto 85vh no-repeat;
   transform: translateY(-50%);
   z-index: -1;
   pointer-events: none;

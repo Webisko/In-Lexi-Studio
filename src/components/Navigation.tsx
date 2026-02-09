@@ -16,6 +16,8 @@ export const Navigation: React.FC<NavigationProps> = ({ ctaText, ctaUrl }) => {
   const resolvedCtaUrl = ctaUrl || '/contact';
   const baseUrl = import.meta.env.BASE_URL || '/';
   const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  const megaMenuBgUrl = `${normalizedBaseUrl}In-Lexi-Studio_tlo.webp`;
+  const megaMenuOverlayUrl = `${normalizedBaseUrl}In-Lexi-Studio-nakladka.webp`;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -116,11 +118,20 @@ export const Navigation: React.FC<NavigationProps> = ({ ctaText, ctaUrl }) => {
           <div
             className="absolute inset-0"
             style={{
-              background:
-                'radial-gradient(circle at 70% 25%, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.08) 28%, rgba(255, 255, 255, 0) 52%), linear-gradient(135deg, #43564d 0%, #2a3a33 52%, #1b2521 100%)',
+              backgroundImage: `url(${megaMenuBgUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
             }}
           />
-          <div className="pointer-events-none absolute -right-24 -top-24 h-[60vh] w-[60vh] rounded-full border border-white/40 bg-white/10" />
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              backgroundImage: `url(${megaMenuOverlayUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              opacity: 0.7,
+            }}
+          />
           <button
             type="button"
             onClick={() => setIsMenuOpen(false)}
