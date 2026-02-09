@@ -88,7 +88,10 @@ if (dom.backToLoginFromForgot) dom.backToLoginFromForgot.addEventListener('click
 if (dom.resetForm) dom.resetForm.addEventListener('submit', handleResetPassword);
 if (dom.backToLoginFromReset) dom.backToLoginFromReset.addEventListener('click', showLogin);
 dom.closeModalBtn.addEventListener('click', closeModal);
-dom.closeMediaBtn.addEventListener('click', () => dom.mediaModal.classList.add('hidden'));
+dom.closeMediaBtn.addEventListener('click', () => {
+  dom.mediaModal.classList.add('hidden');
+  dom.mediaModal.classList.remove('flex');
+});
 
 dom.themeToggle.addEventListener('click', () => {
   // If currently dark, switch to light
@@ -148,6 +151,7 @@ async function openMediaPicker() {
   return new Promise((resolve) => {
     currentMediaCallback = resolve;
     dom.mediaModal.classList.remove('hidden');
+    dom.mediaModal.classList.add('flex');
     loadMediaLibrary();
   });
 }
@@ -379,6 +383,7 @@ async function verifyToken() {
 function showLogin() {
   dom.loginScreen.classList.remove('hidden');
   dom.dashboard.classList.add('hidden');
+  dom.dashboard.classList.remove('flex');
   dom.loginPanel?.classList.remove('hidden');
   dom.forgotPanel?.classList.add('hidden');
   dom.resetPanel?.classList.add('hidden');
@@ -400,6 +405,7 @@ function showLogin() {
 function showForgot() {
   dom.loginScreen.classList.remove('hidden');
   dom.dashboard.classList.add('hidden');
+  dom.dashboard.classList.remove('flex');
   dom.loginPanel?.classList.add('hidden');
   dom.forgotPanel?.classList.remove('hidden');
   dom.resetPanel?.classList.add('hidden');
@@ -413,6 +419,7 @@ function showReset(tokenValue) {
   resetToken = tokenValue;
   dom.loginScreen.classList.remove('hidden');
   dom.dashboard.classList.add('hidden');
+  dom.dashboard.classList.remove('flex');
   dom.loginPanel?.classList.add('hidden');
   dom.forgotPanel?.classList.add('hidden');
   dom.resetPanel?.classList.remove('hidden');
@@ -425,6 +432,7 @@ function showReset(tokenValue) {
 function showDashboard() {
   dom.loginScreen.classList.add('hidden');
   dom.dashboard.classList.remove('hidden');
+  dom.dashboard.classList.add('flex');
   // Default Tab: Dashboard
   const dashBtn = document.querySelector('[data-tab="dashboard"]');
   if (dashBtn) dashBtn.click();
@@ -2166,10 +2174,12 @@ function openModal(title, content) {
   dom.modalTitle.textContent = title;
   dom.modalContent.innerHTML = content;
   dom.modal.classList.remove('hidden');
+  dom.modal.classList.add('flex');
 }
 
 function closeModal() {
   dom.modal.classList.add('hidden');
+  dom.modal.classList.remove('flex');
   if (window.tinymce) tinymce.remove();
 }
 

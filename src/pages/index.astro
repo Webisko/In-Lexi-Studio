@@ -11,7 +11,7 @@ import FAQ from '../components/FAQ.astro';
 import { getHomePage, getGalleries, getTestimonials, getSettings } from '../lib/api';
 
 const homePage = await getHomePage();
-const homePageData = homePage || {};
+const homePageData = homePage ?? null;
 const testimonials = (await getTestimonials()) || [];
 const galleries = await getGalleries();
 const settings = await getSettings();
