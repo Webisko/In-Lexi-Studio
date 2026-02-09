@@ -120,16 +120,17 @@ export const Navigation: React.FC<NavigationProps> = ({ ctaText, ctaUrl }) => {
             style={{
               backgroundImage: `url(${megaMenuBgUrl})`,
               backgroundSize: 'cover',
-              backgroundPosition: 'center',
+              backgroundPosition: 'center center',
+              backgroundRepeat: 'no-repeat',
             }}
           />
           <div
             className="pointer-events-none absolute inset-0"
             style={{
               backgroundImage: `url(${megaMenuOverlayUrl})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              opacity: 0.7,
+              backgroundSize: 'auto 80%',
+              backgroundPosition: 'center center',
+              backgroundRepeat: 'no-repeat',
             }}
           />
           <button
@@ -138,58 +139,95 @@ export const Navigation: React.FC<NavigationProps> = ({ ctaText, ctaUrl }) => {
             className="absolute inset-0 h-full w-full cursor-pointer"
             aria-label="Close menu"
           />
-          <div className="relative z-10 flex h-full w-full flex-col px-8 py-10 md:px-14">
-            <div className="flex flex-wrap items-center justify-between gap-6">
-              <div>
-                <p className="text-xs uppercase tracking-[0.4em] text-white/60">Mega Menu</p>
-                <h2 className="font-display text-4xl text-white md:text-5xl">Wybierz stronę</h2>
+          <div className="relative z-10 flex h-full w-full flex-col overflow-hidden px-6 py-8 md:px-12 lg:flex-row lg:px-16">
+            <div className="hidden w-full lg:block lg:w-[42%]">
+              <div className="relative h-full overflow-hidden rounded-sm border border-white/10">
+                <div className="absolute inset-0 bg-black/40" />
+                <div
+                  className="h-full w-full"
+                  style={{
+                    backgroundImage: `url(${megaMenuBgUrl})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center center',
+                  }}
+                />
               </div>
-              <button
-                type="button"
-                onClick={() => setIsMenuOpen(false)}
-                className="rounded-full border border-white/30 px-4 py-2 text-xs uppercase tracking-widest text-white transition-colors hover:bg-white/10"
-              >
-                Zamknij
-              </button>
             </div>
-            <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {isLoadingPages && (
-                <div className="col-span-full text-sm text-white/70">Ladowanie stron...</div>
-              )}
-              {pagesError && (
-                <div className="col-span-full rounded-xl border border-white/20 bg-white/10 p-6 text-sm text-white/80">
-                  {pagesError}
+            <div className="flex h-full flex-1 flex-col overflow-y-auto px-2 py-4 text-white lg:px-10 lg:py-10">
+              <div className="flex items-center justify-between gap-6">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.4em] text-white/60">Mega Menu</p>
+                  <h2 className="font-display text-4xl text-white md:text-5xl">Wybierz strone</h2>
                 </div>
-              )}
-              {!isLoadingPages && !pagesError && orderedPages.length === 0 && (
-                <div className="col-span-full rounded-xl border border-white/20 bg-white/10 p-6 text-sm text-white/80">
-                  Brak stron do wyswietlenia.
+                <button
+                  type="button"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="rounded-full border border-white/30 px-4 py-2 text-xs uppercase tracking-widest text-white transition-colors hover:bg-white/10"
+                >
+                  Zamknij
+                </button>
+              </div>
+
+              <div className="mt-10 flex-1">
+                {isLoadingPages && (
+                  <div className="text-sm text-white/70">Ladowanie stron...</div>
+                )}
+                {pagesError && (
+                  <div className="rounded-xl border border-white/20 bg-white/10 p-6 text-sm text-white/80">
+                    {pagesError}
+                  </div>
+                )}
+                {!isLoadingPages && !pagesError && orderedPages.length === 0 && (
+                  <div className="rounded-xl border border-white/20 bg-white/10 p-6 text-sm text-white/80">
+                    Brak stron do wyswietlenia.
+                  </div>
+                )}
+                {!isLoadingPages &&
+                  !pagesError &&
+                  orderedPages.map((page, index) => {
+                    const url = buildPageUrl(page.slug);
+                    const title = page.title || page.slug || 'Bez tytulu';
+                    const normalized = String(page.slug || '').replace(/^\/+/, '');
+                    const label =
+                      !normalized || normalized === 'home' ? 'Strona glowna' : `/${normalized}`;
+                    const indexLabel = String(index + 1).padStart(2, '0');
+                    return (
+                      <a
+                        key={page.id}
+                        href={url}
+                        onClick={() => setIsMenuOpen(false)}
+                        className="group flex items-center gap-6 border-b border-white/10 py-4 text-white/60 transition hover:text-white"
+                      >
+                        <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gold">
+                          {indexLabel}
+                        </span>
+                        <div className="flex-1">
+                          <h3 className="font-display text-3xl leading-tight text-white/70 transition group-hover:text-white md:text-4xl">
+                            {title}
+                          </h3>
+                          <p className="mt-2 text-[10px] uppercase tracking-[0.3em] text-white/40">
+                            {label}
+                          </p>
+                        </div>
+                        <span className="text-xs uppercase tracking-[0.3em] text-white/30 transition group-hover:text-gold">
+                          Otworz
+                        </span>
+                      </a>
+                    );
+                  })}
+              </div>
+
+              <div className="mt-10 flex flex-col gap-6 border-t border-white/10 pt-6 md:flex-row md:items-center md:justify-between">
+                <div className="text-xs uppercase tracking-[0.35em] text-white/50">
+                  In Lexi Studio
                 </div>
-              )}
-              {!isLoadingPages &&
-                !pagesError &&
-                orderedPages.map((page) => {
-                  const url = buildPageUrl(page.slug);
-                  const title = page.title || page.slug || 'Bez tytulu';
-                  const normalized = String(page.slug || '').replace(/^\/+/, '');
-                  const label =
-                    !normalized || normalized === 'home' ? 'Strona glowna' : `/${normalized}`;
-                  return (
-                    <a
-                      key={page.id}
-                      href={url}
-                      className="group rounded-xl border border-white/15 bg-white/5 p-5 text-white/80 transition hover:border-white/40 hover:bg-white/10"
-                    >
-                      <p className="text-xs uppercase tracking-[0.3em] text-white/50">{label}</p>
-                      <h3 className="mt-3 font-display text-2xl text-white group-hover:text-white">
-                        {title}
-                      </h3>
-                      <p className="mt-2 text-xs uppercase tracking-[0.25em] text-white/60">
-                        Otworz strone
-                      </p>
-                    </a>
-                  );
-                })}
+                <a
+                  href={resolvedCtaUrl}
+                  className="inline-flex items-center justify-center rounded-full border border-gold px-6 py-3 text-[11px] uppercase tracking-[0.3em] text-gold transition hover:bg-gold hover:text-black"
+                >
+                  {resolvedCtaText}
+                </a>
+              </div>
             </div>
           </div>
         </div>

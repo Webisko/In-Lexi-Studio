@@ -56,8 +56,8 @@ body::after {
   left: 0;
   right: 0;
   top: 50%;
-  height: 85vh;
-  background: url('/In-Lexi-Studio-nakladka.webp') center/auto 85vh no-repeat;
+  height: 80vh;
+  background: url('/In-Lexi-Studio-nakladka.webp') center/auto 80vh no-repeat;
   transform: translateY(-50%);
   z-index: -1;
   pointer-events: none;
