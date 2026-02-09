@@ -754,11 +754,13 @@ async function loadDashboard() {
   const maxGalleryCards = window.innerWidth < 768 ? 4 : 6;
   const recentGalleries = galleries.slice(0, maxGalleryCards);
 
-  container.innerHTML = `
-        <div class="mb-8">
-            <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white mb-2">Dzień dobry, Lexi</h2>
-            <p class="text-gray-500">Oto co dzieje się dzisiaj w studio.</p>
-        </div>
+    const greetingName = currentUser?.role === 'ADMIN' ? 'Filip' : 'Alex';
+
+    container.innerHTML = `
+      <div class="mb-8">
+        <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white mb-2">Dzień dobry, ${greetingName}</h2>
+        <p class="text-gray-500">Oto co dzieje się dzisiaj w studio.</p>
+      </div>
 
         <!-- Stats Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
