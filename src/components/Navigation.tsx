@@ -140,9 +140,9 @@ export const Navigation: React.FC<NavigationProps> = ({
               aria-label="Open menu"
             >
               <div className="flex flex-col items-start gap-[6px] transition-all duration-300 group-hover:gap-[8px]">
-                <span className="h-[1px] w-8 origin-right bg-white transition-all duration-300 group-hover:bg-gold"></span>
-                <span className="h-[1px] w-5 bg-white transition-all delay-75 duration-300 group-hover:w-8 group-hover:bg-gold"></span>
-                <span className="h-[1px] w-8 origin-right bg-white transition-all delay-150 duration-300 group-hover:bg-gold"></span>
+                <span className="h-[2px] w-8 origin-right bg-white transition-all duration-300 group-hover:bg-gold"></span>
+                <span className="h-[2px] w-5 bg-white transition-all delay-75 duration-300 group-hover:w-8 group-hover:bg-gold"></span>
+                <span className="h-[2px] w-8 origin-right bg-white transition-all delay-150 duration-300 group-hover:bg-gold"></span>
               </div>
             </button>
           </div>
@@ -181,15 +181,6 @@ export const Navigation: React.FC<NavigationProps> = ({
               backgroundRepeat: 'no-repeat',
             }}
           />
-          <div
-            className="pointer-events-none absolute inset-0"
-            style={{
-              backgroundImage: `url(${megaMenuOverlayUrl})`,
-              backgroundSize: 'auto 80%',
-              backgroundPosition: 'center center',
-              backgroundRepeat: 'no-repeat',
-            }}
-          />
           <button
             type="button"
             onClick={closeMenu}
@@ -204,8 +195,17 @@ export const Navigation: React.FC<NavigationProps> = ({
             >
               Zamknij
             </button>
-            <div className="flex h-full flex-1 flex-col overflow-y-auto px-2 py-4 text-white lg:order-first lg:px-10 lg:py-10">
-              <div className="mt-10 flex-1">
+            <div className="relative flex h-full flex-1 flex-col overflow-y-auto px-2 py-4 text-white lg:order-first lg:px-10 lg:py-10">
+              <div
+                className="pointer-events-none absolute inset-0"
+                style={{
+                  backgroundImage: `url(${megaMenuOverlayUrl})`,
+                  backgroundSize: 'contain',
+                  backgroundPosition: 'center center',
+                  backgroundRepeat: 'no-repeat',
+                }}
+              />
+              <div className="relative flex flex-1 flex-col justify-center">
                 {isLoadingPages && <div className="text-sm text-white/70">Ladowanie stron...</div>}
                 {pagesError && (
                   <div className="rounded-xl border border-white/20 bg-white/10 p-6 text-sm text-white/80">
@@ -260,15 +260,15 @@ export const Navigation: React.FC<NavigationProps> = ({
                 )}
                 <a
                   href={resolvedCtaUrl}
-                  className="inline-flex items-center justify-center rounded-full border border-gold px-6 py-3 text-[11px] uppercase tracking-[0.3em] text-gold transition hover:bg-gold hover:text-black"
+                  className="inline-flex items-center justify-center rounded-full bg-gold px-8 py-4 text-sm uppercase tracking-[0.3em] text-black shadow-lg shadow-gold/20 transition hover:bg-gold-hover md:text-base"
                 >
                   {resolvedCtaText}
                 </a>
               </div>
             </div>
-            <div className="hidden w-full lg:order-last lg:block lg:w-[42%]">
-              <div className="relative h-full overflow-hidden rounded-sm border border-white/10">
-                <div className="absolute inset-0 bg-black/40" />
+            <div className="hidden w-full lg:order-last lg:block lg:w-[45%] lg:-mr-16">
+              <div className="relative h-full overflow-hidden">
+                <div className="absolute inset-0 bg-black/30" />
                 <div
                   className="h-full w-full"
                   style={{
