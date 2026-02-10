@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { API_URL } from '../lib/api';
+import { API_URL, getImageUrl } from '../lib/api';
 
 type NavigationProps = {
   ctaText?: string;
@@ -20,13 +20,15 @@ export const Navigation: React.FC<NavigationProps> = ({
   const [pages, setPages] = useState<Array<{ id: number; slug: string; title?: string }>>([]);
   const [isLoadingPages, setIsLoadingPages] = useState(false);
   const [pagesError, setPagesError] = useState<string | null>(null);
+  const [megaMenuImageRemote, setMegaMenuImageRemote] = useState('');
+  const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
   const resolvedCtaText = ctaText || 'get in touch';
   const resolvedCtaUrl = ctaUrl || '/contact';
   const baseUrl = import.meta.env.BASE_URL || '/';
   const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
   const megaMenuBgUrl = `${normalizedBaseUrl}In-Lexi-Studio_tlo.webp`;
   const megaMenuOverlayUrl = `${normalizedBaseUrl}In-Lexi-Studio-nakladka.webp`;
-  const megaMenuImageUrl = megaMenuImage || megaMenuBgUrl;
+  const megaMenuImageUrl = megaMenuImage || megaMenuImageRemote || megaMenuBgUrl;
   const resolvedInstagramUrl = instagramUrl || '';
 
   useEffect(() => {
@@ -76,6 +78,26 @@ export const Navigation: React.FC<NavigationProps> = ({
 
     loadPages();
   }, [isMenuOpen, pages.length, isLoadingPages]);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    if (hasLoadedSettings || megaMenuImage) return;
+    const loadSettings = async () => {
+      setHasLoadedSettings(true);
+      try {
+        const res = await fetch(`${API_URL}/settings`);
+        if (!res.ok) throw new Error('Failed to load settings');
+        const data = await res.json();
+        if (data?.mega_menu_image) {
+          setMegaMenuImageRemote(getImageUrl(data.mega_menu_image));
+        }
+      } catch (err) {
+        console.error('Nie udalo sie pobrac ustawien mega menu', err);
+      }
+    };
+
+    loadSettings();
+  }, [isMenuOpen, hasLoadedSettings, megaMenuImage]);
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -187,7 +209,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             className="absolute inset-0 h-full w-full cursor-pointer"
             aria-label="Close menu"
           />
-          <div className="relative z-10 flex h-full w-full flex-col overflow-hidden px-6 py-8 md:px-12 lg:flex-row lg:px-16">
+          <div className="relative z-10 flex h-full w-full flex-col overflow-hidden px-6 py-8 md:px-12 lg:flex-row lg:px-16 lg:py-0">
             <button
               type="button"
               onClick={closeMenu}
@@ -266,7 +288,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 </a>
               </div>
             </div>
-            <div className="hidden w-full lg:order-last lg:block lg:w-[45%] lg:-mr-16">
+            <div className="hidden w-full lg:order-last lg:block lg:h-full lg:w-[45%] lg:-mr-16">
               <div className="relative h-full overflow-hidden">
                 <div className="absolute inset-0 bg-black/30" />
                 <div
