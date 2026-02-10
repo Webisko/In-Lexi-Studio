@@ -2045,13 +2045,22 @@ window.editPage = async (id) => {
       data.seo_use_hero = document.getElementById('seo_use_hero')?.checked || false;
     }
 
-    await fetch(`${ADMIN_API_URL}/pages/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(data),
-    });
-    closeModal();
-    loadPages();
+    try {
+      const res = await fetch(`${ADMIN_API_URL}/pages/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Blad zapisu (${res.status})`);
+      }
+      closeModal();
+      loadPages();
+    } catch (err) {
+      console.error('Blad zapisu strony', err);
+      alert(`Nie udalo sie zapisac zmian: ${err.message || 'blad zapisu'}`);
+    }
   });
 };
 
