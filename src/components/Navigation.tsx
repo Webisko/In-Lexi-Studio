@@ -16,6 +16,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMenuMounted, setIsMenuMounted] = useState(false);
   const [pages, setPages] = useState<Array<{ id: number; slug: string; title?: string }>>([]);
   const [isLoadingPages, setIsLoadingPages] = useState(false);
   const [pagesError, setPagesError] = useState<string | null>(null);
@@ -35,6 +36,24 @@ export const Navigation: React.FC<NavigationProps> = ({
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (isMenuOpen) return;
+    if (!isMenuMounted) return;
+    const timeout = window.setTimeout(() => setIsMenuMounted(false), 300);
+    return () => window.clearTimeout(timeout);
+  }, [isMenuOpen, isMenuMounted]);
+
+  const openMenu = () => {
+    if (isMenuOpen) return;
+    setIsMenuMounted(true);
+    window.setTimeout(() => setIsMenuOpen(true), 10);
+  };
+
+  const closeMenu = () => {
+    if (!isMenuMounted) return;
+    setIsMenuOpen(false);
+  };
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -61,7 +80,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   useEffect(() => {
     if (!isMenuOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsMenuOpen(false);
+      if (event.key === 'Escape') closeMenu();
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
@@ -92,19 +111,17 @@ export const Navigation: React.FC<NavigationProps> = ({
 
     const filtered = pages.filter((page) => !shouldExclude(page));
     const bySlug = new Map(filtered.map((page) => [normalizeSlug(page.slug), page]));
-    const order = [
-      'wedding',
-      'portrait',
-      'product',
-      'my-approach',
-      'approach',
-      'about',
-      'about-me',
-      'portfolio',
+    const slugGroups = [
+      ['wedding', 'wedding-photography'],
+      ['portrait', 'portrait-photography'],
+      ['product', 'product-photography'],
+      ['my-approach', 'approach'],
+      ['about', 'about-me'],
+      ['portfolio'],
     ];
 
-    return order
-      .map((slug) => bySlug.get(slug))
+    return slugGroups
+      .map((group) => group.map((slug) => bySlug.get(slug)).find(Boolean))
       .filter((page): page is { id: number; slug: string; title?: string } => Boolean(page));
   }, [pages]);
 
@@ -118,7 +135,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           <div className="flex w-1/3 justify-start">
             <button
               type="button"
-              onClick={() => setIsMenuOpen(true)}
+              onClick={openMenu}
               className="group relative flex h-10 w-10 items-center justify-center focus:outline-none"
               aria-label="Open menu"
             >
@@ -149,8 +166,12 @@ export const Navigation: React.FC<NavigationProps> = ({
         </div>
       </nav>
 
-      {isMenuOpen && (
-        <div className="fixed inset-0 z-[60]">
+      {isMenuMounted && (
+        <div
+          className={`fixed inset-0 z-[60] transform transition-all duration-300 ${
+            isMenuOpen ? 'translate-y-0 opacity-100' : '-translate-y-8 opacity-0'
+          } ${isMenuOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+        >
           <div
             className="absolute inset-0"
             style={{
@@ -171,35 +192,19 @@ export const Navigation: React.FC<NavigationProps> = ({
           />
           <button
             type="button"
-            onClick={() => setIsMenuOpen(false)}
+            onClick={closeMenu}
             className="absolute inset-0 h-full w-full cursor-pointer"
             aria-label="Close menu"
           />
           <div className="relative z-10 flex h-full w-full flex-col overflow-hidden px-6 py-8 md:px-12 lg:flex-row lg:px-16">
-            <div className="hidden w-full lg:block lg:w-[42%]">
-              <div className="relative h-full overflow-hidden rounded-sm border border-white/10">
-                <div className="absolute inset-0 bg-black/40" />
-                <div
-                  className="h-full w-full"
-                  style={{
-                    backgroundImage: `url(${megaMenuImageUrl})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center center',
-                  }}
-                />
-              </div>
-            </div>
-            <div className="flex h-full flex-1 flex-col overflow-y-auto px-2 py-4 text-white lg:px-10 lg:py-10">
-              <div className="flex items-center justify-end">
-                <button
-                  type="button"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="rounded-full border border-white/30 px-4 py-2 text-xs uppercase tracking-widest text-white transition-colors hover:bg-white/10"
-                >
-                  Zamknij
-                </button>
-              </div>
-
+            <button
+              type="button"
+              onClick={closeMenu}
+              className="absolute left-8 top-6 z-20 rounded-full border border-white/30 px-4 py-2 text-xs uppercase tracking-widest text-white transition-colors hover:bg-white/10"
+            >
+              Zamknij
+            </button>
+            <div className="flex h-full flex-1 flex-col overflow-y-auto px-2 py-4 text-white lg:order-first lg:px-10 lg:py-10">
               <div className="mt-10 flex-1">
                 {isLoadingPages && <div className="text-sm text-white/70">Ladowanie stron...</div>}
                 {pagesError && (
@@ -222,7 +227,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                       <a
                         key={page.id}
                         href={url}
-                        onClick={() => setIsMenuOpen(false)}
+                        onClick={closeMenu}
                         className="group flex items-center gap-6 border-b border-white/10 py-4 text-white/60 transition hover:text-white"
                       >
                         <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gold">
@@ -259,6 +264,19 @@ export const Navigation: React.FC<NavigationProps> = ({
                 >
                   {resolvedCtaText}
                 </a>
+              </div>
+            </div>
+            <div className="hidden w-full lg:order-last lg:block lg:w-[42%]">
+              <div className="relative h-full overflow-hidden rounded-sm border border-white/10">
+                <div className="absolute inset-0 bg-black/40" />
+                <div
+                  className="h-full w-full"
+                  style={{
+                    backgroundImage: `url(${megaMenuImageUrl})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center center',
+                  }}
+                />
               </div>
             </div>
           </div>
