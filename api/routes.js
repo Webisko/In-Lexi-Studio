@@ -720,63 +720,73 @@ router.get('/admin/pages', authenticateToken, async (req, res) => {
   res.json(pages);
 });
 router.put('/admin/pages/:id', authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  const data = { ...req.body };
-  const pageId = Number(id);
+  try {
+    const { id } = req.params;
+    const data = { ...req.body };
+    const pageId = Number(id);
 
-  normalizePagePayload(data);
+    normalizePagePayload(data);
 
-  if (data.is_home) {
-    data.slug = '/';
-  }
-
-  if (data.seo_use_hero) {
-    data.seo_image = data.hero_image ? await ensureSeoImage(data.hero_image) : null;
-  } else if (data.seo_image) {
-    data.seo_image = await ensureSeoImage(data.seo_image);
-  }
-
-  if (data.is_home) {
-    await prisma.page.updateMany({
-      where: { is_home: true, NOT: { id: pageId } },
-      data: { is_home: false },
-    });
-
-    const conflict = await prisma.page.findFirst({
-      where: { slug: '/', NOT: { id: pageId } },
-    });
-    if (conflict) {
-      await prisma.page.update({
-        where: { id: conflict.id },
-        data: { slug: `home-${conflict.id}` },
-      });
+    if (data.is_home) {
+      data.slug = '/';
     }
-  }
 
-  const page = await prisma.page.update({ where: { id: Number(id) }, data });
-  res.json(page);
+    if (data.seo_use_hero) {
+      data.seo_image = data.hero_image ? await ensureSeoImage(data.hero_image) : null;
+    } else if (data.seo_image) {
+      data.seo_image = await ensureSeoImage(data.seo_image);
+    }
+
+    if (data.is_home) {
+      await prisma.page.updateMany({
+        where: { is_home: true, NOT: { id: pageId } },
+        data: { is_home: false },
+      });
+
+      const conflict = await prisma.page.findFirst({
+        where: { slug: '/', NOT: { id: pageId } },
+      });
+      if (conflict) {
+        await prisma.page.update({
+          where: { id: conflict.id },
+          data: { slug: `home-${conflict.id}` },
+        });
+      }
+    }
+
+    const page = await prisma.page.update({ where: { id: Number(id) }, data });
+    res.json(page);
+  } catch (e) {
+    console.error('Page update failed:', e);
+    res.status(500).json({ error: e.message || 'Page update failed' });
+  }
 });
 router.post('/admin/pages', authenticateToken, async (req, res) => {
-  const data = { ...req.body };
+  try {
+    const data = { ...req.body };
 
-  normalizePagePayload(data);
+    normalizePagePayload(data);
 
-  if (data.is_home) {
-    data.slug = '/';
-    await prisma.page.updateMany({
-      where: { is_home: true },
-      data: { is_home: false },
-    });
+    if (data.is_home) {
+      data.slug = '/';
+      await prisma.page.updateMany({
+        where: { is_home: true },
+        data: { is_home: false },
+      });
+    }
+
+    if (data.seo_use_hero) {
+      data.seo_image = data.hero_image ? await ensureSeoImage(data.hero_image) : null;
+    } else if (data.seo_image) {
+      data.seo_image = await ensureSeoImage(data.seo_image);
+    }
+
+    const page = await prisma.page.create({ data });
+    res.json(page);
+  } catch (e) {
+    console.error('Page create failed:', e);
+    res.status(500).json({ error: e.message || 'Page create failed' });
   }
-
-  if (data.seo_use_hero) {
-    data.seo_image = data.hero_image ? await ensureSeoImage(data.hero_image) : null;
-  } else if (data.seo_image) {
-    data.seo_image = await ensureSeoImage(data.seo_image);
-  }
-
-  const page = await prisma.page.create({ data });
-  res.json(page);
 });
 
 router.post('/admin/pages/reorder', authenticateToken, async (req, res) => {

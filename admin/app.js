@@ -2052,8 +2052,9 @@ window.editPage = async (id) => {
         body: JSON.stringify(data),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `Blad zapisu (${res.status})`);
+        const errJson = await res.json().catch(() => null);
+        const errText = errJson ? '' : await res.text().catch(() => '');
+        throw new Error(errJson?.error || errText || `Blad zapisu (${res.status})`);
       }
       closeModal();
       loadPages();
