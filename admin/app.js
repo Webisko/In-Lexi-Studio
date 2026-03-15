@@ -21,22 +21,26 @@ function resolveApiBase() {
 
 const API_URL = resolveApiBase();
 const ADMIN_API_URL = `${API_URL}/admin`;
-const resolveUploadsBase = () => {
-  try {
-    const api = new URL(API_URL);
-    return `${api.origin}/uploads`;
-  } catch (error) {
-    return `${API_URL.replace(/\/api$/i, '')}/uploads`;
-  }
-};
-const UPLOADS_BASE_URL = resolveUploadsBase();
 const SITE_BASE_URL = API_URL.replace(/\/api$/i, '');
 const FRONTEND_BASE_URL = SITE_BASE_URL.replace(/\/app$/i, '');
+const resolveUploadsBase = () => {
+  return normalizeBaseUrl(`${SITE_BASE_URL}/uploads`);
+};
+const UPLOADS_BASE_URL = resolveUploadsBase();
 
 const resolveUploadsUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) {
-    return path.replace(/\/app\/uploads\//i, '/uploads/');
+    try {
+      const url = new URL(path);
+      if (/^\/?(?:app\/)?uploads\//i.test(url.pathname)) {
+        const trimmed = url.pathname.replace(/^\/?(?:app\/)?uploads\//i, '');
+        return `${UPLOADS_BASE_URL}/${trimmed}${url.search || ''}`;
+      }
+    } catch (error) {
+      return path;
+    }
+    return path;
   }
   if (/^\/?app\/uploads\//i.test(path)) {
     const trimmed = path.replace(/^\/?app\/uploads\//i, '');
@@ -46,7 +50,7 @@ const resolveUploadsUrl = (path) => {
     const trimmed = path.replace(/^\/?uploads\//i, '');
     return `${UPLOADS_BASE_URL}/${trimmed}`;
   }
-  if (path.startsWith('/')) return `${UPLOADS_BASE_URL}${path}`;
+  if (path.startsWith('/')) return `${SITE_BASE_URL}${path}`;
   return `${UPLOADS_BASE_URL}/${path}`;
 };
 
@@ -4965,7 +4969,7 @@ async function loadSettings() {
         </div>
                  <div class="pointer-events-none fixed bottom-4 left-4 right-4 z-40 flex flex-col items-end gap-3 sm:bottom-6 sm:left-auto sm:right-6">
                 <p id="settings-save-status" class="pointer-events-auto hidden max-w-sm rounded-2xl border border-white/10 bg-white/95 px-4 py-3 text-sm text-gray-700 shadow-lg shadow-black/10 backdrop-blur dark:bg-dark-secondary/95 dark:text-gray-200"></p>
-                <button type="submit" form="settings-form" id="settings-save-btn" class="pointer-events-auto inline-flex min-h-[3.5rem] items-center justify-center gap-2 self-stretch rounded-full bg-gold px-6 py-3 text-base font-bold text-black transition-all hover:bg-gold-hover hover:shadow-2xl hover:shadow-gold/20 sm:min-w-[14rem] sm:self-auto">${SAVE_LABEL_HTML}</button>
+                <button type="submit" form="settings-form" id="settings-save-btn" class="pointer-events-auto inline-flex min-h-[3.5rem] items-center justify-center gap-2 self-stretch rounded bg-gold px-6 py-3 text-base font-bold text-black shadow-[0_0_20px_rgba(212,175,55,0.2)] transition-colors hover:bg-gold-hover sm:min-w-[14rem] sm:self-auto">${SAVE_LABEL_HTML}</button>
                  </div>
     `;
 
