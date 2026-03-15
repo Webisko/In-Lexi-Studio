@@ -362,11 +362,16 @@ html {
     inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: contain;
     transform-origin: center;
     transition:
       opacity 0.25s ease,
       transform 0.25s ease;
+  }
+
+  .cursor-icon svg {
+    display: block;
+    width: 100%;
+    height: 100%;
   }
 
   .cursor-icon--normal {

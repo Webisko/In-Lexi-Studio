@@ -1,4 +1,6 @@
 ---
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { Navigation } from '../components/Navigation';
 import { Footer } from '../components/Footer';
 import '../styles/global.css';
@@ -23,8 +25,14 @@ const canonicalUrl = canonicalBase ? new URL(Astro.url.pathname, canonicalBase).
 const headHtml = settings?.head_html;
 const bodyHtml = settings?.body_html;
 const baseUrl = import.meta.env.BASE_URL || '/';
-const cursorNormalUrl = `${baseUrl}cursor/normal.svg`;
-const cursorHoverUrl = `${baseUrl}cursor/hover.svg`;
+const cursorNormalSvg = readFileSync(
+  fileURLToPath(new URL('../../public/cursor/normal.svg', import.meta.url)),
+  'utf8',
+);
+const cursorHoverSvg = readFileSync(
+  fileURLToPath(new URL('../../public/cursor/hover.svg', import.meta.url)),
+  'utf8',
+);
 const isDev = import.meta.env.DEV;
 const localImageFallbackUrl = `${baseUrl}In-Lexi-Studio_tlo.webp`;
 const currentPath = Astro.url.pathname;
@@ -69,8 +77,8 @@ const currentPath = Astro.url.pathname;
       <slot />
     </main>
     <div id="custom-cursor" aria-hidden="true" class="custom-cursor">
-      <img src={cursorNormalUrl} alt="" class="cursor-icon cursor-icon--normal" />
-      <img src={cursorHoverUrl} alt="" class="cursor-icon cursor-icon--hover" />
+      <div class="cursor-icon cursor-icon--normal" set:html={cursorNormalSvg}></div>
+      <div class="cursor-icon cursor-icon--hover" set:html={cursorHoverSvg}></div>
     </div>
     <Footer
       client:load
