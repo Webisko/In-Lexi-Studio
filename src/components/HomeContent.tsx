@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Gallery, GalleryItem, Page, Settings, Testimonial } from '../lib/api';
-import { getGalleries, getHomePage, getTestimonials } from '../lib/api';
+import { getGalleries, getHomePage, getSettings, getTestimonials } from '../lib/api';
 import { Hero } from './Hero';
 import { GallerySlider } from './GallerySlider';
 import { WelcomeSection } from './WelcomeSection';
@@ -52,6 +52,7 @@ export const HomeContent: React.FC<HomeContentProps> = ({
   const [homePage, setHomePage] = useState<Page | null>(initialHome || null);
   const [galleries, setGalleries] = useState<Gallery[]>(initialGalleries || []);
   const [testimonials, setTestimonials] = useState<Testimonial[]>(initialTestimonials || []);
+  const [settings, setSettings] = useState<Settings | null>(initialSettings || null);
   const isMountedRef = useRef(true);
 
   useEffect(() => {
@@ -61,16 +62,18 @@ export const HomeContent: React.FC<HomeContentProps> = ({
   }, []);
 
   const load = useCallback(async () => {
-    const [homeRes, galleriesRes, testimonialsRes] = await Promise.all([
+    const [homeRes, galleriesRes, testimonialsRes, settingsRes] = await Promise.all([
       getHomePage(),
       getGalleries(),
       getTestimonials(),
+      getSettings(),
     ]);
 
     if (!isMountedRef.current) return;
     if (homeRes) setHomePage(homeRes);
     if (galleriesRes) setGalleries(galleriesRes);
     if (testimonialsRes) setTestimonials(testimonialsRes);
+    if (settingsRes) setSettings(settingsRes);
   }, []);
 
   useEffect(() => {
@@ -168,7 +171,7 @@ export const HomeContent: React.FC<HomeContentProps> = ({
 
   return (
     <main>
-      <Hero data={homePage} settings={initialSettings || null} />
+      <Hero data={homePage} settings={settings} />
       <GallerySlider data={galleryMap} />
       <WelcomeSection />
       <AboutFeature image={homePage?.home_moments_image} />
