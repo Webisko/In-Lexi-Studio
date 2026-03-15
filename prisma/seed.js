@@ -41,10 +41,15 @@ async function main() {
 
   const settings = await prisma.settings.upsert({
     where: { id: 1 },
-    update: {},
+    update: {
+      instagram: 'https://www.instagram.com/alexandanna.weddings',
+      facebook: 'https://www.facebook.com/alexandannaweddingphotography',
+    },
     create: {
       site_name: 'In Lexi Studio',
       email: 'kontakt@inlexistudio.com',
+      instagram: 'https://www.instagram.com/alexandanna.weddings',
+      facebook: 'https://www.facebook.com/alexandannaweddingphotography',
     },
   });
 

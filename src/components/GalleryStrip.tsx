@@ -57,7 +57,7 @@ export const GalleryStrip: React.FC = () => {
                 life and love.
               </p>
 
-              <p className="font-serif text-xl italic leading-loose text-gold md:text-2xl">
+              <p className="font-serif text-2xl italic leading-snug text-gold md:text-3xl lg:text-[2.15rem]">
                 And in that decisive moment, my finger presses the shutter.
               </p>
 

@@ -3,64 +3,46 @@ import React from 'react';
 export const WelcomeSection: React.FC = () => {
   const baseUrl = import.meta.env.BASE_URL || '/';
   const buildLink = (slug: string) => `${baseUrl}${slug}`;
+  const hotspotLinks = [
+    { word: 'IN', slug: 'approach', label: 'APPROACH' },
+    { word: 'LEXI', slug: 'about', label: 'ABOUT' },
+    { word: 'STUDIO', slug: 'portfolio', label: 'PORTFOLIO' },
+  ] as const;
 
   return (
     <section className="px-4 py-24 text-white md:px-12 md:py-32">
-      <div className="mx-auto w-full max-w-6xl">
-        <div className="grid grid-cols-1 items-start gap-14 md:grid-cols-2 md:gap-20">
+      <div className="mx-auto w-full max-w-[1440px]">
+        <div className="grid grid-cols-1 items-center gap-14 md:grid-cols-2 md:gap-20">
           {/* Left: Title block */}
-          <div className="flex flex-col items-center justify-center text-center md:justify-self-center">
+          <div className="flex flex-col items-center justify-center self-center text-center md:justify-self-center">
             <h2 className="font-display text-[clamp(1.4rem,2vw,2.2rem)] leading-[0.95] tracking-wide">
               <span className="block">WELCOME</span>
               <span className="mt-4 block font-serif text-[clamp(1.1rem,1.6vw,1.6rem)] italic tracking-normal text-white/80">
                 to
               </span>
               <div className="mt-6 flex flex-col items-center gap-6 text-[clamp(3.5rem,6vw,6rem)] leading-[0.9] tracking-[0.1em]">
-                <div className="relative inline-flex items-center justify-center">
-                  <span className="block">IN</span>
-                  <a
-                    href={buildLink('approach')}
-                    className="group absolute left-full top-1/2 ml-4 flex -translate-y-1/2 items-center"
+                {hotspotLinks.map((item) => (
+                  <div
+                    key={item.word}
+                    className="group relative inline-flex items-center justify-center"
                   >
-                    <span className="hotspot-wrap" aria-hidden="true">
-                      <span className="hotspot-pulse" aria-hidden="true" />
-                      <span className="hotspot" aria-hidden="true" />
+                    <span className="block transition-colors duration-300 group-hover:text-[#d4af37]">
+                      {item.word}
                     </span>
-                    <span className="ml-4 inline-flex -translate-x-3 items-center rounded-full bg-white px-6 py-2 font-sans text-sm uppercase tracking-[0.25em] text-black opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100 md:text-base">
-                      APPROACH
-                    </span>
-                  </a>
-                </div>
-                <div className="relative inline-flex items-center justify-center">
-                  <span className="block">LEXI</span>
-                  <a
-                    href={buildLink('about')}
-                    className="group absolute left-full top-1/2 ml-4 flex -translate-y-1/2 items-center"
-                  >
-                    <span className="hotspot-wrap" aria-hidden="true">
-                      <span className="hotspot-pulse" aria-hidden="true" />
-                      <span className="hotspot" aria-hidden="true" />
-                    </span>
-                    <span className="ml-4 inline-flex -translate-x-3 items-center rounded-full bg-white px-6 py-2 font-sans text-sm uppercase tracking-[0.25em] text-black opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100 md:text-base">
-                      ABOUT
-                    </span>
-                  </a>
-                </div>
-                <div className="relative inline-flex items-center justify-center">
-                  <span className="block">STUDIO</span>
-                  <a
-                    href={buildLink('portfolio')}
-                    className="group absolute left-full top-1/2 ml-4 flex -translate-y-1/2 items-center"
-                  >
-                    <span className="hotspot-wrap" aria-hidden="true">
-                      <span className="hotspot-pulse" aria-hidden="true" />
-                      <span className="hotspot" aria-hidden="true" />
-                    </span>
-                    <span className="ml-4 inline-flex -translate-x-3 items-center rounded-full bg-white px-6 py-2 font-sans text-sm uppercase tracking-[0.25em] text-black opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100 md:text-base">
-                      PORTFOLIO
-                    </span>
-                  </a>
-                </div>
+                    <a
+                      href={buildLink(item.slug)}
+                      className="absolute left-full top-1/2 ml-4 flex -translate-y-1/2 items-center"
+                    >
+                      <span className="hotspot-wrap" aria-hidden="true">
+                        <span className="hotspot-pulse" aria-hidden="true" />
+                        <span className="hotspot" aria-hidden="true" />
+                      </span>
+                      <span className="ml-4 inline-flex -translate-x-3 items-center rounded-full bg-white px-6 py-2 font-sans text-sm uppercase tracking-[0.25em] text-[#936328] opacity-0 transition-all duration-300 hover:bg-gold hover:text-white group-hover:translate-x-0 group-hover:opacity-100 md:text-base">
+                        {item.label}
+                      </span>
+                    </a>
+                  </div>
+                ))}
               </div>
             </h2>
 
@@ -79,21 +61,29 @@ export const WelcomeSection: React.FC = () => {
               </p>
             </div>
 
-            <div className="space-y-6 font-serif text-[clamp(1.05rem,1.4vw,1.35rem)] leading-relaxed text-white/80">
+            <div className="space-y-6 font-sans text-[clamp(1rem,1.05vw,1.15rem)] leading-relaxed text-white/80">
               <p>
-                I scan the scene, taking it all in: expressions, connections, raw emotion. I witness
-                joyful tears streaming down cheeks, spontaneous laughter erupting, and embraces that
-                speak volumes without words. People truly present for this single, precious day.
-                Souls living in the moment, leaving their worries behind.
+                <span className="block">
+                  I scan the scene, taking it all in: expressions, connections, raw emotion.
+                </span>
+                <span className="block">
+                  I witness joyful tears streaming down cheeks, spontaneous laughter erupting,
+                </span>
+                <span className="block">and embraces that speak volumes without words.</span>
+                <span className="block">People truly present for this single, precious day.</span>
+                <span className="block">
+                  Souls living in the moment, leaving their worries behind.
+                </span>
               </p>
 
               <p>
-                This singular &quot;now&quot; becomes everything. The past dissolves. The future
-                waits. Only this perfect, fleeting instant matters - pure, unadulterated celebration
-                of life and love.
+                <span className="block">This singular &quot;now&quot; becomes everything.</span>
+                <span className="block">The past dissolves. The future waits.</span>
+                <span className="block">Only this perfect, fleeting instant matters -</span>
+                <span className="block">pure, unadulterated celebration of life and love.</span>
               </p>
 
-              <p className="italic text-white">
+              <p className="font-serif text-2xl italic leading-snug text-white md:text-3xl lg:text-[2.15rem]">
                 And in that decisive moment, my finger presses the shutter.
               </p>
             </div>
@@ -101,7 +91,7 @@ export const WelcomeSection: React.FC = () => {
         </div>
 
         <div className="mt-16 flex justify-center">
-          <a href="#contact" className="btn-primary">
+          <a href="#contact" className="btn-secondary">
             GET IN TOUCH
           </a>
         </div>

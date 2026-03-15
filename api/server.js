@@ -9,6 +9,7 @@ const app = express();
 const PORT = process.env.PORT || 1337;
 const PROXY_PREFIX = '/app';
 const ADMIN_REDIRECT_URL = 'https://admin.inlexistudio.com';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 // Middleware
 app.use(cors());
@@ -46,10 +47,18 @@ app.use('/uploads', express.static(PUBLIC_UPLOADS_DIR));
 // API Routes
 app.use('/api', routes);
 
-// Redirect legacy admin path to the admin subdomain
-app.use('/admin', (req, res) => {
-  res.redirect(301, ADMIN_REDIRECT_URL);
-});
+if (IS_PRODUCTION) {
+  // Redirect legacy admin path to the admin subdomain in production.
+  app.use('/admin', (req, res) => {
+    res.redirect(301, ADMIN_REDIRECT_URL);
+  });
+} else {
+  // Serve the admin app locally to make CMS work without a separate frontend host.
+  app.use('/admin', express.static(ADMIN_DIR));
+  app.get(/^\/admin(?:\/.*)?$/, (req, res) => {
+    res.sendFile(path.join(ADMIN_DIR, 'index.html'));
+  });
+}
 
 // Root Route - Health Check (Crucial for debugging)
 app.get('/', (req, res) => {

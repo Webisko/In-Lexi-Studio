@@ -1,0 +1,943 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>InLexiStudio - Wedding Photography Packages</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Futura:wght@300;400;600;700&family=Cormorant+Garamond:wght@300;400;500;600;700&display=swap');
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Cormorant Garamond', serif;
+        background: white;
+        color: #2c3e50;
+        line-height: 1.6;
+      }
+
+      .page {
+        width: 210mm;
+        min-height: 297mm;
+        padding: 15mm;
+        margin: 0 auto 20px auto;
+        background: white;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        page-break-after: always;
+        page-break-inside: avoid;
+        position: relative;
+      }
+
+      .page:last-child {
+        page-break-after: avoid;
+        margin-bottom: 0;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 3px solid #2d5016;
+      }
+
+      .photographer-name {
+        font-family: 'Playfair Display', serif;
+        font-size: 42px;
+        font-weight: 700;
+        color: #1a3a0e;
+        margin-bottom: 8px;
+        letter-spacing: 2px;
+      }
+
+      .tagline {
+        font-family: 'Playfair Display', serif;
+        font-size: 24px;
+        color: #8b6914;
+        font-weight: 600;
+        font-style: italic;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+
+      .intro-section {
+        text-align: center;
+        margin-bottom: 40px;
+        padding: 30px 20px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e8f5e8 100%);
+        border-radius: 10px;
+        border-left: 5px solid #c7a800;
+      }
+
+      .intro-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 32px;
+        font-weight: 600;
+        color: #1a3a0e;
+        margin-bottom: 20px;
+        letter-spacing: 1px;
+      }
+
+      .intro-text {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 16px;
+        color: #2d5016;
+        line-height: 1.7;
+        margin-bottom: 15px;
+      }
+
+      .intro-highlight {
+        font-family: 'Playfair Display', serif;
+        font-size: 18px;
+        font-weight: 600;
+        color: #8b6914;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .package-main {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .package-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 16px;
+        font-weight: 600;
+        color: #22a745;
+        margin-bottom: 5px;
+        letter-spacing: 1px;
+      }
+
+      .package-subtitle {
+        font-family: 'Playfair Display', serif;
+        font-size: 42px;
+        font-weight: 700;
+        color: #2d5016;
+        margin-bottom: 10px;
+        letter-spacing: 2px;
+      }
+
+      .perfect-for {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 20px;
+        color: #2d5016;
+        font-style: italic;
+        margin-bottom: 20px;
+      }
+
+      .package-price {
+        font-family: 'Playfair Display', serif;
+        font-size: 64px;
+        font-weight: 700;
+        color: #1a3a0e;
+        margin-bottom: 20px;
+      }
+
+      .popular-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #2d5016 0%, #4a6b23 100%);
+        color: white;
+        padding: 10px 25px;
+        border-radius: 25px;
+        font-family: 'Playfair Display', serif;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .best-value-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #c7a800 0%, #8b6914 100%);
+        color: white;
+        padding: 10px 25px;
+        border-radius: 25px;
+        font-family: 'Playfair Display', serif;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .features-section {
+        margin-bottom: 25px;
+      }
+
+      .features-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 28px;
+        font-weight: 600;
+        color: #1a3a0e;
+        margin-bottom: 20px;
+        text-align: center;
+        letter-spacing: 1px;
+      }
+
+      .features-list {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        list-style: none;
+      }
+
+      .feature-item {
+        background: linear-gradient(135deg, #f8fdf8 0%, #f0f8f0 100%);
+        padding: 12px;
+        border-left: 4px solid #c7a800;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(45, 80, 22, 0.1);
+      }
+
+      .feature-title {
+        font-family: 'Playfair Display', serif;
+        font-weight: 600;
+        color: #1a3a0e;
+        font-size: 14px;
+        margin-bottom: 6px;
+        letter-spacing: 0.5px;
+      }
+
+      .feature-description {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 13px;
+        color: #2d5016;
+        line-height: 1.4;
+      }
+
+      .story-section {
+        background: linear-gradient(135deg, #faf8f0 0%, #f5f0e8 100%);
+        padding: 30px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+        border: 2px solid #c7a800;
+      }
+
+      .story-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 24px;
+        font-weight: 600;
+        color: #8b6914;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+
+      .story-text {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 16px;
+        color: #2d5016;
+        line-height: 1.7;
+        text-align: center;
+      }
+
+      .cta-section {
+        background: linear-gradient(135deg, #1a3a0e 0%, #2d5016 100%);
+        color: white;
+        padding: 35px;
+        border-radius: 15px;
+        text-align: center;
+        margin-bottom: 30px;
+        box-shadow: 0 8px 25px rgba(26, 58, 14, 0.3);
+      }
+
+      .cta-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 36px;
+        font-weight: 700;
+        margin-bottom: 15px;
+        letter-spacing: 2px;
+        line-height: 1.2;
+      }
+
+      .cta-subtitle {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 20px;
+        font-style: italic;
+        color: #ffd700;
+        line-height: 1.4;
+      }
+
+      .contact-section {
+        background: linear-gradient(135deg, #f8fdf8 0%, #e8f5e8 100%);
+        padding: 20px;
+        border-radius: 10px;
+        border: 2px solid #2d5016;
+        text-align: center;
+        margin-top: auto;
+      }
+
+      .contact-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 24px;
+        font-weight: 600;
+        color: #1a3a0e;
+        margin-bottom: 20px;
+        letter-spacing: 1px;
+      }
+
+      .contact-row {
+        display: flex;
+        gap: 30px;
+        justify-content: center;
+        margin-bottom: 15px;
+      }
+
+      .contact-website {
+        width: 100%;
+        text-align: center;
+        margin-top: 10px;
+      }
+
+      .contact-item {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 16px;
+        color: #2d5016;
+      }
+
+      .contact-label {
+        font-family: 'Playfair Display', serif;
+        font-weight: 600;
+        color: #8b6914;
+        display: block;
+        margin-bottom: 5px;
+      }
+
+      .contact-value {
+        color: #1a3a0e;
+      }
+
+      .contact-value a {
+        color: #2d5016;
+        text-decoration: none;
+        border-bottom: 1px solid #c7a800;
+        transition: all 0.3s ease;
+      }
+
+      .contact-value a:hover {
+        color: #8b6914;
+        border-bottom-color: #2d5016;
+      }
+
+      .addon-section {
+        background: linear-gradient(135deg, #fefcf7 0%, #f9f5ec 100%);
+        padding: 25px;
+        border-radius: 10px;
+        margin-bottom: 25px;
+        border-left: 5px solid #8b6914;
+      }
+
+      .addon-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 24px;
+        font-weight: 600;
+        color: #8b6914;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+
+      .addon-list {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        list-style: none;
+      }
+
+      .addon-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: white;
+        padding: 12px 15px;
+        border-radius: 8px;
+        border: 1px solid #c7a800;
+      }
+
+      .addon-name {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 15px;
+        color: #2d5016;
+        font-weight: 500;
+      }
+
+      .addon-price {
+        font-family: 'Playfair Display', serif;
+        font-size: 16px;
+        font-weight: 600;
+        color: #8b6914;
+      }
+
+      .album-section {
+        background: linear-gradient(135deg, #fefcf7 0%, #f9f5ec 100%);
+        padding: 30px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+        border-left: 5px solid #8b6914;
+      }
+
+      .album-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 28px;
+        font-weight: 600;
+        color: #8b6914;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+
+      .album-text {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 16px;
+        color: #2d5016;
+        line-height: 1.7;
+        text-align: center;
+      }
+
+      .thank-you-section {
+        background: linear-gradient(135deg, #1a3a0e 0%, #2d5016 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 10px;
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      .thank-you-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 32px;
+        font-weight: 700;
+        color: #ffd700;
+        margin-bottom: 15px;
+        letter-spacing: 2px;
+      }
+
+      .thank-you-text {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 16px;
+        line-height: 1.7;
+      }
+
+      /* Print optimizations */
+      @media print {
+        body {
+          background: white;
+          -webkit-print-color-adjust: exact;
+          color-adjust: exact;
+          margin: 0;
+          padding: 0;
+        }
+
+        .page {
+          box-shadow: none;
+          margin: 0;
+          width: 100%;
+          height: 100vh;
+          page-break-inside: avoid;
+          page-break-after: always;
+          padding: 10mm;
+        }
+
+        .page:last-child {
+          page-break-after: avoid;
+        }
+
+        * {
+          page-break-inside: avoid;
+        }
+      }
+
+      @media screen and (max-width: 768px) {
+        .page {
+          width: 100%;
+          padding: 15mm;
+        }
+
+        .features-list {
+          grid-template-columns: 1fr;
+        }
+
+        .addon-list {
+          grid-template-columns: 1fr;
+        }
+
+        .contact-row {
+          flex-direction: column;
+          gap: 15px;
+        }
+
+        .package-title {
+          font-size: 36px;
+        }
+
+        .package-price {
+          font-size: 48px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Introduction Page -->
+    <div class="page">
+      <div class="header">
+        <h1 class="photographer-name">InLexiStudio</h1>
+        <p class="tagline">More than Wedding Photographs</p>
+      </div>
+
+      <div class="intro-section">
+        <h2 class="intro-title">Enjoy Peace of Mind</h2>
+        <p class="intro-text">KNOWING THAT YOU ARE IN GOOD HANDS.</p>
+        <p class="intro-text">
+          WITH OVER 8 YEARS OF EXPERIENCE AS A PHOTOGRAPHER (AND 100% SATISFACTION RATE!), I CAN
+          ASSURE YOU THAT BY BOOKING ME TO DOCUMENT YOUR WEDDING DAY, YOUR MEMORIES WILL BE CREATED
+          IN THE MOST BEAUTIFUL AND FUN WAY!
+        </p>
+        <p class="intro-highlight">
+          I believe that my passion, my creativity and my experience is allowing me to deliver
+          amazing photographs and an awesome experience to my couples.
+        </p>
+      </div>
+
+      <div class="story-section">
+        <h3 class="story-title">Your Story</h3>
+        <p class="story-text">
+          I'm always inspired by personal stories, and there is nothing more beautiful than two
+          souls deciding to be together for the rest of their lives. Wedding Day is just a start of
+          something awesome. A life together that will bring a lot of happiness, but also lessons
+          along the way.
+        </p>
+        <br />
+        <p class="story-text">
+          Wedding day, for many people, is a really emotional experience. Witnessing others living
+          that experience is a huge honour and privilege for me. No two weddings are the same. No
+          two stories are alike. But one thing remains always the same. Love.
+        </p>
+      </div>
+
+      <div class="story-section">
+        <h3 class="story-title">Trust</h3>
+        <p class="story-text">
+          Wedding Photographer is not just a guy with a camera to take photos during the most
+          important day of your life. He is a person that will be near you most of that day. He is a
+          person, who you have to trust. So you can focus on living the experience. He is a person,
+          who will let you enjoy Your Big Day. Who will create your memories.
+        </p>
+      </div>
+
+      <div class="cta-section">
+        <h3 class="cta-title">How Much Would You Pay For Your Memories?</h3>
+        <p class="cta-subtitle">Reserve Your Date Today!</p>
+      </div>
+
+      <div class="contact-section">
+        <h3 class="contact-title">Get In Touch</h3>
+        <div class="contact-row">
+          <div class="contact-item">
+            <span class="contact-label">Phone</span>
+            <span class="contact-value">07966516199</span>
+          </div>
+          <div class="contact-item">
+            <span class="contact-label">Email</span>
+            <span class="contact-value">info.inlexistudio.com</span>
+          </div>
+        </div>
+        <div class="contact-website">
+          <div class="contact-item">
+            <span class="contact-label">Website</span>
+            <span class="contact-value"
+              ><a href="https://inlexistudio.com" target="_blank">inlexistudio.com</a></span
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6 Hours Package Page -->
+    <div class="page">
+      <div class="header">
+        <h1 class="photographer-name">InLexiStudio</h1>
+        <p class="tagline">More than Wedding Photographs</p>
+      </div>
+
+      <div class="package-main">
+        <p class="package-subtitle">Ceremony to Reception</p>
+        <p class="perfect-for">Perfect for intimate ceremonies or budget-conscious couples</p>
+        <h2 class="package-title">Up to 6 Hours</h2>
+        <div class="package-price">£1950</div>
+      </div>
+
+      <div class="features-section">
+        <h3 class="features-title">What's Included</h3>
+        <ul class="features-list">
+          <li class="feature-item">
+            <div class="feature-title">6 Hours Coverage</div>
+            <div class="feature-description">From ceremony until you sit down for dinner</div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Professional Photography</div>
+            <div class="feature-description">
+              Your day photographed by Alex with professional equipment
+            </div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Couple Photo Session</div>
+            <div class="feature-description">One dedicated 20-30 minute photo session</div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Personal Meeting</div>
+            <div class="feature-description">Meeting/Video call to get to know each other</div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Professional Editing</div>
+            <div class="feature-description">
+              High resolution, fully edited files ready for print and online
+            </div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Online Gallery</div>
+            <div class="feature-description">
+              Secure gallery to view and share with friends and family
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="contact-section">
+        <h3 class="contact-title">Ready to Book?</h3>
+        <div class="contact-row">
+          <div class="contact-item">
+            <span class="contact-label">Phone</span>
+            <span class="contact-value">07966516199</span>
+          </div>
+          <div class="contact-item">
+            <span class="contact-label">Email</span>
+            <span class="contact-value">info.inlexistudio.com</span>
+          </div>
+        </div>
+        <div class="contact-website">
+          <div class="contact-item">
+            <span class="contact-label">Website</span>
+            <span class="contact-value"
+              ><a href="https://inlexistudio.com" target="_blank">inlexistudio.com</a></span
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 10 Hours Package Page -->
+    <div class="page">
+      <div class="header">
+        <h1 class="photographer-name">InLexiStudio</h1>
+        <p class="tagline">More than Wedding Photographs</p>
+      </div>
+
+      <div class="package-main">
+        <div class="popular-badge">Most Popular</div>
+        <p class="package-subtitle">Getting Ready to Dancing</p>
+        <p class="perfect-for">Perfect for traditional weddings wanting complete coverage</p>
+        <h2 class="package-title">Up to 10 Hours</h2>
+        <div class="package-price">£2600</div>
+      </div>
+
+      <div class="features-section">
+        <h3 class="features-title">What's Included</h3>
+        <ul class="features-list">
+          <li class="feature-item">
+            <div class="feature-title">10 Hours Coverage</div>
+            <div class="feature-description">
+              From getting ready until 20 minutes after first dance
+            </div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Professional Photography</div>
+            <div class="feature-description">
+              Your day photographed by Alex from start to finish
+            </div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Two Photo Sessions</div>
+            <div class="feature-description">Two dedicated sessions, 20-30 minutes each</div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Personal Meeting</div>
+            <div class="feature-description">Meeting/Video call to plan your perfect day</div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Professional Editing</div>
+            <div class="feature-description">
+              High resolution, fully edited files ready for print and online
+            </div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Premium Delivery</div>
+            <div class="feature-description">USB Wooden Box & Selection of Prints included</div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Online Gallery</div>
+            <div class="feature-description">
+              Secure gallery with your story to share with friends and family
+            </div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Getting Ready Coverage</div>
+            <div class="feature-description">Bridal preparations and groom getting ready</div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="contact-section">
+        <h3 class="contact-title">Ready to Book?</h3>
+        <div class="contact-row">
+          <div class="contact-item">
+            <span class="contact-label">Phone</span>
+            <span class="contact-value">07966516199</span>
+          </div>
+          <div class="contact-item">
+            <span class="contact-label">Email</span>
+            <span class="contact-value">info.inlexistudio.com</span>
+          </div>
+        </div>
+        <div class="contact-website">
+          <div class="contact-item">
+            <span class="contact-label">Website</span>
+            <span class="contact-value"
+              ><a href="https://inlexistudio.com" target="_blank">inlexistudio.com</a></span
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 12+ Hours Package Page -->
+    <div class="page">
+      <div class="header">
+        <h1 class="photographer-name">InLexiStudio</h1>
+        <p class="tagline">More than Wedding Photographs</p>
+      </div>
+
+      <div class="package-main">
+        <div class="best-value-badge">Luxury Experience</div>
+        <p class="package-subtitle">Complete Wedding Experience</p>
+        <p class="perfect-for">Perfect for couples wanting a luxury photography experience</p>
+        <h2 class="package-title">No Time Limit</h2>
+        <div class="package-price">£4500</div>
+      </div>
+
+      <div class="features-section">
+        <h3 class="features-title">What's Included</h3>
+        <ul class="features-list">
+          <li class="feature-item">
+            <div class="feature-title">12+ Hours Coverage</div>
+            <div class="feature-description">
+              Full day from getting ready until late evening dancing
+            </div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Second Photographer</div>
+            <div class="feature-description">
+              Additional photographer for comprehensive coverage
+            </div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Two Photo Sessions</div>
+            <div class="feature-description">
+              Two dedicated sessions plus additional candid moments
+            </div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Premium Album</div>
+            <div class="feature-description">
+              10x10 luxury album with 20 spreads - your complete story
+            </div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Video Slideshow</div>
+            <div class="feature-description">
+              Professional slideshow as a beautiful teaser of your day
+            </div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Premium Delivery</div>
+            <div class="feature-description">Luxury USB box & selection of premium prints</div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Online Gallery</div>
+            <div class="feature-description">Premium gallery with your complete wedding story</div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-title">Personal Planning</div>
+            <div class="feature-description">Extended consultation and timeline planning</div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="contact-section">
+        <h3 class="contact-title">Ready to Book?</h3>
+        <div class="contact-row">
+          <div class="contact-item">
+            <span class="contact-label">Phone</span>
+            <span class="contact-value">07966516199</span>
+          </div>
+          <div class="contact-item">
+            <span class="contact-label">Email</span>
+            <span class="contact-value">info.inlexistudio.com</span>
+          </div>
+        </div>
+        <div class="contact-website">
+          <div class="contact-item">
+            <span class="contact-label">Website</span>
+            <span class="contact-value"
+              ><a href="https://inlexistudio.com" target="_blank">inlexistudio.com</a></span
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add-Ons Page -->
+    <div class="page">
+      <div class="header">
+        <h1 class="photographer-name">InLexiStudio</h1>
+        <p class="tagline">More than Wedding Photographs</p>
+      </div>
+
+      <div class="addon-section">
+        <h2 class="addon-title">Optional Add-Ons</h2>
+        <p class="story-text" style="margin-bottom: 25px">
+          Enhance your wedding photography experience with these popular additions
+        </p>
+
+        <ul class="addon-list">
+          <li class="addon-item">
+            <span class="addon-name">Engagement Session</span>
+            <span class="addon-price">+£350</span>
+          </li>
+          <li class="addon-item">
+            <span class="addon-name">Extra Hour Coverage</span>
+            <span class="addon-price">+£200</span>
+          </li>
+          <li class="addon-item">
+            <span class="addon-name">Second Photographer</span>
+            <span class="addon-price">+£600</span>
+          </li>
+          <li class="addon-item">
+            <span class="addon-name">Premium Album (8x8)</span>
+            <span class="addon-price">+£450</span>
+          </li>
+          <li class="addon-item">
+            <span class="addon-name">Luxury Album (10x10)</span>
+            <span class="addon-price">+£650</span>
+          </li>
+          <li class="addon-item">
+            <span class="addon-name">Video Slideshow</span>
+            <span class="addon-price">+£250</span>
+          </li>
+          <li class="addon-item">
+            <span class="addon-name">Film Analog Photography*</span>
+            <span class="addon-price">Ask for details</span>
+          </li>
+          <li class="addon-item">
+            <span class="addon-name">Express Edit (2 weeks)</span>
+            <span class="addon-price">+£450</span>
+          </li>
+          <li class="addon-item">
+            <span class="addon-name">Drone Photography**</span>
+            <span class="addon-price">+£300</span>
+          </li>
+          <li class="addon-item">
+            <span class="addon-name">Same Day Preview (10 photos)</span>
+            <span class="addon-price">+£150</span>
+          </li>
+        </ul>
+
+        <p
+          style="
+            margin-top: 20px;
+            font-style: italic;
+            text-align: center;
+            font-size: 14px;
+            color: #2d5016;
+          "
+        >
+          *Analog Photography - Organic artistic feel captured with film camera. Perfect for couples
+          seeking unique meaningful vibe. Contact us for pricing.<br />
+          **Drone photography subject to venue permissions and weather conditions
+        </p>
+      </div>
+
+      <div class="album-section">
+        <h2 class="album-title">Wedding Albums</h2>
+        <p class="album-text">
+          I TRULY CARE ABOUT THE EXCITEMENT THAT GOES WITH PUTTING YOUR ALBUM TOGETHER. I COMPLETELY
+          UNDERSTAND THE AMOUNT OF TIME THAT GOES INTO FINALISING THE BOOK. THAT'S WHY, I OFFER
+          DESIGN SERVICE COMPLETELY FREE OF CHARGE.
+        </p>
+        <br />
+        <p class="album-text">
+          I WILL CREATE AN INITIAL LAYOUT OF YOUR ALBUM AND THEN WE WILL WORK TOGETHER TO FINALISE
+          IT THE WAY YOU WANT IT TO LOOK. IT WILL SAVE YOU TIME AND YOU WILL ACTUALLY ENJOY PUTTING
+          YOUR ALBUM TOGETHER.
+        </p>
+        <br />
+        <p class="album-text" style="font-weight: 600; color: #8b6914">
+          A wedding album is your tangible keepsake - a beautifully crafted book that tells your
+          love story through carefully selected photographs. Unlike digital files, your album will
+          be treasured for generations, becoming a family heirloom that captures the emotion and
+          beauty of your special day in print.
+        </p>
+      </div>
+
+      <div class="cta-section">
+        <h3 class="cta-title">Have Peace<br />Of Mind</h3>
+        <p class="cta-subtitle">
+          Where Moments Become Memories<br /><br />Knowing That Your Memories<br />Will Be
+          Documented In The Most<br />Beautiful And Fun Way!
+        </p>
+      </div>
+
+      <div class="thank-you-section">
+        <h2 class="thank-you-title">Thank You!</h2>
+        <p class="thank-you-text">
+          THANK YOU FOR CONSIDERING ME TO DOCUMENT YOUR WEDDING. I HOPE I HAVE GIVEN YOU A CLEAR
+          VIEW OF HOW IT IS LIKE TO HAVE ME DURING YOUR WEDDING, BUT ALSO MY ALTERNATIVE, RELAXED,
+          BUT A VERY PERSONAL AND SUPER POSITIVE APPROACH TO DOCUMENTING AND SHOWCASING YOUR DAY.
+        </p>
+      </div>
+
+      <div class="contact-section">
+        <h3 class="contact-title">Let's Create Your Perfect Wedding Story</h3>
+        <div class="contact-row">
+          <div class="contact-item">
+            <span class="contact-label">Phone</span>
+            <span class="contact-value">07966516199</span>
+          </div>
+          <div class="contact-item">
+            <span class="contact-label">Email</span>
+            <span class="contact-value">info.inlexistudio.com</span>
+          </div>
+        </div>
+        <div class="contact-website">
+          <div class="contact-item">
+            <span class="contact-label">Website</span>
+            <span class="contact-value"
+              ><a href="https://inlexistudio.com" target="_blank">inlexistudio.com</a></span
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Keyboard shortcut
+      document.addEventListener('keydown', function (e) {
+        if (e.ctrlKey && e.key === 'p') {
+          e.preventDefault();
+          window.print();
+        }
+      });
+    </script>
+  </body>
+</html>

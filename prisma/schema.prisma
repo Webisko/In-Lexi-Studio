@@ -32,18 +32,26 @@ model Page {
   content          String?
   hero_image       String?
   home_hero_logo   String?
+  logo_variant     String   @default("primary")
   home_gallery_wedding_id Int?
   home_gallery_portrait_id Int?
   home_gallery_product_id Int?
-  home_gallery_wedding_images Json?
-  home_gallery_portrait_images Json?
-  home_gallery_product_images Json?
+  home_gallery_wedding_images String?
+  home_gallery_portrait_images String?
+  home_gallery_product_images String?
   home_moments_image String?
   home_latest_moments_bg String?
-  home_latest_gallery_ids Json?
-  home_testimonial_ids Json?
-  wedding_slider_images Json?
-  portfolio_gallery_ids Json?
+  home_latest_gallery_ids String?
+  home_testimonial_ids String?
+  wedding_testimonial_ids String?
+  faq_items        String?
+  wedding_slider_images String?
+  wedding_session_types String?
+  portfolio_gallery_ids String?
+  about_origin_images String?
+  about_story_images String?
+  about_story_captions String?
+  about_work_images String?
   meta_title       String?
   meta_description String?
   seo_image        String?
@@ -57,7 +65,9 @@ model Gallery {
   id          Int           @id @default(autoincrement())
   category    String        // 'wedding' | 'portrait' | 'product'
   name        String?
+  short_description String?
   cover_image String?
+  published   Boolean       @default(true)
   items       GalleryItem[]
   testimonial Testimonial?
 }
@@ -98,6 +108,7 @@ model Settings {
   footer_text        String?
   privacy_url        String?
   logo_path String?
+  logo_secondary_path String?
   mega_menu_image String?
   email     String?
   phone     String?
@@ -107,4 +118,14 @@ model Settings {
   umami_website_id   String?
   umami_domains      String?
   umami_dashboard_url String?
+}
+
+model MediaAsset {
+  id         Int      @id @default(autoincrement())
+  file_url   String   @unique
+  tag        String   @default("other")
+  title_text String?
+  alt_text   String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }

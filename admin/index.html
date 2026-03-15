@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="api-base" content="https://inlexistudio.com/app/api" />
     <title>In Lexi CMS</title>
+    <link rel="icon" id="admin-favicon" href="/favicon.svg" />
     <link rel="stylesheet" href="style.css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -513,19 +514,43 @@
           <h3 id="modal-title" class="font-display text-xl font-bold text-gray-900 dark:text-white">
             Edycja
           </h3>
-          <button
-            id="close-modal"
-            class="text-gray-400 transition-colors hover:text-gray-900 dark:hover:text-white"
-          >
-            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+          <div class="flex items-center gap-3">
+            <div id="modal-header-accessory" class="hidden"></div>
+            <button
+              id="modal-primary-action"
+              type="button"
+              class="hover:bg-gold-hover hidden rounded bg-gold px-4 py-2 text-sm font-semibold text-black transition-colors"
+            >
+              <svg
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              <span>Zapisz</span>
+            </button>
+            <button
+              id="close-modal"
+              class="inline-flex h-10 w-10 items-center justify-center rounded border border-gray-200 text-gray-500 transition-colors hover:border-gold hover:text-gray-900 dark:border-white/10 dark:text-gray-300 dark:hover:text-white"
+            >
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
         <div id="modal-content" class="overflow-y-auto p-6 text-gray-600 dark:text-gray-300">
           <!-- Dynamic Content -->
@@ -542,10 +567,40 @@
         class="bg-dark-secondary relative flex h-[80vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-white/10 shadow-2xl"
       >
         <div
-          class="bg-dark-secondary flex items-center justify-between border-b border-white/10 px-6 py-4"
+          class="bg-dark-secondary flex items-center justify-between gap-4 border-b border-white/10 px-6 py-4"
         >
-          <h3 class="text-lg font-bold text-white">Wybierz Zdjęcie (Media Library)</h3>
-          <button id="close-media-modal" class="text-gray-400 hover:text-white">&times;</button>
+          <div class="flex min-w-0 flex-1 items-center gap-4">
+            <h3 id="media-modal-title" class="shrink-0 text-lg font-bold text-white">
+              Wybierz zdjęcie
+            </h3>
+            <input
+              id="media-search"
+              type="text"
+              placeholder="Szukaj po nazwie pliku..."
+              class="w-full max-w-md rounded border border-white/10 bg-black/40 px-3 py-1.5 text-xs uppercase tracking-widest text-white placeholder-gray-500 focus:border-gold focus:outline-none"
+            />
+          </div>
+          <span id="media-selection-count" class="hidden shrink-0 text-xs text-gray-400"></span>
+          <button
+            id="media-confirm"
+            class="hover:bg-gold-hover hidden shrink-0 rounded bg-gold px-4 py-2 text-sm font-semibold text-black transition-colors"
+          >
+            Dodaj wybrane
+          </button>
+          <button
+            id="close-media-modal"
+            class="inline-flex h-10 w-10 items-center justify-center rounded border border-white/15 text-gray-300 transition-colors hover:border-gold hover:text-white"
+            aria-label="Zamknij"
+          >
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
         </div>
         <div class="flex-1 overflow-y-auto p-4">
           <div id="media-library-grid" class="grid grid-cols-4 gap-4">
@@ -553,20 +608,52 @@
           </div>
         </div>
         <div
-          class="bg-dark-secondary flex items-center justify-between border-t border-white/10 p-4"
+          class="bg-dark-secondary flex flex-wrap items-center gap-3 border-t border-white/10 p-4"
         >
           <input type="file" id="global-file-upload" class="hidden" multiple accept="image/*" />
           <button
             onclick="document.getElementById('global-file-upload').click()"
-            class="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+            class="rounded border border-white/15 px-4 py-2 text-sm text-white/80 transition-colors hover:border-gold hover:text-gold"
           >
             Prześlij nowe zdjęcia
           </button>
+          <div class="flex flex-wrap items-center gap-2" id="media-picker-tag-filters">
+            <button
+              data-media-picker-tag="all"
+              class="rounded-full border border-white/15 px-3 py-1 text-xs uppercase tracking-widest text-white/80 transition-colors hover:border-gold hover:text-gold"
+            >
+              Wszystkie
+            </button>
+            <button
+              data-media-picker-tag="wedding"
+              class="rounded-full border border-white/15 px-3 py-1 text-xs uppercase tracking-widest text-white/80 transition-colors hover:border-gold hover:text-gold"
+            >
+              Ślubne
+            </button>
+            <button
+              data-media-picker-tag="portrait"
+              class="rounded-full border border-white/15 px-3 py-1 text-xs uppercase tracking-widest text-white/80 transition-colors hover:border-gold hover:text-gold"
+            >
+              Portretowe
+            </button>
+            <button
+              data-media-picker-tag="product"
+              class="rounded-full border border-white/15 px-3 py-1 text-xs uppercase tracking-widest text-white/80 transition-colors hover:border-gold hover:text-gold"
+            >
+              Produktowe
+            </button>
+            <button
+              data-media-picker-tag="other"
+              class="rounded-full border border-white/15 px-3 py-1 text-xs uppercase tracking-widest text-white/80 transition-colors hover:border-gold hover:text-gold"
+            >
+              Inne
+            </button>
+          </div>
           <span id="media-status" class="text-xs text-gray-400"></span>
         </div>
       </div>
     </div>
 
-    <script src="app.js?v=2026-02-10-3"></script>
+    <script src="app.js?v=2026-03-15-1"></script>
   </body>
 </html>

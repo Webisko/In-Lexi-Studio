@@ -1,18 +1,60 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { getSettings } from '../lib/api';
+import { FormSuccessPanel } from '../components/FormSuccessPanel';
+import { Facebook, Instagram } from 'lucide-react';
+import { getSettings, getPage, getImageUrl } from '../lib/api';
 
 const settings = await getSettings();
+const page = await getPage('contact');
 const email = settings?.email || 'contact@inlexistudio.com';
+const instagram = settings?.instagram || '';
+const facebook = settings?.facebook || '';
+const contactApiUrl = `${import.meta.env.PUBLIC_API_URL || '/app/api'}/contact`;
+const contactHeroImage = page?.hero_image ? getImageUrl(page.hero_image) : '';
+const heroVersion = page?.updated_at ? new Date(page.updated_at).getTime() : null;
+const contactHeroImageSrc =
+  contactHeroImage && heroVersion
+    ? `${contactHeroImage}${contactHeroImage.includes('?') ? '&' : '?'}v=${heroVersion}`
+    : contactHeroImage;
 ---
 
-<Layout title="Contact" description="Get in touch with In Lexi Studio">
-  <div class="container mx-auto px-6 py-24 md:py-32">
+<Layout
+  title={page?.meta_title || page?.title || 'Contact'}
+  description={page?.meta_description || 'Get in touch with In Lexi Studio'}
+  seoImage={page?.seo_image || page?.hero_image}
+  settings={settings}
+>
+  {/* Page title */}
+  <div class="container mx-auto px-6 pb-0 pt-28 text-center md:pt-36">
+    <h1
+      class="bg-gradient-to-r from-[#d4af37] via-[#f3eacb] to-[#c5a059] bg-clip-text font-display text-5xl text-transparent drop-shadow-lg md:text-7xl"
+    >
+      {page?.title || 'Contact'}
+    </h1>
+    <div class="mx-auto mt-6 h-[1px] w-16 bg-[#d4af37]/50"></div>
+  </div>
+  <div class="container mx-auto px-6 py-16 md:py-24">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-16">
       {/* Contact Info */}
       <div class="space-y-8">
+        {
+          page?.hero_image && (
+            <div class="relative mb-2">
+              <div class="pointer-events-none absolute inset-0 -translate-x-3 -translate-y-3 border border-[#d4af37]/25" />
+              <img
+                src={contactHeroImageSrc}
+                alt="In Lexi Studio"
+                loading="eager"
+                decoding="async"
+                class="relative h-64 w-full object-cover md:h-80"
+              />
+            </div>
+          )
+        }
         <div>
-          <h1 class="font-display text-4xl md:text-5xl mb-6 text-white">Get in Touch</h1>
+          <h1 class="font-display text-4xl md:text-5xl mb-6 text-white">
+            Let&apos;s talk about your vision
+          </h1>
           <p class="text-gray-300 font-sans leading-relaxed text-lg">
             We’d love to hear from you. Whether you’re planning a wedding, interested in a portrait
             session, or just want to say hello, fill out the form or reach out directly.
@@ -28,10 +70,33 @@ const email = settings?.email || 'contact@inlexistudio.com';
           </div>
           <div>
             <h3 class="text-gold font-display text-lg mb-1 tracking-wide">Socials</h3>
-            <div class="flex gap-4 text-white">
-              <a href="#" class="hover:text-gold transition-colors">Instagram</a>
-              <span class="text-gray-600">|</span>
-              <a href="#" class="hover:text-gold transition-colors">Facebook</a>
+            <div class="flex items-center gap-4 text-white">
+              {
+                instagram && (
+                  <a
+                    href={instagram}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Instagram"
+                    class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 transition-colors hover:border-gold hover:text-gold"
+                  >
+                    <Instagram size={18} strokeWidth={1.8} />
+                  </a>
+                )
+              }
+              {
+                facebook && (
+                  <a
+                    href={facebook}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Facebook"
+                    class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 transition-colors hover:border-gold hover:text-gold"
+                  >
+                    <Facebook size={18} strokeWidth={1.8} />
+                  </a>
+                )
+              }
             </div>
           </div>
         </div>
@@ -39,52 +104,105 @@ const email = settings?.email || 'contact@inlexistudio.com';
 
       {/* Contact Form */}
       <form
+        id="contact-simple-form"
         class="space-y-6 bg-white/5 p-8 rounded-lg border border-white/10"
         name="contact"
         method="POST"
+        action={contactApiUrl}
       >
+        <input type="hidden" name="formType" value="contact" />
+
         <div>
           <label class="block text-gold text-xs uppercase tracking-widest mb-2 font-display"
-            >Name</label
+            >Your Name *</label
           >
           <input
             type="text"
             name="name"
             class="w-full bg-black/20 border border-white/10 rounded p-4 text-white focus:border-gold outline-none transition-colors"
-            placeholder="Your name"
             required
           />
         </div>
+
         <div>
           <label class="block text-gold text-xs uppercase tracking-widest mb-2 font-display"
-            >Email</label
+            >Email Address *</label
           >
           <input
             type="email"
             name="email"
             class="w-full bg-black/20 border border-white/10 rounded p-4 text-white focus:border-gold outline-none transition-colors"
-            placeholder="your@email.com"
             required
           />
         </div>
+
         <div>
           <label class="block text-gold text-xs uppercase tracking-widest mb-2 font-display"
-            >Message</label
+            >Message *</label
           >
           <textarea
             name="message"
-            rows="4"
+            rows="6"
             class="w-full bg-black/20 border border-white/10 rounded p-4 text-white focus:border-gold outline-none transition-colors"
-            placeholder="Tell us about your plans..."
             required></textarea>
         </div>
-        <button
-          type="submit"
-          class="bg-gold text-black font-display font-medium px-8 py-4 rounded hover:bg-white transition-colors w-full uppercase tracking-wider text-sm"
+
+        <button type="submit" class="btn-secondary w-full"> Send Message </button>
+
+        <div
+          class="text-center bg-black/20 border border-white/10 rounded p-5 text-white/80 font-sans leading-relaxed"
         >
-          Send Message
-        </button>
+          <p>Thank you for your interest in my work! I&apos;d be thrilled to connect with you.</p>
+          <p>
+            While I respond to all inquiries, occasionally web forms can experience technical
+            issues.
+          </p>
+          <p>
+            If you don&apos;t receive a response within 48 hours, please email me directly at
+            <a href={`mailto:${email}`} class="text-gold hover:text-white transition-colors">
+              {email}</a
+            >.
+          </p>
+        </div>
       </form>
+
+      <div id="contact-success-state" class="hidden">
+        <FormSuccessPanel
+          title="Thank you for filling out the form."
+          message="I will get back to you as soon as possible. You should usually hear from me within 48 hours."
+          homeLabel="Back to Home"
+        />
+      </div>
     </div>
   </div>
+
+  <script is:inline>
+    (() => {
+      const form = document.getElementById('contact-simple-form');
+      const successState = document.getElementById('contact-success-state');
+      if (!(form instanceof HTMLFormElement)) return;
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton instanceof HTMLButtonElement) submitButton.disabled = true;
+
+        try {
+          const response = await fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+          });
+
+          if (!response.ok) throw new Error('Request failed');
+          form.reset();
+          form.classList.add('hidden');
+          successState?.classList.remove('hidden');
+        } catch (error) {
+          alert('Sorry, the form could not be sent. Please try again in a moment.');
+        } finally {
+          if (submitButton instanceof HTMLButtonElement) submitButton.disabled = false;
+        }
+      });
+    })();
+  </script>
 </Layout>

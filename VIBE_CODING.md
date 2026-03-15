@@ -33,3 +33,17 @@ Od teraz Twoja strona aktualizuje się automatycznie ("magicznie") po każdym wy
 
 - Sprawdź zakładkę **Actions** na GitHubie – tam zobaczysz dlaczego deploy się nie udał (np. błąd w kodzie).
 - Jeśli strona "padnie", zawsze możesz wejść przez FileZilla i cofnąć zmiany ręcznie lub poprosić AI o pomoc.
+
+## Bezpieczny deploy ręczny (bez usuwania `/app`):
+
+- Użyj skryptu: `scripts/deploy-safe.ps1`
+- Uruchom w PowerShell z katalogu repo:
+
+  ```powershell
+  .\scripts\deploy-safe.ps1
+  ```
+
+- Skrypt:
+  - wysyła pliki do `cms-app` bez ryzyka nadpisania złego `app.js`,
+  - publikuje frontend z ochroną symlinku `public_html/app`,
+  - pilnuje kursorów/favikony i odpala smoke-check po deployu.

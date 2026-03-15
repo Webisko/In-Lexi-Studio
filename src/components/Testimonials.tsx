@@ -42,13 +42,13 @@ export const Testimonials: React.FC<TestimonialsProps> = ({ data }) => {
   const currentSizes = currentSrcSet ? getImageSizes('half') : undefined;
 
   return (
-    <section className="relative overflow-hidden bg-[#151c19] py-24 text-white md:py-32">
+    <section className="relative overflow-hidden py-24 text-white md:py-32">
       {/* ... keeping existing layout but using dynamic data ... */}
       <div className="pointer-events-none absolute left-0 top-0 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/5" />
       <div className="pointer-events-none absolute bottom-0 right-0 h-[700px] w-[700px] translate-x-1/3 translate-y-1/3 rounded-full border border-white/5" />
 
-      <div className="container relative z-10 mx-auto px-6 md:px-12">
-        <div className="flex flex-col items-center gap-12 md:flex-row md:gap-24">
+      <div className="relative z-10 mx-auto w-full max-w-[1440px] px-6 md:px-12">
+        <div className="flex flex-col items-center gap-12 md:flex-row md:items-start md:gap-24">
           <div className="relative h-[400px] w-full md:h-[600px] md:w-1/2">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
@@ -76,7 +76,7 @@ export const Testimonials: React.FC<TestimonialsProps> = ({ data }) => {
               <button
                 type="button"
                 onClick={prevSlide}
-                className="rounded-full border border-white/20 p-3 transition-all hover:border-gold hover:bg-gold"
+                className="rounded-full border border-white/35 bg-white/5 p-3 text-white/90 transition-all hover:border-gold hover:bg-gold hover:text-black"
                 aria-label="Previous testimonial"
               >
                 <ChevronLeft size={20} />
@@ -84,7 +84,7 @@ export const Testimonials: React.FC<TestimonialsProps> = ({ data }) => {
               <button
                 type="button"
                 onClick={nextSlide}
-                className="rounded-full border border-white/20 p-3 transition-all hover:border-gold hover:bg-gold"
+                className="rounded-full border border-white/35 bg-white/5 p-3 text-white/90 transition-all hover:border-gold hover:bg-gold hover:text-black"
                 aria-label="Next testimonial"
               >
                 <ChevronRight size={20} />
@@ -92,7 +92,7 @@ export const Testimonials: React.FC<TestimonialsProps> = ({ data }) => {
             </div>
           </div>
 
-          <div className="w-full md:w-1/2">
+          <div className="w-full self-start md:w-1/2">
             <div className="mb-12">
               <h2 className="font-display text-4xl leading-tight md:text-5xl">
                 Love Stories <br />
@@ -100,7 +100,30 @@ export const Testimonials: React.FC<TestimonialsProps> = ({ data }) => {
               </h2>
             </div>
 
-            <div className="relative min-h-[300px]">
+            <div className="relative min-h-[420px]">
+              <div className="absolute right-0 top-16 z-20 hidden gap-4 md:flex">
+                <button
+                  type="button"
+                  onClick={prevSlide}
+                  className="text-white/72 group flex items-center gap-2 font-sans text-xs uppercase tracking-[0.24em] transition-colors hover:text-white"
+                >
+                  <span className="rounded-full border border-white/30 bg-white/5 p-3 text-white/90 transition-colors group-hover:border-gold group-hover:bg-gold group-hover:text-black">
+                    <ChevronLeft size={16} />
+                  </span>
+                  Prev
+                </button>
+                <button
+                  type="button"
+                  onClick={nextSlide}
+                  className="text-white/72 group flex items-center gap-2 font-sans text-xs uppercase tracking-[0.24em] transition-colors hover:text-white"
+                >
+                  Next
+                  <span className="rounded-full border border-white/30 bg-white/5 p-3 text-white/90 transition-colors group-hover:border-gold group-hover:bg-gold group-hover:text-black">
+                    <ChevronRight size={16} />
+                  </span>
+                </button>
+              </div>
+
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={current.id}
@@ -108,7 +131,7 @@ export const Testimonials: React.FC<TestimonialsProps> = ({ data }) => {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -14 }}
                   transition={{ duration: 0.35, ease: 'easeOut' }}
-                  className="space-y-8"
+                  className="space-y-8 pt-16"
                 >
                   <Quote className="mb-4 h-12 w-12 text-gold/30" />
 
@@ -124,30 +147,6 @@ export const Testimonials: React.FC<TestimonialsProps> = ({ data }) => {
                   </div>
                 </motion.div>
               </AnimatePresence>
-            </div>
-
-            <div className="mt-8 hidden gap-4 md:flex">
-              {/* ... navigation buttons ... */}
-              <button
-                type="button"
-                onClick={prevSlide}
-                className="group flex items-center gap-2 font-sans text-xs uppercase tracking-[0.2em] text-gray-400 transition-colors hover:text-white"
-              >
-                <span className="rounded-full border border-white/10 p-3 transition-colors group-hover:border-gold">
-                  <ChevronLeft size={16} />
-                </span>
-                Prev
-              </button>
-              <button
-                type="button"
-                onClick={nextSlide}
-                className="group flex items-center gap-2 font-sans text-xs uppercase tracking-[0.2em] text-gray-400 transition-colors hover:text-white"
-              >
-                Next
-                <span className="rounded-full border border-white/10 p-3 transition-colors group-hover:border-gold">
-                  <ChevronRight size={16} />
-                </span>
-              </button>
             </div>
           </div>
         </div>

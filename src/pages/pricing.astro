@@ -1,0 +1,261 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getSettings, getPage } from '../lib/api';
+
+const settings = await getSettings();
+const page = await getPage('pricing');
+const phone = settings?.phone || '07966516199';
+const email = settings?.email || 'info@inlexistudio.com';
+const website = 'inlexistudio.com';
+const contactUrl = `${import.meta.env.BASE_URL || '/'}contact`;
+
+const packages = [
+  {
+    subtitle: 'Ceremony to Reception',
+    perfectFor: 'Perfect for intimate ceremonies or budget-conscious couples',
+    hours: 'Up to 6 Hours',
+    price: '£1950',
+    badge: null,
+    features: [
+      ['6 Hours Coverage', 'From ceremony until you sit down for dinner'],
+      ['Professional Photography', 'Your day photographed by Alex with professional equipment'],
+      ['Couple Photo Session', 'One dedicated 20-30 minute photo session'],
+      ['Personal Meeting', 'Meeting/Video call to get to know each other'],
+      ['Professional Editing', 'High resolution, fully edited files ready for print and online'],
+      ['Online Gallery', 'Secure gallery to view and share with friends and family'],
+    ],
+  },
+  {
+    subtitle: 'Getting Ready to Dancing',
+    perfectFor: 'Perfect for traditional weddings wanting complete coverage',
+    hours: 'Up to 10 Hours',
+    price: '£2600',
+    badge: 'Most Popular',
+    features: [
+      ['10 Hours Coverage', 'From getting ready until 20 minutes after first dance'],
+      ['Professional Photography', 'Your day photographed by Alex from start to finish'],
+      ['Two Photo Sessions', 'Two dedicated sessions, 20-30 minutes each'],
+      ['Personal Meeting', 'Meeting/Video call to plan your perfect day'],
+      ['Professional Editing', 'High resolution, fully edited files ready for print and online'],
+      ['Premium Delivery', 'USB Wooden Box & Selection of Prints included'],
+      ['Online Gallery', 'Secure gallery with your story to share with friends and family'],
+      ['Getting Ready Coverage', 'Bridal preparations and groom getting ready'],
+    ],
+  },
+  {
+    subtitle: 'Complete Wedding Experience',
+    perfectFor: 'Perfect for couples wanting a luxury photography experience',
+    hours: 'No Time Limit',
+    price: '£4500',
+    badge: 'Luxury Experience',
+    features: [
+      ['12+ Hours Coverage', 'Full day from getting ready until late evening dancing'],
+      ['Second Photographer', 'Additional photographer for comprehensive coverage'],
+      ['Two Photo Sessions', 'Two dedicated sessions plus additional candid moments'],
+      ['Premium Album', '10x10 luxury album with 20 spreads - your complete story'],
+      ['Video Slideshow', 'Professional slideshow as a beautiful teaser of your day'],
+      ['Premium Delivery', 'Luxury USB box & selection of premium prints'],
+      ['Online Gallery', 'Premium gallery with your complete wedding story'],
+      ['Personal Planning', 'Extended consultation and timeline planning'],
+    ],
+  },
+];
+
+const addons = [
+  ['Engagement Session', '+£350'],
+  ['Extra Hour Coverage', '+£200'],
+  ['Second Photographer', '+£600'],
+  ['Premium Album (8x8)', '+£450'],
+  ['Luxury Album (10x10)', '+£650'],
+  ['Video Slideshow', '+£250'],
+  ['Film Analog Photography*', 'Ask for details'],
+  ['Express Edit (2 weeks)', '+£450'],
+  ['Drone Photography**', '+£300'],
+  ['Same Day Preview (10 photos)', '+£150'],
+];
+---
+
+<Layout
+  title={page?.meta_title || page?.title || 'Pricing'}
+  description={page?.meta_description || 'Wedding photography packages and add-ons'}
+  seoImage={page?.seo_image}
+  settings={settings}
+>
+  <main class="bg-dark-bg text-white">
+    <section class="mx-auto w-full max-w-[1440px] px-6 py-20 md:px-12 md:py-28">
+      <div class="mb-14 border-b border-gold/30 pb-10 text-center">
+        <h1 class="font-display text-5xl tracking-wide md:text-7xl">Pricing</h1>
+        <p class="mt-4 font-serif text-xl italic text-gold md:text-2xl">
+          More than Wedding Photographs
+        </p>
+      </div>
+
+      <div class="mb-12 rounded-sm border border-white/10 bg-white/[0.03] p-8 md:p-10 text-center">
+        <h2 class="font-display text-3xl md:text-4xl">Enjoy Peace of Mind</h2>
+        <p class="mt-4 body-copy uppercase tracking-[0.1em] text-white/90">
+          Knowing that you are in good hands.
+        </p>
+        <p class="mt-4 body-copy text-white/80">
+          With over 8 years of experience as a photographer (and 100% satisfaction rate!), I can
+          assure you that by booking me to document your wedding day, your memories will be created
+          in the most beautiful and fun way.
+        </p>
+        <p class="mt-5 font-serif text-lg italic text-gold md:text-xl">
+          I believe that my passion, my creativity and my experience is allowing me to deliver
+          amazing photographs and an awesome experience to my couples.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-8 md:grid-cols-2">
+        <article class="rounded-sm border border-white/10 bg-white/[0.03] p-8">
+          <h3 class="font-display text-2xl text-gold">Your Story</h3>
+          <p class="mt-4 body-copy text-white/80">
+            I&apos;m always inspired by personal stories, and there is nothing more beautiful than
+            two souls deciding to be together for the rest of their lives. Wedding day is just a
+            start of something awesome.
+          </p>
+          <p class="mt-4 body-copy text-white/80">
+            Wedding day, for many people, is a really emotional experience. Witnessing others living
+            that experience is a huge honour and privilege for me. No two weddings are the same. No
+            two stories are alike. But one thing remains always the same. Love.
+          </p>
+        </article>
+
+        <article class="rounded-sm border border-white/10 bg-white/[0.03] p-8">
+          <h3 class="font-display text-2xl text-gold">Trust</h3>
+          <p class="mt-4 body-copy text-white/80">
+            Wedding photographer is not just a guy with a camera to take photos during the most
+            important day of your life. He is a person that will be near you most of that day. He is
+            a person who you have to trust, so you can focus on living the experience and enjoy your
+            big day.
+          </p>
+        </article>
+      </div>
+
+      <div class="mt-10 rounded-sm border border-gold/40 bg-gold/10 p-8 text-center">
+        <h3 class="font-display text-3xl md:text-5xl">How Much Would You Pay For Your Memories?</h3>
+        <p class="mt-4 font-serif text-xl italic text-gold">Reserve your date today!</p>
+      </div>
+    </section>
+
+    <section class="mx-auto w-full max-w-[1440px] px-6 pb-20 md:px-12 md:pb-28">
+      <div class="space-y-8">
+        {
+          packages.map((pkg) => (
+            <article class="rounded-sm border border-white/10 bg-white/[0.03] p-8 md:p-10">
+              {pkg.badge ? (
+                <p class="mb-4 inline-block rounded-full border border-gold/60 px-4 py-1 text-xs uppercase tracking-[0.2em] text-gold">
+                  {pkg.badge}
+                </p>
+              ) : null}
+
+              <p class="font-serif text-xl italic text-white/80">{pkg.subtitle}</p>
+              <p class="mt-2 body-copy text-white/70">{pkg.perfectFor}</p>
+
+              <div class="mt-5 flex flex-wrap items-end gap-4 border-b border-white/10 pb-6">
+                <h4 class="font-display text-3xl text-gold md:text-4xl">{pkg.hours}</h4>
+                <p class="font-display text-4xl md:text-5xl">{pkg.price}</p>
+              </div>
+
+              <h5 class="mt-6 font-display text-2xl">What&apos;s Included</h5>
+              <ul class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+                {pkg.features.map(([title, description]) => (
+                  <li class="rounded-sm border border-white/10 bg-black/20 p-4">
+                    <p class="font-display text-lg text-gold">{title}</p>
+                    <p class="mt-2 body-copy text-white/75">{description}</p>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="mx-auto w-full max-w-[1440px] px-6 pb-20 md:px-12 md:pb-28">
+      <article class="rounded-sm border border-white/10 bg-white/[0.03] p-8 md:p-10">
+        <h3 class="font-display text-3xl text-gold md:text-4xl">Optional Add-Ons</h3>
+        <p class="mt-3 body-copy text-white/75">
+          Enhance your wedding photography experience with these popular additions.
+        </p>
+
+        <ul class="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2">
+          {
+            addons.map(([name, price]) => (
+              <li class="flex items-center justify-between rounded-sm border border-white/10 bg-black/20 p-4">
+                <span class="body-copy text-white/85">{name}</span>
+                <span class="font-display text-lg text-gold">{price}</span>
+              </li>
+            ))
+          }
+        </ul>
+
+        <p class="mt-6 text-sm text-white/70">
+          *Analog Photography - Organic artistic feel captured with film camera. Perfect for couples
+          seeking unique meaningful vibe. Contact us for pricing.
+          <br />
+          **Drone photography subject to venue permissions and weather conditions.
+        </p>
+      </article>
+
+      <article
+        class="mt-8 rounded-sm border border-white/10 bg-white/[0.03] p-8 md:p-10 text-center"
+      >
+        <h3 class="font-display text-3xl text-gold md:text-4xl">Wedding Albums</h3>
+        <p class="mt-4 body-copy text-white/80">
+          I truly care about the excitement that goes with putting your album together. I completely
+          understand the amount of time that goes into finalising the book. That&apos;s why I offer
+          design service completely free of charge.
+        </p>
+        <p class="mt-4 body-copy text-white/80">
+          I will create an initial layout of your album and then we will work together to finalise
+          it the way you want it to look. It will save you time and you will actually enjoy putting
+          your album together.
+        </p>
+        <p class="mt-4 font-serif text-lg italic text-gold">
+          A wedding album is your tangible keepsake - a beautifully crafted book that tells your
+          love story through carefully selected photographs.
+        </p>
+      </article>
+
+      <article class="mt-8 rounded-sm border border-gold/40 bg-gold/10 p-8 text-center">
+        <h3 class="font-display text-4xl leading-tight md:text-5xl">Have Peace Of Mind</h3>
+        <p class="mt-4 font-serif text-xl italic text-gold">
+          Where moments become memories, knowing that your memories will be documented in the most
+          beautiful and fun way.
+        </p>
+      </article>
+
+      <article class="mt-8 rounded-sm border border-white/10 bg-white/[0.03] p-8 text-center">
+        <h3 class="font-display text-3xl text-gold md:text-4xl">Thank You!</h3>
+        <p class="mt-4 body-copy text-white/80">
+          Thank you for considering me to document your wedding. I hope I have given you a clear
+          view of how it is like to have me during your wedding, but also my alternative, relaxed,
+          very personal and super positive approach to documenting and showcasing your day.
+        </p>
+      </article>
+
+      <article class="mt-8 rounded-sm border border-white/10 bg-white/[0.03] p-8 text-center">
+        <h3 class="font-display text-3xl md:text-4xl">
+          Let&apos;s Create Your Perfect Wedding Story
+        </h3>
+        <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3 text-white/80">
+          <div>
+            <p class="text-xs uppercase tracking-[0.2em] text-gold">Phone</p>
+            <p class="mt-1 body-copy">{phone}</p>
+          </div>
+          <div>
+            <p class="text-xs uppercase tracking-[0.2em] text-gold">Email</p>
+            <p class="mt-1 body-copy">{email}</p>
+          </div>
+          <div>
+            <p class="text-xs uppercase tracking-[0.2em] text-gold">Website</p>
+            <p class="mt-1 body-copy">{website}</p>
+          </div>
+        </div>
+
+        <a href={contactUrl} class="btn-secondary mt-8">Get In Touch</a>
+      </article>
+    </section>
+  </main>
+</Layout>

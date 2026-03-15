@@ -1,0 +1,453 @@
+<!doctype html>
+<!-- saved from url=(0088)file:///C:/Users/filip/Downloads/Telegram%20Desktop/wedding-contact-section-design2.html -->
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Contact Us | Wedding Website - Design 2</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: 'Montserrat', 'Helvetica Neue', sans-serif;
+      }
+
+      body {
+        background-color: #fbfdf9;
+        color: #274828;
+        line-height: 1.6;
+      }
+
+      .contact-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .contact-wrapper {
+        display: flex;
+        flex-wrap: wrap;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(71, 130, 83, 0.15);
+      }
+
+      .intro-section {
+        flex: 1;
+        min-width: 350px;
+        padding: 60px 40px;
+        background: linear-gradient(135deg, #3a6a3d 0%, #1d3a1e 100%);
+        color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        border-bottom: 3px solid #7fb582;
+        padding-bottom: 10px;
+        display: inline-block;
+      }
+
+      .subtitle {
+        font-size: 1.2rem;
+        margin-bottom: 15px;
+        font-weight: 300;
+      }
+
+      .hello-greeting {
+        font-size: 1.3rem;
+        margin: 25px 0;
+        font-weight: 600;
+        letter-spacing: 1px;
+        color: #a9d6ad;
+      }
+
+      .intro-text {
+        font-size: 1rem;
+        margin-bottom: 30px;
+        line-height: 1.8;
+        opacity: 0.9;
+      }
+
+      .form-container {
+        flex: 2;
+        min-width: 400px;
+        padding: 50px;
+        background-color: white;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 25px;
+      }
+
+      .form-group {
+        margin-bottom: 5px;
+      }
+
+      .full-width {
+        grid-column: 1 / -1;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #274828;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      input,
+      textarea,
+      select {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid #e0efe0;
+        border-radius: 6px;
+        font-size: 1rem;
+        background-color: #f9fdf9;
+        transition: all 0.3s;
+      }
+
+      input:focus,
+      textarea:focus,
+      select:focus {
+        outline: none;
+        border-color: #5d8c60;
+        box-shadow: 0 0 0 3px rgba(93, 140, 96, 0.2);
+        background-color: white;
+      }
+
+      textarea {
+        height: 120px;
+        resize: vertical;
+      }
+
+      .required:after {
+        content: ' *';
+        color: #5d8c60;
+      }
+
+      .checkbox-group {
+        grid-column: 1 / -1;
+        margin-top: 15px;
+        background-color: #f0f7f0;
+        padding: 20px;
+        border-radius: 8px;
+        border-left: 4px solid #5d8c60;
+      }
+
+      .checkbox-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 10px;
+        margin-top: 15px;
+      }
+
+      .checkbox-item {
+        margin-bottom: 10px;
+      }
+
+      .checkbox-label {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+      }
+
+      .checkbox-input {
+        width: auto;
+        margin-right: 10px;
+        accent-color: #5d8c60;
+        height: 16px;
+        width: 16px;
+      }
+
+      .submit-btn {
+        background-color: #3a6a3d;
+        color: white;
+        border: none;
+        padding: 15px 40px;
+        font-size: 1rem;
+        font-weight: 600;
+        border-radius: 50px;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: block;
+        margin: 40px auto 0;
+        letter-spacing: 1px;
+        box-shadow: 0 4px 15px rgba(58, 106, 61, 0.3);
+      }
+
+      .submit-btn:hover {
+        background-color: #274828;
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(58, 106, 61, 0.4);
+      }
+
+      .direct-contact {
+        grid-column: 1 / -1;
+        text-align: center;
+        margin-top: 40px;
+        padding: 25px;
+        background-color: #f0f7f0;
+        border-radius: 8px;
+        line-height: 1.7;
+      }
+
+      .email {
+        color: #3a6a3d;
+        font-weight: 600;
+        text-decoration: none;
+        position: relative;
+        padding-bottom: 2px;
+      }
+
+      .email:after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background-color: #5d8c60;
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+      }
+
+      .email:hover:after {
+        transform: scaleX(1);
+      }
+
+      .gdpr-notice {
+        font-size: 0.85rem;
+        color: #6a8f6e;
+      }
+
+      .section-title {
+        font-size: 1.5rem;
+        color: #274828;
+        margin-bottom: 30px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e0efe0;
+      }
+
+      @media (max-width: 900px) {
+        .form-grid {
+          grid-template-columns: 1fr;
+          gap: 20px;
+        }
+
+        .checkbox-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .intro-section {
+          padding: 40px 30px;
+        }
+
+        .form-container {
+          padding: 40px 25px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="contact-container">
+      <div class="contact-wrapper">
+        <div class="intro-section">
+          <h1>LET'S KNOW EACH OTHER</h1>
+          <p class="subtitle">Let's connect and get to know one another.</p>
+          <p class="hello-greeting">HELLO, PLEASED TO MEET YOU.</p>
+          <p class="intro-text">
+            I'm truly grateful for the privilege of capturing the magic of your wedding day. It's an
+            honor to document this milestone and meet the special people in your lives. Together,
+            we'll create timeless photographs that preserve these precious moments for generations
+            to come—memories you'll treasure today, tomorrow, and for all your years ahead.
+          </p>
+        </div>
+
+        <div class="form-container">
+          <h2 class="section-title">Share Your Details</h2>
+          <form id="contact-form">
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="required" for="your-name">Your Name</label>
+                <input type="text" id="your-name" name="your-name" required="" />
+              </div>
+
+              <div class="form-group">
+                <label class="required" for="partner-name">Your Partner's Name</label>
+                <input type="text" id="partner-name" name="partner-name" required="" />
+              </div>
+
+              <div class="form-group">
+                <label class="required" for="contact-email">Email Address</label>
+                <input type="email" id="contact-email" name="contact-email" required="" />
+              </div>
+
+              <div class="form-group">
+                <label class="required" for="contact-phone">Phone Number</label>
+                <input type="tel" id="contact-phone" name="contact-phone" required="" />
+              </div>
+
+              <div class="form-group">
+                <label class="required" for="location">Where are you based?</label>
+                <input type="text" id="location" name="location" required="" />
+              </div>
+
+              <div class="form-group">
+                <label class="required" for="date">Your Wedding Date</label>
+                <input type="date" id="date" name="date" required="" />
+              </div>
+
+              <div class="form-group">
+                <label class="required" for="venue">Ceremony Venue Location</label>
+                <input type="text" id="venue" name="venue" required="" />
+              </div>
+
+              <div class="form-group">
+                <label class="required" for="ceremony-type">Ceremony Type</label>
+                <select id="ceremony-type" name="ceremony-type" required="">
+                  <option value="" disabled="" selected="">Select ceremony type</option>
+                  <option value="religious">Religious</option>
+                  <option value="civil">Civil</option>
+                  <option value="symbolic">Symbolic</option>
+                  <option value="elopement">Elopement</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="required" for="guests">Expected Guest Count</label>
+                <input type="number" id="guests" name="guests" required="" />
+              </div>
+
+              <div class="form-group full-width">
+                <label class="required" for="vision">How would you envision your wedding?</label>
+                <textarea id="vision" name="vision" required=""></textarea>
+              </div>
+
+              <div class="form-group full-width">
+                <label class="required" for="story">YOUR LOVE STORY</label>
+                <textarea
+                  id="story"
+                  name="story"
+                  placeholder="I love the details! Tell me a little about you two, how you met, your interests and your plans for the big day. Share as much info as you like"
+                  required=""
+                ></textarea>
+              </div>
+
+              <div class="form-group full-width">
+                <label class="required" for="attraction">What attracted you to my work?</label>
+                <textarea id="attraction" name="attraction" required=""></textarea>
+              </div>
+
+              <div class="form-group">
+                <label class="required" for="found-me">How did you find me?</label>
+                <select id="found-me" name="found-me" required="">
+                  <option value="" disabled="" selected="">Select an option</option>
+                  <option value="google">Google Search</option>
+                  <option value="instagram">Instagram</option>
+                  <option value="facebook">Facebook</option>
+                  <option value="referral">Friend Referral</option>
+                  <option value="wedding-planner">Wedding Planner</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div class="checkbox-group">
+                <p style="font-weight: 500; margin-bottom: 10px">We would like to include:</p>
+
+                <div class="checkbox-grid">
+                  <div class="checkbox-item">
+                    <label class="checkbox-label">
+                      <input type="checkbox" class="checkbox-input" name="extra-session" />
+                      Extra Photo Session
+                    </label>
+                  </div>
+
+                  <div class="checkbox-item">
+                    <label class="checkbox-label">
+                      <input type="checkbox" class="checkbox-input" name="albums-prints" />
+                      Albums &amp; Prints
+                    </label>
+                  </div>
+
+                  <div class="checkbox-item">
+                    <label class="checkbox-label">
+                      <input type="checkbox" class="checkbox-input" name="express-editing" />
+                      Express Fast Editing (under 14days)
+                    </label>
+                  </div>
+
+                  <div class="checkbox-item">
+                    <label class="checkbox-label">
+                      <input type="checkbox" class="checkbox-input" name="after-party" />
+                      After Party Dinner
+                    </label>
+                  </div>
+
+                  <div class="checkbox-item">
+                    <label class="checkbox-label">
+                      <input type="checkbox" class="checkbox-input" name="second-photographer" />
+                      Second Photographer
+                    </label>
+                  </div>
+
+                  <div class="checkbox-item">
+                    <label class="checkbox-label">
+                      <input type="checkbox" class="checkbox-input" name="pre-wedding" />
+                      PreWedding photo shoot
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group full-width">
+                <label for="questions">Any other questions or notes? We are here to help.</label>
+                <textarea id="questions" name="questions"></textarea>
+              </div>
+
+              <div class="form-group full-width gdpr-consent">
+                <label class="checkbox-label">
+                  <input type="checkbox" class="checkbox-input" name="gdpr-consent" required="" />
+                  <span class="gdpr-notice"
+                    >In line with GDPR laws, I consent to you collecting my information as a part of
+                    providing your service. The Privacy Policy can be found under 'Info' in the nav
+                    bar.</span
+                  >
+                </label>
+              </div>
+
+              <button type="submit" class="submit-btn">SEND YOUR STORY</button>
+
+              <div class="direct-contact">
+                <p>Thank you for your interest in my work! I'd be thrilled to connect with you!</p>
+                <p>
+                  While I respond to all inquiries, occasionally these web forms experience
+                  technical issues.
+                </p>
+                <p>
+                  If you don't receive a response within 48 hours, or if you prefer direct
+                  communication, please feel free to email me directly at
+                  <a href="mailto:hello@inlexistudio.com" class="email">hello@inlexistudio.com</a>.
+                </p>
+                <p>I look forward to our conversation!</p>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

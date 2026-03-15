@@ -1,5 +1,7 @@
 ---
-const faqs = [
+const { items = [] } = Astro.props;
+
+const fallbackFaqs = [
   {
     question: 'What photography services do you offer?',
     answer:
@@ -42,6 +44,8 @@ const faqs = [
       'Great question. Rather than list everything here, I would love to chat personally about your vision and show you exactly how I approach each unique situation. [Let us schedule a quick call] - I think you will immediately feel the difference in how I work with my clients.',
   },
 ];
+
+const faqs = Array.isArray(items) && items.length ? items : fallbackFaqs;
 ---
 
 <section class="bg-off-white px-6 py-24 md:px-24">
@@ -64,7 +68,7 @@ const faqs = [
               aria-controls={`faq-panel-${index}`}
               id={`faq-summary-${index}`}
             >
-              <h3 class="flex-1 pr-8 text-left font-sans text-xs uppercase leading-relaxed tracking-widest text-gray-800 md:text-sm">
+              <h3 class="flex-1 pr-8 text-left font-sans text-sm uppercase leading-relaxed tracking-widest text-gray-800 md:text-base">
                 {faq.question}
               </h3>
               <span class="faq-icon faq-icon--plus" aria-hidden="true">
@@ -83,7 +87,10 @@ const faqs = [
               hidden={index !== 0}
             >
               <div class="faq-content-inner">
-                <p class="font-serif text-lg leading-relaxed text-gray-500">{faq.answer}</p>
+                <div
+                  class="font-sans text-base leading-relaxed text-gray-500"
+                  set:html={faq.answer}
+                />
               </div>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -42,7 +43,11 @@ export const Lightbox: React.FC<LightboxProps> = ({
     onNavigate((currentIndex + 1) % images.length);
   };
 
-  return (
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <motion.div
@@ -50,8 +55,10 @@ export const Lightbox: React.FC<LightboxProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95"
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/95"
           onClick={onClose}
+          role="dialog"
+          aria-modal="true"
         >
           {/* Close Button */}
           <button
@@ -61,9 +68,30 @@ export const Lightbox: React.FC<LightboxProps> = ({
             <X size={32} strokeWidth={1.5} />
           </button>
 
-          {/* Image Counter */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 transform font-display text-sm tracking-widest text-white/70">
-            {currentIndex + 1} / {images.length}
+          {/* Counter + dash indicators */}
+          <div className="absolute bottom-5 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-3">
+            {images.length <= 30 && (
+              <div className="flex gap-2">
+                {images.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate(i);
+                    }}
+                    aria-label={`Image ${i + 1}`}
+                    className={`h-[2px] transition-all duration-300 ${
+                      i === currentIndex ? 'w-8 bg-[#d4af37]' : 'w-4 bg-white/40 hover:bg-white/70'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+            <div className="font-display text-xs tracking-[0.2em] text-white/70">
+              <span className="text-[#d4af37]">{String(currentIndex + 1).padStart(2, '0')}</span>
+              {' / '}
+              {String(images.length).padStart(2, '0')}
+            </div>
           </div>
 
           {/* Previous Button */}
@@ -72,9 +100,10 @@ export const Lightbox: React.FC<LightboxProps> = ({
               e.stopPropagation();
               handlePrev();
             }}
-            className="absolute left-6 top-1/2 z-50 -translate-y-1/2 transform text-white/50 transition-colors hover:text-white"
+            aria-label="Previous image"
+            className="absolute left-4 top-1/2 z-50 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/35 bg-black/55 text-white/90 shadow-[0_10px_30px_rgba(0,0,0,0.24)] transition-all hover:border-[#d4af37] hover:bg-[#d4af37] hover:text-black"
           >
-            <ChevronLeft size={48} strokeWidth={1} />
+            <ChevronLeft size={18} strokeWidth={1.5} />
           </button>
 
           {/* Next Button */}
@@ -83,9 +112,10 @@ export const Lightbox: React.FC<LightboxProps> = ({
               e.stopPropagation();
               handleNext();
             }}
-            className="absolute right-6 top-1/2 z-50 -translate-y-1/2 transform text-white/50 transition-colors hover:text-white"
+            aria-label="Next image"
+            className="absolute right-4 top-1/2 z-50 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/35 bg-black/55 text-white/90 shadow-[0_10px_30px_rgba(0,0,0,0.24)] transition-all hover:border-[#d4af37] hover:bg-[#d4af37] hover:text-black"
           >
-            <ChevronRight size={48} strokeWidth={1} />
+            <ChevronRight size={18} strokeWidth={1.5} />
           </button>
 
           {/* Image */}
@@ -103,11 +133,13 @@ export const Lightbox: React.FC<LightboxProps> = ({
               alt={images[currentIndex].alt}
               loading="eager"
               decoding="async"
+              data-lightbox="off"
               className="max-h-[90vh] max-w-full object-contain"
             />
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 };

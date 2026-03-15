@@ -22,6 +22,12 @@ const canonicalBase = settings?.canonical_base_url;
 const canonicalUrl = canonicalBase ? new URL(Astro.url.pathname, canonicalBase).toString() : '';
 const headHtml = settings?.head_html;
 const bodyHtml = settings?.body_html;
+const baseUrl = import.meta.env.BASE_URL || '/';
+const cursorNormalUrl = `${baseUrl}cursor/normal.svg`;
+const cursorHoverUrl = `${baseUrl}cursor/hover.svg`;
+const isDev = import.meta.env.DEV;
+const localImageFallbackUrl = `${baseUrl}In-Lexi-Studio_tlo.webp`;
+const currentPath = Astro.url.pathname;
 ---
 
 <html lang="en" class="scroll-smooth">
@@ -37,13 +43,6 @@ const bodyHtml = settings?.body_html;
     <meta property="og:description" content={metaDescription} />
     {ogImageUrl && <meta property="og:image" content={ogImageUrl} />}
     {ogImageUrl && <meta name="twitter:card" content="summary_large_image" />}
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Montserrat:wght@200;300;400;500&display=swap"
-      rel="stylesheet"
-    />
     {
       umamiScriptUrl && umamiWebsiteId && (
         <script
@@ -60,6 +59,7 @@ const bodyHtml = settings?.body_html;
   <body class="bg-dark-bg text-off-white overflow-x-hidden flex flex-col min-h-screen">
     <Navigation
       client:load
+      currentPath={currentPath}
       ctaText={settings?.cta_text}
       ctaUrl={settings?.cta_url}
       megaMenuImage={megaMenuImageUrl}
@@ -68,7 +68,12 @@ const bodyHtml = settings?.body_html;
     <main class="flex-grow">
       <slot />
     </main>
+    <div id="custom-cursor" aria-hidden="true" class="custom-cursor">
+      <img src={cursorNormalUrl} alt="" class="cursor-icon cursor-icon--normal" />
+      <img src={cursorHoverUrl} alt="" class="cursor-icon cursor-icon--hover" />
+    </div>
     <Footer
+      client:load
       siteName={siteName}
       email={settings?.email}
       phone={settings?.phone}
@@ -78,5 +83,251 @@ const bodyHtml = settings?.body_html;
       privacyUrl={settings?.privacy_url}
     />
     {bodyHtml && <Fragment set:html={bodyHtml} />}
+    <script is:inline>
+      (() => {
+        const supportsFinePointer = window.matchMedia('(pointer: fine)').matches;
+        if (!supportsFinePointer) return;
+
+        const cursor = document.getElementById('custom-cursor');
+        if (!cursor) return;
+
+        document.documentElement.classList.add('has-custom-cursor');
+        let isVisible = false;
+
+        const interactiveSelector =
+          'a, button, [role="button"], input, textarea, select, summary, label, img, .cursor-pointer, [class*="cursor-pointer"], [tabindex]:not([tabindex="-1"]), .cursor-hover';
+
+        const setHover = (value) => {
+          cursor.classList.toggle('is-hover', value);
+        };
+
+        document.addEventListener('mousemove', (event) => {
+          cursor.style.transform = `translate3d(${event.clientX}px, ${event.clientY}px, 0) translate(-50%, -50%)`;
+          if (!isVisible) {
+            isVisible = true;
+            cursor.classList.add('is-visible');
+          }
+        });
+
+        document.addEventListener('mouseover', (event) => {
+          const target = event.target;
+          if (!(target instanceof Element)) return;
+          setHover(Boolean(target.closest(interactiveSelector)));
+        });
+
+        document.addEventListener('mouseout', (event) => {
+          const related = event.relatedTarget;
+          if (!(related instanceof Element)) {
+            setHover(false);
+            return;
+          }
+          setHover(Boolean(related.closest(interactiveSelector)));
+        });
+
+        document.addEventListener('mouseleave', () => {
+          isVisible = false;
+          cursor.classList.remove('is-visible');
+          setHover(false);
+        });
+      })();
+    </script>
+    {
+      isDev && (
+        <script define:vars={{ fallbackSrc: localImageFallbackUrl }}>
+          (() => {
+            const applyFallback = (img) => {
+              if (!(img instanceof HTMLImageElement)) return;
+              if (img.dataset.fallbackApplied === 'true') return;
+              img.dataset.fallbackApplied = 'true';
+              img.removeAttribute('srcset');
+              img.src = fallbackSrc;
+            };
+
+            document.querySelectorAll('img').forEach((img) => {
+              img.addEventListener('error', () => applyFallback(img), { once: true });
+            });
+
+            document.addEventListener(
+              'error',
+              (event) => {
+                const target = event.target;
+                if (target instanceof HTMLImageElement) {
+                  applyFallback(target);
+                }
+              },
+              true,
+            );
+          })();
+        </script>
+      )
+    }
+    <script is:inline>
+      (() => {
+        const getLightboxImages = () =>
+          Array.from(document.querySelectorAll('main img')).filter((img) => {
+            if (!(img instanceof HTMLImageElement)) return false;
+            if (!img.src) return false;
+            if (img.closest('a[href]')) return false;
+            if (img.dataset.lightbox === 'off') return false;
+            return true;
+          });
+
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.inset = '0';
+        overlay.style.zIndex = '9999';
+        overlay.style.background = 'rgba(0, 0, 0, 0.95)';
+        overlay.style.display = 'none';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+
+        const image = document.createElement('img');
+        image.style.maxWidth = '92vw';
+        image.style.maxHeight = '88vh';
+        image.style.objectFit = 'contain';
+
+        const closeButton = document.createElement('button');
+        closeButton.setAttribute('aria-label', 'Close lightbox');
+        closeButton.textContent = '✕';
+        closeButton.style.position = 'absolute';
+        closeButton.style.top = '16px';
+        closeButton.style.right = '20px';
+        closeButton.style.fontSize = '32px';
+        closeButton.style.lineHeight = '1';
+        closeButton.style.border = '0';
+        closeButton.style.background = 'transparent';
+        closeButton.style.color = 'rgba(255,255,255,0.85)';
+        closeButton.style.cursor = 'pointer';
+
+        const prevButton = document.createElement('button');
+        prevButton.setAttribute('aria-label', 'Previous image');
+        prevButton.textContent = '‹';
+        prevButton.style.position = 'absolute';
+        prevButton.style.left = '20px';
+        prevButton.style.top = '50%';
+        prevButton.style.transform = 'translateY(-50%)';
+        prevButton.style.fontSize = '52px';
+        prevButton.style.lineHeight = '1';
+        prevButton.style.border = '0';
+        prevButton.style.background = 'transparent';
+        prevButton.style.color = 'rgba(255,255,255,0.75)';
+        prevButton.style.cursor = 'pointer';
+
+        const nextButton = document.createElement('button');
+        nextButton.setAttribute('aria-label', 'Next image');
+        nextButton.textContent = '›';
+        nextButton.style.position = 'absolute';
+        nextButton.style.right = '20px';
+        nextButton.style.top = '50%';
+        nextButton.style.transform = 'translateY(-50%)';
+        nextButton.style.fontSize = '52px';
+        nextButton.style.lineHeight = '1';
+        nextButton.style.border = '0';
+        nextButton.style.background = 'transparent';
+        nextButton.style.color = 'rgba(255,255,255,0.75)';
+        nextButton.style.cursor = 'pointer';
+
+        const counter = document.createElement('div');
+        counter.style.position = 'absolute';
+        counter.style.bottom = '18px';
+        counter.style.left = '50%';
+        counter.style.transform = 'translateX(-50%)';
+        counter.style.color = 'rgba(255,255,255,0.75)';
+        counter.style.fontFamily = 'system-ui, sans-serif';
+        counter.style.fontSize = '12px';
+        counter.style.letterSpacing = '0.14em';
+        counter.style.textTransform = 'uppercase';
+
+        overlay.appendChild(image);
+        overlay.appendChild(closeButton);
+        overlay.appendChild(prevButton);
+        overlay.appendChild(nextButton);
+        overlay.appendChild(counter);
+        document.body.appendChild(overlay);
+
+        let activeImages = [];
+        let currentIndex = 0;
+
+        const render = () => {
+          const current = activeImages[currentIndex];
+          if (!current) return;
+          image.src = current.src;
+          image.alt = current.alt || '';
+          counter.textContent = `${currentIndex + 1} / ${activeImages.length}`;
+          const showNavigation = activeImages.length > 1;
+          prevButton.style.display = showNavigation ? 'block' : 'none';
+          nextButton.style.display = showNavigation ? 'block' : 'none';
+        };
+
+        const close = () => {
+          overlay.style.display = 'none';
+          image.src = '';
+          document.body.style.overflow = '';
+        };
+
+        const open = (images, index) => {
+          activeImages = images;
+          currentIndex = index;
+          render();
+          overlay.style.display = 'flex';
+          document.body.style.overflow = 'hidden';
+        };
+
+        const goPrev = () => {
+          if (!activeImages.length) return;
+          currentIndex = (currentIndex - 1 + activeImages.length) % activeImages.length;
+          render();
+        };
+
+        const goNext = () => {
+          if (!activeImages.length) return;
+          currentIndex = (currentIndex + 1) % activeImages.length;
+          render();
+        };
+
+        closeButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          close();
+        });
+
+        prevButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          goPrev();
+        });
+
+        nextButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          goNext();
+        });
+
+        overlay.addEventListener('click', (event) => {
+          if (event.target === overlay) close();
+        });
+
+        document.addEventListener('keydown', (event) => {
+          if (overlay.style.display !== 'flex') return;
+          if (event.key === 'Escape') close();
+          if (event.key === 'ArrowLeft') goPrev();
+          if (event.key === 'ArrowRight') goNext();
+        });
+
+        document.addEventListener('click', (event) => {
+          const target = event.target;
+          if (!(target instanceof HTMLImageElement)) return;
+          if (!target.closest('main')) return;
+          if (target.closest('a[href]')) return;
+          if (target.dataset.lightbox === 'off') return;
+
+          const images = getLightboxImages();
+          if (!images.length) return;
+
+          const index = images.indexOf(target);
+          if (index === -1) return;
+
+          event.preventDefault();
+          open(images, index);
+        });
+      })();
+    </script>
   </body>
 </html>

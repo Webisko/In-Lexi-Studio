@@ -1,42 +1,76 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import type { Page } from '../lib/api';
 import {
-  getImageSizes,
-  getImageSrcSet,
-  getImageUrl,
   getGalleries,
+  getMediaFiles,
   getPage,
-  getPagesRequired,
+  getPages,
   getSettings,
+  getTestimonials,
 } from '../lib/api';
-import WeddingPhotography from '../components/pages/WeddingPhotography';
-import About from '../components/pages/About';
-import Approach from '../components/pages/Approach';
-import Portfolio from '../components/pages/Portfolio';
+import { PageContent } from '../components/PageContent';
+
+function createFallbackPage(slug: string): Page {
+  return {
+    id: 0,
+    slug,
+    title: slug
+      .split('-')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' '),
+    content: '',
+  };
+}
 
 export async function getStaticPaths() {
-  const pages = await getPagesRequired();
-  if (!pages || pages.length === 0) {
-    throw new Error('No pages returned from API. Aborting static path generation.');
-  }
-  console.log('Re-generating paths with data from API:', pages.length, 'pages found.');
-  return pages
-    .filter((p) => p.slug && p.slug !== '/' && p.slug !== 'home')
+  const fallbackDynamicPages = [
+    'about',
+    'approach',
+    'portfolio',
+    'wedding-photography',
+    'portrait-photography',
+    'product-photography',
+  ].map((slug) => ({
+    id: 0,
+    slug,
+    title: slug
+      .split('-')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' '),
+    content: '',
+  }));
+  const reservedStaticSlugs = new Set([
+    '',
+    '/',
+    'home',
+    'contact',
+    'pricing',
+    'privacy-policy',
+    '404',
+  ]);
+  const pages = await getPages();
+  const sourcePages = Array.isArray(pages) && pages.length ? pages : fallbackDynamicPages;
+  console.log('Re-generating paths with data from API:', sourcePages.length, 'pages found.');
+  return sourcePages
+    .filter((p) => p.slug && !reservedStaticSlugs.has(String(p.slug).trim().toLowerCase()))
     .map((page) => ({
       params: { slug: page.slug },
       props: { page },
     }));
 }
 
-const { page } = Astro.props;
+const routeSlug = String(Astro.params.slug || '').trim();
+const pageFromProps = (Astro.props.page as Page | null) || null;
+const fetchedPage = routeSlug ? await getPage(routeSlug) : null;
+const page = fetchedPage || pageFromProps || (routeSlug ? createFallbackPage(routeSlug) : null);
 
 const settings = await getSettings();
 const galleries = await getGalleries();
-const heroSrc = page?.hero_image ? getImageUrl(page.hero_image) : '';
-const heroSrcSet = page?.hero_image ? getImageSrcSet(page.hero_image) : '';
-const heroSizes = heroSrcSet ? getImageSizes('hero') : '';
+const testimonials = await getTestimonials();
+const mediaFiles = await getMediaFiles();
 
-if (!page) {
+if (!page?.slug) {
   return Astro.redirect('/404');
 }
 ---
@@ -47,48 +81,11 @@ if (!page) {
   seoImage={page.seo_image || page.hero_image}
   settings={settings}
 >
-  <main class="pt-24">
-    {/* Hero Section if Image Exists */}
-    {
-      page.hero_image && (
-        <div class="relative w-full h-[50vh] min-h-[400px]">
-          <img
-            src={heroSrc}
-            srcset={heroSrcSet || undefined}
-            sizes={heroSrcSet ? heroSizes : undefined}
-            loading="eager"
-            decoding="async"
-            fetchpriority="high"
-            alt={page.title}
-            class="absolute inset-0 w-full h-full object-cover object-center"
-          />
-          <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
-            <h1 class="text-4xl md:text-6xl font-display text-white">{page.title}</h1>
-          </div>
-        </div>
-      )
-    }
-
-    {/* Content */}
-    <div class="min-h-screen">
-      {
-        page.slug === 'wedding-photography' ? (
-          <WeddingPhotography page={page} client:load />
-        ) : page.slug === 'about' ? (
-          <About page={page} client:load />
-        ) : page.slug === 'approach' ? (
-          <Approach page={page} client:load />
-        ) : page.slug === 'portfolio' ? (
-          <Portfolio page={page} galleries={galleries || []} client:load />
-        ) : (
-          <div class="container mx-auto px-4 py-16 max-w-4xl prose prose-gold lg:prose-xl dark:prose-invert">
-            {!page.hero_image && (
-              <h1 class="font-display text-4xl mb-8 text-center">{page.title}</h1>
-            )}
-            <article set:html={page.content} />
-          </div>
-        )
-      }
-    </div>
-  </main>
+  <PageContent
+    client:load
+    initialPage={page}
+    initialGalleries={galleries || []}
+    initialTestimonials={testimonials || []}
+    initialMediaFiles={mediaFiles || []}
+  />
 </Layout>

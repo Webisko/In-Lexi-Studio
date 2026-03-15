@@ -21,21 +21,11 @@ export const AboutFeature: React.FC<AboutFeatureProps> = ({ image, imageAlt }) =
         <span className="font-display text-[20rem] leading-none text-white">ILS</span>
       </div>
 
-      <div className="container relative z-10 mx-auto px-6">
+      <div className="relative z-10 mx-auto w-full max-w-[1440px] px-6">
         <div className="flex flex-col items-center gap-20 md:flex-row">
-          {/* Left: Layered images (from AI Studio reference) */}
-          <div className="relative flex h-[460px] w-full items-center justify-center md:h-[540px] md:w-1/2">
-            <div className="absolute left-0 top-0 hidden h-56 w-40 md:block">
-              <img
-                src="https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?q=80&w=400&auto=format&fit=crop"
-                alt="Detail 1"
-                loading="lazy"
-                decoding="async"
-                className="h-full w-full object-cover opacity-60 grayscale transition-all duration-700 hover:grayscale-0"
-              />
-            </div>
-
-            <div className="relative z-10 w-full max-w-sm">
+          {/* Left: Main image */}
+          <div className="relative flex h-[500px] w-full items-center justify-center md:h-[620px] md:w-1/2">
+            <div className="relative z-10 w-full max-w-[560px]">
               <div className="relative aspect-[3/4]">
                 <img
                   src={mainImage}
@@ -46,9 +36,9 @@ export const AboutFeature: React.FC<AboutFeatureProps> = ({ image, imageAlt }) =
                   decoding="async"
                   className="h-full w-full object-cover shadow-2xl"
                 />
-                <div className="pointer-events-none absolute inset-0 m-4 border border-white/10" />
+                <div className="pointer-events-none absolute inset-0 -translate-x-4 -translate-y-4 border border-gold/30 md:-translate-x-8 md:-translate-y-8" />
 
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/25 p-8 text-center">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/25 px-8 pb-8 pt-16 text-center md:pt-20">
                   <h2 className="mb-2 font-display text-[clamp(2.25rem,3.6vw,3.75rem)] leading-[1.05] text-white shadow-sm">
                     Moments Preserved,
                   </h2>
@@ -57,16 +47,6 @@ export const AboutFeature: React.FC<AboutFeatureProps> = ({ image, imageAlt }) =
                   </h2>
                 </div>
               </div>
-            </div>
-
-            <div className="absolute bottom-0 right-6 hidden h-32 w-32 border-4 border-dark-bg md:block">
-              <img
-                src="https://images.unsplash.com/photo-1606800052052-a08af7148866?q=80&w=400&auto=format&fit=crop"
-                alt="Detail 2"
-                loading="lazy"
-                decoding="async"
-                className="h-full w-full object-cover"
-              />
             </div>
           </div>
 
@@ -82,13 +62,13 @@ export const AboutFeature: React.FC<AboutFeatureProps> = ({ image, imageAlt }) =
               </h3>
             </div>
 
-            <p className="font-light leading-relaxed text-gray-300">
+            <p className="font-sans leading-relaxed text-gray-300">
               Every weekend, I witness pure magic – raw laughter, happy tears, stolen glances, and
               hearts overflowing with love. As your wedding photographer, my mission is to preserve
               these precious moments forever.
             </p>
 
-            <p className="font-light leading-relaxed text-gray-300">
+            <p className="font-sans leading-relaxed text-gray-300">
               I’ve learned that what makes your wedding truly extraordinary isn’t the stunning
               venue, designer florals, or couture gown. It’s you – authentically, beautifully you.
               Both of you, with your inside jokes, nervous giggles, and the way you look at each
@@ -96,7 +76,7 @@ export const AboutFeature: React.FC<AboutFeatureProps> = ({ image, imageAlt }) =
               the friends who’ve stood by you, everyone who’s shaped your love story.
             </p>
 
-            <p className="font-light leading-relaxed text-gray-300">
+            <p className="font-sans leading-relaxed text-gray-300">
               This is what I capture: real moments, genuine emotions, life as it unfolds naturally.
               No forced poses or artificial smiles – just you, living your most important day. Every
               morning I wake up grateful to call myself a wedding photographer. I get to be a
@@ -106,7 +86,7 @@ export const AboutFeature: React.FC<AboutFeatureProps> = ({ image, imageAlt }) =
 
             <div className="pt-8">
               <h4 className="mb-4 font-display text-xl">Ready to tell your story together?</h4>
-              <button className="btn-primary">Let's create something beautiful.</button>
+              <button className="btn-secondary">Let's create something beautiful</button>
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-const CMS_APP_VERSION = '2026-02-10-3';
+const CMS_APP_VERSION = '2026-03-15-1';
 console.info(`CMS app version: ${CMS_APP_VERSION}`);
 
 function normalizeBaseUrl(url) {
@@ -7,6 +7,11 @@ function normalizeBaseUrl(url) {
 }
 
 function resolveApiBase() {
+  const isLocalPreview = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  if (isLocalPreview) {
+    return normalizeBaseUrl(`${window.location.origin}/app/api`);
+  }
+
   const meta = document.querySelector('meta[name="api-base"]');
   const metaValue = meta && meta.getAttribute('content');
   if (metaValue) return normalizeBaseUrl(metaValue);
@@ -16,13 +21,26 @@ function resolveApiBase() {
 
 const API_URL = resolveApiBase();
 const ADMIN_API_URL = `${API_URL}/admin`;
-const UPLOADS_BASE_URL = `${API_URL.replace(/\/api$/i, '')}/uploads`;
+const resolveUploadsBase = () => {
+  try {
+    const api = new URL(API_URL);
+    return `${api.origin}/uploads`;
+  } catch (error) {
+    return `${API_URL.replace(/\/api$/i, '')}/uploads`;
+  }
+};
+const UPLOADS_BASE_URL = resolveUploadsBase();
 const SITE_BASE_URL = API_URL.replace(/\/api$/i, '');
+const FRONTEND_BASE_URL = SITE_BASE_URL.replace(/\/app$/i, '');
 
 const resolveUploadsUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) {
-    return /\/app\/uploads\//i.test(path) ? path : path.replace(/\/uploads\//i, '/app/uploads/');
+    return path.replace(/\/app\/uploads\//i, '/uploads/');
+  }
+  if (/^\/?app\/uploads\//i.test(path)) {
+    const trimmed = path.replace(/^\/?app\/uploads\//i, '');
+    return `${UPLOADS_BASE_URL}/${trimmed}`;
   }
   if (/^\/?uploads\//i.test(path)) {
     const trimmed = path.replace(/^\/?uploads\//i, '');
@@ -31,6 +49,59 @@ const resolveUploadsUrl = (path) => {
   if (path.startsWith('/')) return `${UPLOADS_BASE_URL}${path}`;
   return `${UPLOADS_BASE_URL}/${path}`;
 };
+
+const isLocalUploadsPath = (path) => /^\/?(?:app\/)?uploads\//i.test(String(path || ''));
+
+const buildAdminImageFallbackMarkup = ({
+  placeholderClass = 'flex h-full w-full items-center justify-center bg-gray-100 text-center text-gray-500 dark:bg-black/40 dark:text-gray-400',
+  label = 'Brak obrazu',
+  hint = '',
+}) => `
+  <div class="${placeholderClass}">
+    <div class="space-y-1 px-4">
+      <p class="text-sm font-medium text-gray-600 dark:text-gray-200">${escapeHtml(label)}</p>
+      ${hint ? `<p class="text-xs text-gray-400 dark:text-gray-500">${escapeHtml(hint)}</p>` : ''}
+    </div>
+  </div>
+`;
+
+const getAdminImageHint = (path, hint = '') => {
+  if (hint) return hint;
+  if (isLocalUploadsPath(path)) return 'Brak pliku w public/uploads w lokalnym repo.';
+  return 'Nie udało się załadować obrazu.';
+};
+
+const getAdminImageMarkup = (
+  path,
+  {
+    alt = '',
+    className = 'h-full w-full object-cover',
+    placeholderClass,
+    label = 'Brak obrazu',
+    hint = '',
+  } = {},
+) => {
+  const fallbackClass =
+    placeholderClass ||
+    'flex h-full w-full items-center justify-center bg-gray-100 text-center text-gray-500 dark:bg-black/40 dark:text-gray-400';
+  if (!path) {
+    return buildAdminImageFallbackMarkup({ placeholderClass: fallbackClass, label, hint });
+  }
+
+  return `<img src="${resolveUploadsUrl(path)}" class="${className}" alt="${escapeHtml(alt)}" data-fallback-class="${escapeHtml(fallbackClass)}" data-fallback-label="${escapeHtml(label)}" data-fallback-hint="${escapeHtml(getAdminImageHint(path, hint))}" onerror="handleAdminImageError(this)" />`;
+};
+
+function handleAdminImageError(img) {
+  if (!img || img.dataset.fallbackApplied === 'true') return;
+  img.dataset.fallbackApplied = 'true';
+  img.outerHTML = buildAdminImageFallbackMarkup({
+    placeholderClass: img.dataset.fallbackClass,
+    label: img.dataset.fallbackLabel,
+    hint: img.dataset.fallbackHint,
+  });
+}
+
+window.handleAdminImageError = handleAdminImageError;
 
 const addVariantSuffix = (url, width) => url.replace(/\.webp(\?.*)?$/i, `-w${width}.webp$1`);
 const getImageSrcSet = (path, widths = [160, 480, 960]) => {
@@ -46,13 +117,234 @@ let currentUser = null;
 let resetToken = null;
 let mediaViewMode = 'grid';
 let mediaFilterQuery = '';
-let pagesViewMode = 'list';
+let mediaTagFilter = '';
+let mediaUploadTag = 'other';
+let pagesViewMode = 'grid';
 let pagesFilterQuery = '';
+let pagesFilterCategory = 'all';
 let galleriesViewMode = 'grid';
 let galleriesFilterQuery = '';
 let galleriesFilterCategory = 'all';
 let testimonialsViewMode = 'list';
 let testimonialsFilterQuery = '';
+let testimonialsFilterCategory = 'all';
+
+const SAVE_ICON_HTML =
+  '<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>';
+const SAVE_LABEL_HTML = `${SAVE_ICON_HTML}<span>Zapisz</span>`;
+const PLUS_ICON_HTML =
+  '<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>';
+const mediaMetaCache = new Map();
+
+const escapeHtml = (value) =>
+  String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const CONTENT_SEARCH_INPUT_CLASS =
+  'w-64 max-w-full rounded-full border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 placeholder-gray-400 focus:border-gold focus:outline-none';
+const CONTENT_ACTION_BUTTON_CLASS =
+  'inline-flex items-center gap-2 rounded bg-gold px-4 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-gold-hover shadow-lg shadow-gold/20';
+
+const getToggleButtonClass = (active) => getTagPillClass(active);
+
+const getTagPillClass = (active) =>
+  `px-3 py-1.5 rounded-full text-xs border border-gray-200 dark:border-white/10 transition-colors ${
+    active
+      ? 'bg-gold text-black border-gold'
+      : 'text-gray-500 dark:text-gray-300 hover:border-gold hover:text-gold'
+  }`;
+
+const GRID_BADGE_CLASS =
+  'absolute top-3 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-gold';
+const GRID_BADGE_LEFT_CLASS = `${GRID_BADGE_CLASS} left-3`;
+const GRID_BADGE_RIGHT_CLASS = `${GRID_BADGE_CLASS} right-3`;
+const GRID_STATUS_BADGE_CLASS =
+  'absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-gold';
+
+const DEFAULT_WEDDING_SESSION_TYPES = [
+  {
+    title: 'Getting Ready Session',
+    image: '/uploads/ils-185.webp',
+    description:
+      'A documentary-style shoot capturing the anticipation and preparation before the ceremony.',
+    items: [
+      'Bride and bridesmaids getting hair and makeup done',
+      'Groom and groomsmen putting on suits',
+      'Candid moments of nervous excitement',
+      'Detail shots of wedding attire, jewellery, and accessories',
+    ],
+  },
+  {
+    title: 'Engagement Photoshoot',
+    image: '/uploads/ils-195.webp',
+    description:
+      'A relaxed pre-wedding session — our chance to work together so you feel completely at ease in front of my camera before the big day.',
+    items: [
+      'Casual and romantic outdoor locations',
+      'Urban settings in Glasgow or scenic Scottish landscapes',
+      'Perfect images for save-the-date cards',
+    ],
+  },
+  {
+    title: 'Traditional Ceremony Coverage',
+    image: '/uploads/ils-212.webp',
+    description:
+      'Discreet, full coverage of your ceremony — from the first arrival to the final kiss.',
+    items: [
+      'Processional and recessional',
+      'Exchange of vows and rings',
+      'Reactions of family and guests',
+      'Formal family group portraits',
+    ],
+  },
+  {
+    title: "Couple's Romantic Portraits",
+    image: '/uploads/ils-197.webp',
+    description:
+      'A dedicated window of time during your day for relaxed, intimate portraits of just the two of you.',
+    items: [
+      'Golden hour photography',
+      'Dramatic landscape backgrounds',
+      'Intimate, romantic poses',
+    ],
+  },
+  {
+    title: 'Reception Reportage',
+    image: '/uploads/ils-206.webp',
+    description:
+      'Pure documentary coverage of your reception — speeches, first dance, and everything in between.',
+    items: ['First dance', 'Speeches and toasts', 'Guest interactions', 'Dance floor energy'],
+  },
+  {
+    title: 'Destination Wedding Coverage',
+    image: '/uploads/ils-166.webp',
+    description:
+      "Wherever your love story takes you, I'll be there with you to capture every moment.",
+    items: [
+      'Full-day or multi-day coverage',
+      'Travel-friendly packages',
+      'Comprehensive documentation of destination events',
+    ],
+  },
+  {
+    title: 'Sunrise / Sunset Session',
+    image: '/uploads/ils-100.webp',
+    description:
+      'A dedicated golden-hour shoot at your venue or a nearby location for truly ethereal light.',
+    items: ['Golden hour timing', 'Romantic lighting conditions', 'Location selection and setup'],
+  },
+  {
+    title: 'After-Wedding / Trash the Dress',
+    image: '/uploads/ils-177.webp',
+    description:
+      'An adventurous post-wedding shoot in your attire — relaxed, creative, and free from the timeline pressure of the day itself.',
+    items: ['Creative outfit session', 'Adventurous locations', 'Fun and candid moments'],
+  },
+  {
+    title: 'Micro-Wedding & Elopement Coverage',
+    image: '/uploads/ils-154.webp',
+    description:
+      'Intimate celebrations for just the two of you — or a small circle of loved ones in a landscape that moves you.',
+    items: ['Intimate ceremony', 'Scenic couple portraits', 'Celebration with close loved ones'],
+  },
+];
+
+const LEGACY_WEDDING_SESSION_TYPE_ITEMS = {
+  'Getting Ready Session': [
+    'Preparations and getting ready',
+    'Details and rings exchange',
+    'Final moments before ceremony',
+  ],
+  'Engagement Photoshoot': [
+    'Relaxed couple portraits',
+    'Candid moments and interactions',
+    'Location exploration',
+  ],
+  'Traditional Ceremony Coverage': [
+    'Bride and groom preparations',
+    'Full ceremony documentation',
+    'Entourage and key moments',
+  ],
+  "Couple's Romantic Portraits": [
+    'Intimate couples session',
+    'Romantic outdoor portraits',
+    'Creative couple poses',
+  ],
+  'Reception Reportage': [
+    'Speeches and toasts',
+    'First dance and celebrations',
+    'Guest interactions and dancing',
+  ],
+  'Destination Wedding Coverage': [
+    'Travel to destination',
+    'Full event coverage',
+    'Scenic location portraits',
+  ],
+};
+
+const formatBytes = (bytes) => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return 'Brak danych';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)} ${units[unitIndex]}`;
+};
+
+const getMediaPreviewMeta = async (url) => {
+  const key = String(url || '');
+  if (!key) return { dimensions: 'Brak danych', size: 'Brak danych' };
+  if (mediaMetaCache.has(key)) return mediaMetaCache.get(key);
+
+  const info = { dimensions: 'Brak danych', size: 'Brak danych' };
+  const fullUrl = resolveUploadsUrl(key);
+
+  try {
+    const img = new Image();
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = fullUrl;
+    });
+    info.dimensions = `${img.naturalWidth} x ${img.naturalHeight}px`;
+  } catch (error) {
+    // Keep fallback values if image metadata cannot be read.
+  }
+
+  try {
+    const head = await fetch(fullUrl, { method: 'HEAD' });
+    const length = Number(head.headers.get('content-length') || '0');
+    if (head.ok && length > 0) {
+      info.size = formatBytes(length);
+    }
+  } catch (error) {
+    // Keep fallback values if content length cannot be read.
+  }
+
+  if (info.size === 'Brak danych') {
+    try {
+      const response = await fetch(fullUrl, { cache: 'no-store' });
+      if (response.ok) {
+        const blob = await response.blob();
+        if (blob.size > 0) {
+          info.size = formatBytes(blob.size);
+        }
+      }
+    } catch (error) {
+      // Keep fallback values if file size cannot be read.
+    }
+  }
+
+  mediaMetaCache.set(key, info);
+  return info;
+};
 
 const ensureUploadToast = () => {
   let toast = document.getElementById('upload-toast');
@@ -110,6 +402,7 @@ const uploadFileWithProgress = (file, onProgress, options = {}) => {
     formData.append('image', file);
     if (options.baseName) formData.append('baseName', options.baseName);
     if (options.overwrite) formData.append('overwrite', 'true');
+    if (options.tag) formData.append('tag', options.tag);
     xhr.send(formData);
   });
 };
@@ -156,8 +449,15 @@ const ensureUploadConflictModal = () => {
         <input id="upload-conflict-rename" type="text" class="w-full rounded border border-white/10 bg-black/40 p-2 text-off-white focus:border-gold focus:outline-none" placeholder="Wpisz nową nazwę" />
         <p id="upload-conflict-error" class="hidden text-xs text-red-400"></p>
       </div>
+      <div id="upload-conflict-apply-wrap" class="mt-4 hidden items-center justify-end">
+        <label class="inline-flex cursor-pointer items-center gap-2 text-xs text-gray-300">
+          <input id="upload-conflict-apply-all" type="checkbox" class="h-4 w-4 rounded border-white/20 bg-black/40 text-gold focus:ring-gold" />
+          Zastosuj tę decyzję do wszystkich konfliktów
+        </label>
+      </div>
       <div class="mt-6 flex flex-wrap justify-end gap-3">
-        <button type="button" id="upload-conflict-skip" class="rounded border border-white/10 px-4 py-2 text-sm text-gray-300 hover:border-white/30">Pomiń</button>
+        <button type="button" id="upload-conflict-skip" class="rounded border border-white/10 px-4 py-2 text-sm text-gray-300 hover:border-white/30">Anuluj ten plik</button>
+        <button type="button" id="upload-conflict-cancel-all" class="hidden rounded border border-red-400/40 px-4 py-2 text-sm text-red-300 hover:border-red-300 hover:text-red-200">Anuluj cały upload</button>
         <button type="button" id="upload-conflict-rename-btn" class="rounded bg-gray-200 px-4 py-2 text-sm text-gray-900 hover:bg-gray-300">Zmień nazwę</button>
         <button type="button" id="upload-conflict-replace" class="rounded bg-gold px-4 py-2 text-sm font-semibold text-black hover:bg-gold-hover">Zastąp</button>
       </div>
@@ -167,7 +467,13 @@ const ensureUploadConflictModal = () => {
   return modal;
 };
 
-const showUploadConflictModal = ({ existingUrl, newFile, baseName }) => {
+const showUploadConflictModal = ({
+  existingUrl,
+  newFile,
+  baseName,
+  allowCancelAll = false,
+  allowApplyToAll = false,
+}) => {
   return new Promise((resolve) => {
     const modal = ensureUploadConflictModal();
     const existingImg = document.getElementById('upload-conflict-existing');
@@ -176,8 +482,11 @@ const showUploadConflictModal = ({ existingUrl, newFile, baseName }) => {
     const errorEl = document.getElementById('upload-conflict-error');
     const closeBtn = document.getElementById('upload-conflict-close');
     const skipBtn = document.getElementById('upload-conflict-skip');
+    const cancelAllBtn = document.getElementById('upload-conflict-cancel-all');
     const renameBtn = document.getElementById('upload-conflict-rename-btn');
     const replaceBtn = document.getElementById('upload-conflict-replace');
+    const applyWrap = document.getElementById('upload-conflict-apply-wrap');
+    const applyAllCheckbox = document.getElementById('upload-conflict-apply-all');
 
     const previewUrl = URL.createObjectURL(newFile);
     if (existingImg) existingImg.src = resolveUploadsUrl(existingUrl);
@@ -186,6 +495,17 @@ const showUploadConflictModal = ({ existingUrl, newFile, baseName }) => {
     if (errorEl) {
       errorEl.textContent = '';
       errorEl.classList.add('hidden');
+    }
+    if (applyWrap) {
+      applyWrap.classList.toggle('hidden', !allowApplyToAll);
+      applyWrap.classList.toggle('flex', allowApplyToAll);
+    }
+    if (applyAllCheckbox) {
+      applyAllCheckbox.checked = false;
+      applyAllCheckbox.disabled = !allowApplyToAll;
+    }
+    if (cancelAllBtn) {
+      cancelAllBtn.classList.toggle('hidden', !allowCancelAll);
     }
 
     const cleanup = (result) => {
@@ -201,9 +521,15 @@ const showUploadConflictModal = ({ existingUrl, newFile, baseName }) => {
       errorEl.classList.remove('hidden');
     };
 
-    const handleClose = () => cleanup({ action: 'skip' });
-    const handleSkip = () => cleanup({ action: 'skip' });
-    const handleReplace = () => cleanup({ action: 'replace', baseName });
+    const withApplyAll = (result) => ({
+      ...result,
+      applyToAll: Boolean(allowApplyToAll && applyAllCheckbox?.checked),
+    });
+
+    const handleClose = () => cleanup({ action: 'skip', applyToAll: false });
+    const handleSkip = () => cleanup(withApplyAll({ action: 'skip' }));
+    const handleCancelAll = () => cleanup({ action: 'cancel-all', applyToAll: false });
+    const handleReplace = () => cleanup(withApplyAll({ action: 'replace', baseName }));
 
     const handleRename = async () => {
       const value = renameInput?.value?.trim();
@@ -217,7 +543,7 @@ const showUploadConflictModal = ({ existingUrl, newFile, baseName }) => {
           showError('Taka nazwa już istnieje. Podaj inną nazwę.');
           return;
         }
-        cleanup({ action: 'rename', baseName: value });
+        cleanup({ action: 'rename', baseName: value, applyToAll: false });
       } catch (err) {
         showError('Nie udało się sprawdzić nazwy. Spróbuj ponownie.');
       }
@@ -225,6 +551,7 @@ const showUploadConflictModal = ({ existingUrl, newFile, baseName }) => {
 
     closeBtn.onclick = handleClose;
     skipBtn.onclick = handleSkip;
+    if (cancelAllBtn) cancelAllBtn.onclick = handleCancelAll;
     replaceBtn.onclick = handleReplace;
     renameBtn.onclick = handleRename;
 
@@ -233,43 +560,94 @@ const showUploadConflictModal = ({ existingUrl, newFile, baseName }) => {
   });
 };
 
-const uploadFileWithResolution = async (file, onProgress) => {
+const uploadFileWithResolution = async (file, onProgress, options = {}) => {
   const conflict = await checkUploadConflict(file.name);
   if (conflict.exists) {
+    const conflictPolicy = options.conflictPolicy;
+    if (conflictPolicy?.enabled && conflictPolicy.action) {
+      if (conflictPolicy.action === 'skip') {
+        return null;
+      }
+      if (conflictPolicy.action === 'replace') {
+        return uploadFileWithProgress(file, onProgress, {
+          baseName: conflict.baseName,
+          overwrite: true,
+          tag: options.tag,
+        });
+      }
+    }
+
     const decision = await showUploadConflictModal({
       existingUrl: conflict.url,
       newFile: file,
       baseName: conflict.baseName,
+      allowCancelAll: Boolean(options.allowCancelAll),
+      allowApplyToAll: Boolean(options.allowApplyToAll),
     });
+    if (decision.applyToAll && conflictPolicy) {
+      if (decision.action === 'skip' || decision.action === 'replace') {
+        conflictPolicy.enabled = true;
+        conflictPolicy.action = decision.action;
+      }
+    }
+    if (decision.action === 'cancel-all') return { cancelAll: true };
     if (decision.action === 'skip') return null;
     if (decision.action === 'replace') {
       return uploadFileWithProgress(file, onProgress, {
         baseName: conflict.baseName,
         overwrite: true,
+        tag: options.tag,
       });
     }
     if (decision.action === 'rename') {
-      return uploadFileWithProgress(file, onProgress, { baseName: decision.baseName });
+      return uploadFileWithProgress(file, onProgress, {
+        baseName: decision.baseName,
+        tag: options.tag,
+      });
     }
   }
 
-  return uploadFileWithProgress(file, onProgress, { baseName: conflict.baseName });
+  return uploadFileWithProgress(file, onProgress, {
+    baseName: conflict.baseName,
+    tag: options.tag,
+  });
 };
 
-const uploadFilesWithProgress = async (fileList, onComplete) => {
+const uploadFilesWithProgress = async (fileList, onComplete, tag = 'other') => {
   const files = Array.from(fileList || []);
   if (!files.length) return;
   updateUploadToast({ title: 'Przesylanie', message: 'Start...', percent: 0, visible: true });
+  const conflictPolicy = { enabled: false, action: null };
 
   for (let i = 0; i < files.length; i += 1) {
     const file = files[i];
     const baseMessage = `Plik ${i + 1}/${files.length}: ${file.name}`;
     dom.mediaStatus.textContent = baseMessage;
     try {
-      await uploadFileWithResolution(file, (ratio) => {
-        const percent = Math.round(((i + ratio) / files.length) * 100);
-        updateUploadToast({ message: baseMessage, percent });
-      });
+      const result = await uploadFileWithResolution(
+        file,
+        (ratio) => {
+          const percent = Math.round(((i + ratio) / files.length) * 100);
+          updateUploadToast({ message: baseMessage, percent });
+        },
+        {
+          tag,
+          allowCancelAll: true,
+          allowApplyToAll: true,
+          conflictPolicy,
+        },
+      );
+
+      if (result?.cancelAll) {
+        updateUploadToast({
+          title: 'Anulowano',
+          message: 'Upload został anulowany przez użytkownika.',
+          percent: Math.round((i / files.length) * 100),
+        });
+        dom.mediaStatus.textContent = 'Upload anulowany.';
+        setTimeout(() => updateUploadToast({ visible: false }), 2500);
+        return;
+      }
     } catch (err) {
       updateUploadToast({
         title: 'Blad',
@@ -291,6 +669,21 @@ const uploadFilesWithProgress = async (fileList, onComplete) => {
 const getResetTokenFromUrl = () => {
   const params = new URLSearchParams(window.location.search);
   return params.get('reset');
+};
+
+const syncAdminFavicon = async () => {
+  const faviconEl = document.getElementById('admin-favicon');
+  if (!(faviconEl instanceof HTMLLinkElement)) return;
+
+  try {
+    const res = await fetch(`${API_URL}/settings`);
+    if (!res.ok) return;
+    const settings = await res.json();
+    const faviconUrl = settings?.favicon ? resolveUploadsUrl(settings.favicon) : '/favicon.svg';
+    faviconEl.href = faviconUrl;
+  } catch (error) {
+    // Keep default favicon if settings cannot be loaded.
+  }
 };
 
 // --- Selectors ---
@@ -319,13 +712,20 @@ const dom = {
   modal: document.getElementById('modal'),
   modalContent: document.getElementById('modal-content'),
   modalTitle: document.getElementById('modal-title'),
+  modalHeaderAccessory: document.getElementById('modal-header-accessory'),
+  modalPrimaryAction: document.getElementById('modal-primary-action'),
   closeModalBtn: document.getElementById('close-modal'),
   // Media Picker
   mediaModal: document.getElementById('media-modal'),
   closeMediaBtn: document.getElementById('close-media-modal'),
+  mediaTitle: document.getElementById('media-modal-title'),
+  mediaSearch: document.getElementById('media-search'),
   mediaGrid: document.getElementById('media-library-grid'),
   mediaUploadInput: document.getElementById('global-file-upload'),
   mediaStatus: document.getElementById('media-status'),
+  mediaConfirmBtn: document.getElementById('media-confirm'),
+  mediaSelectionCount: document.getElementById('media-selection-count'),
+  adminFavicon: document.getElementById('admin-favicon'),
   themeToggle: document.getElementById('theme-toggle'),
   megaMenu: document.getElementById('mega-menu'),
   megaMenuToggle: document.getElementById('mega-menu-toggle'),
@@ -352,6 +752,8 @@ if (savedTheme === 'light') {
   document.documentElement.classList.add('dark');
 }
 
+syncAdminFavicon();
+
 // --- Event Listeners ---
 dom.loginForm.addEventListener('submit', handleLogin);
 if (dom.forgotLink) dom.forgotLink.addEventListener('click', showForgot);
@@ -361,8 +763,7 @@ if (dom.resetForm) dom.resetForm.addEventListener('submit', handleResetPassword)
 if (dom.backToLoginFromReset) dom.backToLoginFromReset.addEventListener('click', showLogin);
 dom.closeModalBtn.addEventListener('click', closeModal);
 dom.closeMediaBtn.addEventListener('click', () => {
-  dom.mediaModal.classList.add('hidden');
-  dom.mediaModal.classList.remove('flex');
+  closeMediaPicker(null);
 });
 
 dom.themeToggle.addEventListener('click', () => {
@@ -504,22 +905,117 @@ dom.navBtns.forEach((btn) => {
 });
 
 // --- Media Picker Logic ---
-let currentMediaCallback = null; // Resolves the promise
+const mediaPickerState = {
+  multiple: false,
+  selected: new Set(),
+  query: '',
+  tag: 'all',
+  resolve: null,
+};
 
-async function openMediaPicker() {
+const MEDIA_TAG_LABELS = {
+  all: 'Wszystkie',
+  wedding: 'Ślubne',
+  portrait: 'Portretowe',
+  product: 'Produktowe',
+  other: 'Inne',
+};
+
+const getMediaTagLabel = (tag) => MEDIA_TAG_LABELS[String(tag || '').toLowerCase()] || 'Inne';
+
+const updateMediaPickerUi = () => {
+  const isMulti = mediaPickerState.multiple;
+  if (dom.mediaTitle) {
+    dom.mediaTitle.textContent = isMulti ? 'Wybierz zdjęcia' : 'Wybierz zdjęcie';
+  }
+  if (dom.mediaSearch) {
+    dom.mediaSearch.value = mediaPickerState.query || '';
+  }
+  if (dom.mediaConfirmBtn) {
+    dom.mediaConfirmBtn.classList.toggle('hidden', !isMulti);
+  }
+  if (dom.mediaSelectionCount) {
+    dom.mediaSelectionCount.classList.toggle('hidden', !isMulti);
+    dom.mediaSelectionCount.textContent = `${mediaPickerState.selected.size} wybranych`;
+  }
+
+  document.querySelectorAll('[data-media-picker-tag]').forEach((button) => {
+    const value = button.getAttribute('data-media-picker-tag') || 'all';
+    const isActive = value === mediaPickerState.tag;
+    button.classList.toggle('bg-gold', isActive);
+    button.classList.toggle('text-black', isActive);
+    button.classList.toggle('border-gold', isActive);
+    button.classList.toggle('text-white/80', !isActive);
+  });
+};
+
+const closeMediaPicker = (result) => {
+  dom.mediaModal.classList.add('hidden');
+  dom.mediaModal.classList.remove('flex');
+  if (mediaPickerState.resolve) {
+    mediaPickerState.resolve(result);
+  }
+  mediaPickerState.resolve = null;
+  mediaPickerState.selected.clear();
+  mediaPickerState.multiple = false;
+  mediaPickerState.tag = 'all';
+  updateMediaPickerUi();
+};
+
+async function openMediaPicker(options = {}) {
+  const { multiple = false, selected = [] } = options;
   return new Promise((resolve) => {
-    currentMediaCallback = resolve;
+    mediaPickerState.multiple = Boolean(multiple);
+    mediaPickerState.selected = new Set(selected || []);
+    mediaPickerState.query = '';
+    mediaPickerState.tag = 'all';
+    mediaPickerState.resolve = resolve;
+    updateMediaPickerUi();
     dom.mediaModal.classList.remove('hidden');
     dom.mediaModal.classList.add('flex');
+    const mediaScrollable = dom.mediaGrid?.closest('.overflow-y-auto');
+    if (mediaScrollable instanceof HTMLElement) {
+      mediaScrollable.scrollTop = 0;
+    }
     loadMediaLibrary();
   });
 }
 
-dom.mediaUploadInput.addEventListener('change', async (e) => {
-  const files = e.target.files;
-  if (!files.length) return;
+if (dom.mediaSearch) {
+  dom.mediaSearch.addEventListener('input', (event) => {
+    mediaPickerState.query = event.target.value || '';
+    loadMediaLibrary();
+  });
+}
 
-  await uploadFilesWithProgress(files, () => {
+if (dom.mediaConfirmBtn) {
+  dom.mediaConfirmBtn.addEventListener('click', () => {
+    const selected = Array.from(mediaPickerState.selected);
+    closeMediaPicker(selected);
+  });
+}
+
+if (dom.mediaUploadInput) {
+  dom.mediaUploadInput.addEventListener('change', async (e) => {
+    const files = e.target.files;
+    if (!files.length) return;
+    const selectedTag = mediaPickerState.tag || 'other';
+    const uploadTag = selectedTag === 'all' ? 'other' : selectedTag;
+
+    await uploadFilesWithProgress(
+      files,
+      () => {
+        loadMediaLibrary();
+      },
+      uploadTag,
+    );
+  });
+}
+
+document.querySelectorAll('[data-media-picker-tag]').forEach((button) => {
+  button.addEventListener('click', () => {
+    mediaPickerState.tag = button.getAttribute('data-media-picker-tag') || 'all';
+    updateMediaPickerUi();
     loadMediaLibrary();
   });
 });
@@ -532,18 +1028,35 @@ async function loadMediaLibrary() {
       headers: { Authorization: `Bearer ${token}` },
     });
     const files = await res.json();
+    const query = (mediaPickerState.query || '').trim().toLowerCase();
+    const activeTag = mediaPickerState.tag || 'all';
+    const filteredFiles = (files || []).filter((file) => {
+      if (activeTag !== 'all' && String(file.tag || '').toLowerCase() !== activeTag) {
+        return false;
+      }
+      if (!query) return true;
+      const haystack =
+        `${file.name || ''} ${file.tag || ''} ${getMediaTagLabel(file.tag)}`.toLowerCase();
+      return haystack.includes(query);
+    });
 
-    dom.mediaGrid.innerHTML = files
-      .map(
-        (f) => `
-            <div class="cursor-pointer group relative aspect-square bg-gray-900 rounded border border-white/5 overflow-hidden hover:border-gold transition-colors" onclick="selectMedia('${f.url}')">
+    dom.mediaGrid.innerHTML = filteredFiles
+      .map((f) => {
+        const isSelected = mediaPickerState.selected.has(f.url);
+        return `
+            <div class="cursor-pointer group relative aspect-square bg-gray-900 rounded border border-white/5 overflow-hidden hover:border-gold transition-colors ${
+              isSelected ? 'ring-2 ring-gold border-gold' : ''
+            }" data-media-url="${f.url}" onclick="selectMedia('${f.url}')">
               <img src="${resolveUploadsUrl(f.url)}" class="w-full h-full object-cover" onerror="console.error('Media preview failed', this.src)">
-                <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                    <span class="text-xs text-white">Wybierz</span>
-                </div>
+              <span class="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] uppercase tracking-widest text-gold">${getMediaTagLabel(f.tag)}</span>
+              <div class="absolute inset-0 bg-black/50 ${
+                isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              } flex items-center justify-center transition-opacity">
+                <span class="text-xs text-white">${isSelected ? 'Wybrane' : 'Wybierz'}</span>
+              </div>
             </div>
-        `,
-      )
+        `;
+      })
       .join('');
   } catch (e) {
     dom.mediaGrid.innerHTML = '<p class="text-red-500">Błąd ładowania biblioteki.</p>';
@@ -551,9 +1064,35 @@ async function loadMediaLibrary() {
 }
 
 window.selectMedia = (url) => {
-  if (currentMediaCallback) currentMediaCallback(url);
-  dom.mediaModal.classList.add('hidden');
-  currentMediaCallback = null;
+  if (!mediaPickerState.multiple) {
+    closeMediaPicker(url);
+    return;
+  }
+
+  if (mediaPickerState.selected.has(url)) {
+    mediaPickerState.selected.delete(url);
+  } else {
+    mediaPickerState.selected.add(url);
+  }
+
+  // Update card DOM in-place — no re-fetch, no flash
+  const card = dom.mediaGrid.querySelector(`[data-media-url="${CSS.escape(url)}"]`);
+  if (card) {
+    const isSelected = mediaPickerState.selected.has(url);
+    card.classList.toggle('ring-2', isSelected);
+    card.classList.toggle('ring-gold', isSelected);
+    card.classList.toggle('border-gold', isSelected);
+    const overlay = card.querySelector('.absolute.inset-0');
+    if (overlay) {
+      overlay.classList.toggle('opacity-100', isSelected);
+      overlay.classList.toggle('opacity-0', !isSelected);
+      overlay.classList.toggle('group-hover:opacity-100', !isSelected);
+      const label = overlay.querySelector('span');
+      if (label) label.textContent = isSelected ? 'Wybrane' : 'Wybierz';
+    }
+  }
+
+  updateMediaPickerUi();
 };
 
 // --- Auth Logic ---
@@ -896,7 +1435,7 @@ async function loadDashboard() {
             <div class="lg:col-span-2 space-y-6">
                 <div class="flex justify-between items-center">
                     <h3 class="font-display text-xl text-gray-900 dark:text-white">Ostatnie Sesje</h3>
-                    <button onclick="document.querySelector('[data-tab=\'galleries\']').click()" class="text-sm text-gold hover:text-white transition-colors">Zobacz Wszystkie</button>
+                    <button onclick="document.querySelector('[data-tab=\'galleries\']').click()" class="text-sm text-gold hover:text-white transition-colors">Zobacz wszystkie</button>
                 </div>
                 <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
                      ${recentGalleries
@@ -905,9 +1444,14 @@ async function loadDashboard() {
                         <div class="aspect-[3/4] bg-gray-100 dark:bg-black rounded-lg overflow-hidden relative group cursor-pointer" onclick="editGallery(${g.id})">
                             ${(() => {
                               const cover = g.cover_image || g.items?.[0]?.image_path || '';
-                              return cover
-                                ? `<img src="${resolveUploadsUrl(cover)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">`
-                                : '';
+                              return getAdminImageMarkup(cover, {
+                                alt: g.name || 'Galeria',
+                                className:
+                                  'w-full h-full object-cover group-hover:scale-105 transition-transform duration-500',
+                                placeholderClass:
+                                  'flex h-full w-full items-center justify-center bg-gray-100 px-4 text-center text-gray-500 dark:bg-black/40 dark:text-gray-400',
+                                label: 'Brak okładki galerii',
+                              });
                             })()}
                             <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
                                 <p class="text-white font-medium text-sm truncate">${g.name || 'Bez nazwy'}</p>
@@ -924,7 +1468,7 @@ async function loadDashboard() {
                          ? `
                         <button onclick="editGallery(null)" class="aspect-[3/4] border-2 border-dashed border-gray-300 dark:border-white/10 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:border-gold hover:text-gold transition-colors">
                             <svg class="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                            <span class="text-sm font-medium">Dodaj Sesję</span>
+                            <span class="text-sm font-medium">Dodaj sesję</span>
                         </button>
                      `
                          : ''
@@ -940,9 +1484,18 @@ async function loadDashboard() {
                     <div class="w-12 h-12 bg-gold/10 rounded-full flex items-center justify-center mx-auto mb-4 text-gold">
                         <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     </div>
-                    <h4 class="font-bold text-gray-900 dark:text-white mb-2">Nowa Galeria</h4>
+                    <h4 class="font-bold text-gray-900 dark:text-white mb-2">Nowa galeria</h4>
                     <p class="text-sm text-gray-500 mb-4 px-2">Stwórz nową kolekcję zdjęć dla klienta lub do portfolio.</p>
-                    <button onclick="editGallery(null)" class="w-full bg-gold text-black py-2 rounded font-bold hover:bg-gold-hover transition-colors">Dodaj Galerię</button>
+                    <button onclick="editGallery(null)" class="w-full bg-gold text-black py-2 rounded font-bold hover:bg-gold-hover transition-colors">Dodaj galerię</button>
+                  </div>
+
+                  <div class="bg-white dark:bg-dark-secondary p-6 rounded-xl shadow-sm border border-gray-200 dark:border-white/5 text-center">
+                    <div class="w-12 h-12 bg-gold/10 rounded-full flex items-center justify-center mx-auto mb-4 text-gold">
+                      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                    </div>
+                    <h4 class="font-bold text-gray-900 dark:text-white mb-2">Nowa opinia</h4>
+                    <p class="text-sm text-gray-500 mb-4 px-2">Dodaj nową opinię klienta i opublikuj ją na stronie.</p>
+                    <button onclick="editTestimonial(null)" class="w-full bg-gold text-black py-2 rounded font-bold hover:bg-gold-hover transition-colors">Dodaj opinię</button>
                 </div>
 
                 <div class="bg-white dark:bg-dark-secondary p-6 rounded-xl shadow-sm border border-gray-200 dark:border-white/5">
@@ -1004,9 +1557,24 @@ async function loadPages() {
 
 function renderPagesView(pages, showSeedBtn, container) {
   const query = pagesFilterQuery.trim().toLowerCase();
+  const hasLandingPageTag = (page) => {
+    const normalizedSlug = String(page.slug || '')
+      .trim()
+      .replace(/^\/+|\/+$/g, '')
+      .toLowerCase();
+    return ['wedding-photography', 'portrait-photography', 'product-photography'].includes(
+      normalizedSlug,
+    );
+  };
+  const filteredByCategory =
+    pagesFilterCategory === 'landing-pages'
+      ? pages.filter((page) => hasLandingPageTag(page))
+      : pages;
   const filteredPages = query
-    ? pages.filter((p) => `${p.title || ''} ${p.slug || ''}`.toLowerCase().includes(query))
-    : pages;
+    ? filteredByCategory.filter((p) =>
+        `${p.title || ''} ${p.slug || ''}`.toLowerCase().includes(query),
+      )
+    : filteredByCategory;
 
   const renderList = () => `
     <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-lg overflow-hidden shadow-sm">
@@ -1027,13 +1595,16 @@ function renderPagesView(pages, showSeedBtn, container) {
               <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors" data-id="${p.id}">
                 <td class="px-3 py-4 text-gray-400 cursor-move drag-handle" title="Przeciągnij, aby zmienić kolejność">&#9776;</td>
                 <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                  ${p.title || '(Bez tytułu)'}
+                  <button type="button" onclick="editPage(${p.id})" class="text-left transition-colors hover:text-gold">
+                    ${p.title || '(Bez tytułu)'}
+                  </button>
                   ${p.is_home ? '<span class="ml-2 text-xs uppercase tracking-wider text-gold">Home</span>' : ''}
                 </td>
                 <td class="px-6 py-4 text-gray-500 dark:text-gray-500">${p.slug}</td>
                 <td class="px-6 py-4">${new Date(p.updated_at || p.updatedAt || Date.now()).toLocaleDateString()}</td>
-                <td class="px-6 py-4 text-right">
-                  <button onclick="editPage(${p.id})" class="text-gold hover:text-black dark:hover:text-white transition-colors font-medium">Edytuj</button>
+                <td class="px-6 py-4 text-right space-x-3">
+                  <button type="button" onclick="editPage(${p.id})" class="text-gold hover:text-black dark:hover:text-white transition-colors font-medium">Edytuj</button>
+                  <button type="button" onclick="window.open('${FRONTEND_BASE_URL}${p.is_home || p.slug === '/' ? '/' : '/' + (p.slug || '').replace(/^\/+/, '') + '/'}', '_blank')" class="text-gray-500 hover:text-gold dark:text-gray-400 dark:hover:text-gold transition-colors font-medium">Podgląd</button>
                 </td>
               </tr>
             `,
@@ -1049,19 +1620,32 @@ function renderPagesView(pages, showSeedBtn, container) {
       ${filteredPages
         .map(
           (p) => `
-          <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl p-5 shadow-sm">
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="font-display text-lg text-gray-900 dark:text-white">
-                  ${p.title || '(Bez tytułu)'}
-                </h3>
-                <p class="text-xs text-gray-500">${p.slug}</p>
-              </div>
-              ${p.is_home ? '<span class="text-xs uppercase tracking-wider text-gold">Home</span>' : ''}
+          <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl overflow-hidden group hover:border-gold/50 transition-colors shadow-sm">
+            <div class="h-48 bg-gray-100 dark:bg-black/50 relative">
+              ${
+                p.hero_image
+                  ? getAdminImageMarkup(p.hero_image, {
+                      alt: p.title || p.slug || 'Strona',
+                      className: 'w-full h-full object-cover',
+                      placeholderClass:
+                        'flex h-full w-full items-center justify-center bg-gray-100 px-4 text-center text-gray-500 dark:bg-black/40 dark:text-gray-400',
+                      label: 'Brak hero image',
+                    })
+                  : '<div class="flex h-full items-center justify-center text-gray-500">Brak obrazu</div>'
+              }
+              ${hasLandingPageTag(p) ? `<div class="${GRID_BADGE_LEFT_CLASS}">Landing pages</div>` : ''}
+              ${p.is_home ? `<div class="${hasLandingPageTag(p) ? 'absolute top-14 left-3 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-gold' : GRID_BADGE_LEFT_CLASS}">Home</div>` : ''}
             </div>
-            <div class="mt-4 flex items-center justify-between text-xs text-gray-500">
-              <span>${new Date(p.updated_at || p.updatedAt || Date.now()).toLocaleDateString()}</span>
-              <button onclick="editPage(${p.id})" class="text-gold hover:text-black dark:hover:text-white transition-colors font-medium">Edytuj</button>
+            <div class="p-5">
+              <h3 class="font-display font-medium text-lg text-gray-900 dark:text-white mb-1 group-hover:text-gold transition-colors">
+                ${p.title || '(Bez tytułu)'}
+              </h3>
+              <p class="text-xs text-gray-500 mb-1">${p.slug}</p>
+              <p class="text-xs text-gray-500 uppercase tracking-widest mb-4">Aktualizacja ${new Date(p.updated_at || p.updatedAt || Date.now()).toLocaleDateString()}</p>
+              <div class="grid grid-cols-2 gap-2">
+                <button type="button" onclick="editPage(${p.id})" class="py-2 border border-gray-300 dark:border-white/10 rounded text-gray-600 dark:text-gray-300 hover:bg-gold hover:text-black hover:border-gold transition-colors font-medium">Edytuj</button>
+                <button type="button" onclick="window.open('${FRONTEND_BASE_URL}${p.is_home || p.slug === '/' ? '/' : '/' + (p.slug || '').replace(/^\/+/, '') + '/'}', '_blank')" class="py-2 border border-gray-300 dark:border-white/10 rounded text-gray-600 dark:text-gray-300 hover:bg-gold hover:text-black hover:border-gold transition-colors font-medium">Podgląd</button>
+              </div>
             </div>
           </div>
         `,
@@ -1071,20 +1655,20 @@ function renderPagesView(pages, showSeedBtn, container) {
   `;
 
   container.innerHTML = `
-    <div class="flex flex-col gap-4 mb-6">
-      <div class="flex flex-wrap justify-between items-center gap-4">
-        <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Strony</h2>
-        ${showSeedBtn ? `<button onclick="seedHomePage()" class="text-sm text-gold hover:text-white underline">Dodaj Home</button>` : ''}
-      </div>
+    <div class="mb-6 space-y-4">
       <div class="flex flex-wrap items-center justify-between gap-4">
-        <input id="pages-filter" type="text" placeholder="Szukaj po tytule lub slugu" class="w-64 max-w-full rounded-full border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 px-4 py-1.5 text-xs uppercase tracking-widest text-gray-600 dark:text-gray-200 placeholder-gray-400 focus:border-gold focus:outline-none" />
-        <div class="flex gap-2">
-          <button id="pages-view-list" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
-            pagesViewMode === 'list' ? 'bg-gold text-black border-gold' : 'text-gray-500'
-          }">Lista</button>
-          <button id="pages-view-grid" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
-            pagesViewMode === 'grid' ? 'bg-gold text-black border-gold' : 'text-gray-500'
-          }">Siatka</button>
+        <div class="flex flex-wrap items-center gap-4">
+          <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Strony</h2>
+          <input id="pages-filter" type="text" placeholder="Szukaj strony" class="${CONTENT_SEARCH_INPUT_CLASS}" />
+          ${showSeedBtn ? `<button type="button" onclick="seedHomePage()" class="text-sm text-gold hover:text-white underline">Dodaj Home</button>` : ''}
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button" data-pages-category="all" class="${getTagPillClass(pagesFilterCategory === 'all')}">Wszystkie</button>
+        <button type="button" data-pages-category="landing-pages" class="${getTagPillClass(pagesFilterCategory === 'landing-pages')}">Landing pages</button>
+        <div class="ml-auto flex flex-wrap items-center gap-2">
+          <button type="button" id="pages-view-list" class="${getToggleButtonClass(pagesViewMode === 'list')}">Lista</button>
+          <button type="button" id="pages-view-grid" class="${getToggleButtonClass(pagesViewMode === 'grid')}">Siatka</button>
         </div>
       </div>
     </div>
@@ -1118,6 +1702,13 @@ function renderPagesView(pages, showSeedBtn, container) {
       pagesViewMode = 'grid';
       renderPagesView(pages, showSeedBtn, container);
     });
+
+  container.querySelectorAll('[data-pages-category]').forEach((button) => {
+    button.addEventListener('click', () => {
+      pagesFilterCategory = button.getAttribute('data-pages-category') || 'all';
+      renderPagesView(pages, showSeedBtn, container);
+    });
+  });
 
   const tbody = document.getElementById('pages-table-body');
   if (tbody) {
@@ -1160,7 +1751,6 @@ window.editPage = async (id) => {
     title: '',
     content: '',
     hero_image: '',
-    home_hero_logo: '',
     home_gallery_wedding_id: null,
     home_gallery_portrait_id: null,
     home_gallery_product_id: null,
@@ -1171,8 +1761,15 @@ window.editPage = async (id) => {
     home_latest_moments_bg: '',
     home_latest_gallery_ids: [],
     home_testimonial_ids: [],
+    wedding_testimonial_ids: [],
+    faq_items: [],
     wedding_slider_images: [],
+    wedding_session_types: [],
     portfolio_gallery_ids: [],
+    about_origin_images: [],
+    about_story_images: [],
+    about_story_captions: [],
+    about_work_images: [],
     meta_title: '',
     meta_description: '',
     seo_image: '',
@@ -1202,7 +1799,104 @@ window.editPage = async (id) => {
     }
   };
 
-  const [pages, galleries, testimonials] = await Promise.all([
+  const parseFaqItems = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => ({
+          question: String(item?.question || '').trim(),
+          answer: String(item?.answer || '').trim(),
+        }))
+        .filter((item) => item.question && item.answer);
+    }
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed)
+        ? parsed
+            .map((item) => ({
+              question: String(item?.question || '').trim(),
+              answer: String(item?.answer || '').trim(),
+            }))
+            .filter((item) => item.question && item.answer)
+        : [];
+    } catch (err) {
+      return [];
+    }
+  };
+
+  const parseWeddingSessionTypes = (value) => {
+    if (!value) return [];
+    const normalizeItems = (items) =>
+      items
+        .map((item) => ({
+          title: String(item?.title || '').trim(),
+          description: String(item?.description || '').trim(),
+          image: String(item?.image || '').trim(),
+          items: Array.isArray(item?.items)
+            ? item.items.map((listItem) => String(listItem || '').trim()).filter(Boolean)
+            : [],
+        }))
+        .filter((item) => item.title || item.description || item.image);
+
+    if (Array.isArray(value)) return normalizeItems(value);
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? normalizeItems(parsed) : [];
+    } catch (err) {
+      return [];
+    }
+  };
+
+  const weddingSessionItemsEqual = (first, second) => {
+    if (!Array.isArray(first) || !Array.isArray(second) || first.length !== second.length)
+      return false;
+    return first.every((item, index) => item === second[index]);
+  };
+
+  const mergeWeddingSessionTypeDefaults = (items) => {
+    if (!Array.isArray(items) || !items.length) {
+      return DEFAULT_WEDDING_SESSION_TYPES.map((item) => ({
+        ...item,
+        items: [...(item.items || [])],
+      }));
+    }
+
+    return items.map((item, index) => {
+      const matchedDefault =
+        DEFAULT_WEDDING_SESSION_TYPES.find(
+          (defaultItem) =>
+            defaultItem.title.trim().toLowerCase() ===
+            String(item.title || '')
+              .trim()
+              .toLowerCase(),
+        ) || DEFAULT_WEDDING_SESSION_TYPES[index];
+
+      return {
+        title: item.title || matchedDefault?.title || '',
+        description: item.description || matchedDefault?.description || '',
+        image: item.image || matchedDefault?.image || '',
+        items:
+          Array.isArray(item.items) && item.items.length
+            ? weddingSessionItemsEqual(
+                item.items,
+                LEGACY_WEDDING_SESSION_TYPE_ITEMS[item.title || matchedDefault?.title || ''] || [],
+              )
+              ? [...(matchedDefault?.items || [])]
+              : [...item.items]
+            : [...(matchedDefault?.items || [])],
+      };
+    });
+  };
+
+  const escapeHtml = (value) =>
+    String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const [pages, galleries, testimonials, globalSettings, mediaFiles] = await Promise.all([
     fetch(`${ADMIN_API_URL}/pages`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then((res) => res.json()),
@@ -1212,21 +1906,67 @@ window.editPage = async (id) => {
     fetch(`${ADMIN_API_URL}/testimonials`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then((res) => res.json()),
+    fetch(`${API_URL}/settings`).then((res) => res.json()),
+    fetch(`${ADMIN_API_URL}/files`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((res) => res.json()),
   ]);
+  const publishedGalleries = (galleries || []).filter((gallery) => gallery.published !== false);
+  const publishedTestimonials = (testimonials || []).filter((testimonial) => testimonial.approved);
 
   page = pages.find((p) => p.id === id) || page;
   const normalizedSlug = String(page.slug || '').replace(/^\/+/, '');
   const isHomePage = Boolean(page.is_home || normalizedSlug === '' || normalizedSlug === 'home');
   const isWeddingPage = normalizedSlug === 'wedding-photography';
+  const isPortraitPage = normalizedSlug === 'portrait-photography';
+  const isProductPage = normalizedSlug === 'product-photography';
+  const isAboutPage = normalizedSlug === 'about';
+  const isLandingFaqPage = isHomePage || isWeddingPage || isPortraitPage || isProductPage;
   const isPortfolioPage = normalizedSlug === 'portfolio';
   page.is_home = isHomePage;
   page.home_latest_gallery_ids = parseIds(page.home_latest_gallery_ids);
   page.home_testimonial_ids = parseIds(page.home_testimonial_ids);
+  page.wedding_testimonial_ids = parseIds(page.wedding_testimonial_ids);
   page.home_gallery_wedding_images = parseImageList(page.home_gallery_wedding_images);
   page.home_gallery_portrait_images = parseImageList(page.home_gallery_portrait_images);
   page.home_gallery_product_images = parseImageList(page.home_gallery_product_images);
   page.wedding_slider_images = parseImageList(page.wedding_slider_images);
+  page.wedding_session_types = isWeddingPage
+    ? mergeWeddingSessionTypeDefaults(parseWeddingSessionTypes(page.wedding_session_types))
+    : parseWeddingSessionTypes(page.wedding_session_types);
   page.portfolio_gallery_ids = parseIds(page.portfolio_gallery_ids);
+  page.about_origin_images = parseImageList(page.about_origin_images);
+  page.about_story_images = parseImageList(page.about_story_images);
+  page.about_story_captions = parseImageList(page.about_story_captions);
+  page.about_work_images = parseImageList(page.about_work_images);
+  page.faq_items = parseFaqItems(page.faq_items);
+
+  if (isAboutPage) {
+    if (!page.about_origin_images.length) {
+      page.about_origin_images = [
+        '/uploads/ils-100.webp',
+        '/uploads/ils-40.webp',
+        '/uploads/ils-154.webp',
+      ];
+    }
+    if (!page.about_story_images.length) {
+      page.about_story_images = [
+        '/uploads/alex-4.webp',
+        '/uploads/ils-154.webp',
+        '/uploads/me-2.webp',
+      ];
+    }
+    if (!page.about_story_captions.length) {
+      page.about_story_captions = ['Gliwice, Poland', 'One of many stories', 'Glasgow, Scotland'];
+    }
+    if (!page.about_work_images.length) {
+      page.about_work_images = [
+        '/uploads/ils-185.webp',
+        '/uploads/ils-206.webp',
+        '/uploads/ils-212.webp',
+      ];
+    }
+  }
 
   // SEO Section (Admin Only)
   const seoSection =
@@ -1234,34 +1974,47 @@ window.editPage = async (id) => {
       ? `
     <div class="mt-8 pt-6 border-t border-gray-200 dark:border-white/10">
         <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Ustawienia SEO</h3>
-        <div class="space-y-4">
-             <div class="space-y-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Meta Tytuł</label>
-                <input type="text" id="meta_title" value="${page.meta_title || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold font-medium">
-          <p class="text-xs text-gray-500">Długość: <span id="meta_title_count">0</span> / 50-60</p>
+        <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div class="space-y-4">
+            <div class="space-y-2">
+              <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Meta Tytuł</label>
+              <textarea id="meta_title" rows="2" class="w-full resize-none bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold font-medium">${page.meta_title || ''}</textarea>
+              <p id="meta_title_hint" class="rounded border border-gray-200/70 dark:border-white/10 px-3 py-2 text-xs text-gray-600 dark:text-gray-300">Długość: <span id="meta_title_count">0</span> / 50-60</p>
             </div>
-             <div class="space-y-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Meta Opis</label>
-                <textarea id="meta_description" class="w-full h-20 bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold font-medium">${page.meta_description || ''}</textarea>
-          <p class="text-xs text-gray-500">Długość: <span id="meta_description_count">0</span> / 140-160</p>
-            </div>
-             <div class="space-y-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Miniaturka SEO (og:image)</label>
-          <div class="flex items-center gap-4">
-            <img id="seo_image_preview" src="${resolveUploadsUrl(page.seo_image || '')}" class="w-20 h-20 rounded object-cover border border-gray-200 dark:border-white/10 ${page.seo_image ? '' : 'hidden'}" />
-            <div class="flex-1 space-y-2">
-              <input type="text" id="seo_image" value="${page.seo_image || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none">
-              <div class="flex gap-2">
-                            <button type="button" id="seo_image_pick" onclick="openMediaPicker().then(url => setImageField('seo_image','seo_image_preview',url))" class="bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Wybierz</button>
-                            <button type="button" id="seo_image_clear" onclick="clearImageField('seo_image','seo_image_preview')" class="bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Usuń</button>
-              </div>
+            <div class="space-y-2">
+              <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Meta Opis</label>
+              <textarea id="meta_description" class="w-full h-24 bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold font-medium">${page.meta_description || ''}</textarea>
+              <p id="meta_description_hint" class="rounded border border-gray-200/70 dark:border-white/10 px-3 py-2 text-xs text-gray-600 dark:text-gray-300">Długość: <span id="meta_description_count">0</span> / 140-160</p>
             </div>
           </div>
-          <label class="mt-3 flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
-            <input type="checkbox" id="seo_use_hero" ${page.seo_use_hero ? 'checked' : ''} class="w-4 h-4 accent-gold" />
-            Użyj zdjęcia głównego (Hero) jako og:image
-          </label>
+          <div class="space-y-3">
+            <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Miniaturka SEO (og:image)</label>
+            <div>
+              <div id="seo_image_empty" class="${page.seo_image ? 'hidden' : ''} w-full rounded-lg border-2 border-dashed border-gray-300 dark:border-white/10 p-6 text-gray-400 transition-colors hover:border-gold hover:text-gold">
+                <div class="flex flex-col items-center justify-center gap-3 text-center">
+                  <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                  <p class="text-sm">Wybierz z biblioteki lub dodaj z komputera</p>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" id="seo_image_pick" class="rounded bg-gray-200 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-300 dark:bg-white/10 dark:text-white dark:hover:bg-white/20" onclick="openMediaPicker().then(url => updateImagePicker('seo_image', url))">Wybierz z biblioteki</button>
+                    <button type="button" id="seo_image_upload_btn" class="rounded bg-gray-100 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10" onclick="document.getElementById('seo_image_upload').click()">Dodaj z komputera</button>
+                  </div>
+                </div>
+              </div>
+              <div id="seo_image_filled" class="${page.seo_image ? '' : 'hidden'}">
+                <img id="seo_image_preview" src="${resolveUploadsUrl(page.seo_image || '')}" class="w-full h-48 rounded-lg border border-gray-200 dark:border-white/10 object-cover" />
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <button type="button" id="seo_image_pick_filled" class="rounded bg-gray-200 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-300 dark:bg-white/10 dark:text-white dark:hover:bg-white/20" onclick="openMediaPicker().then(url => updateImagePicker('seo_image', url))">Zmień</button>
+                  <button type="button" id="seo_image_clear" class="rounded bg-gray-100 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10" onclick="updateImagePicker('seo_image', '')">Usuń</button>
+                </div>
+              </div>
+              <input type="text" id="seo_image" value="${page.seo_image || ''}" class="hidden">
+              <input type="file" id="seo_image_upload" class="hidden" accept="image/*">
             </div>
+            <label class="mt-3 flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
+              <input type="checkbox" id="seo_use_hero" ${page.seo_use_hero ? 'checked' : ''} class="w-4 h-4 accent-gold" />
+              Użyj zdjęcia głównego (Hero) jako og:image
+            </label>
+          </div>
         </div>
     </div>
   `
@@ -1317,11 +2070,17 @@ window.editPage = async (id) => {
     `;
   };
 
-  const renderImageListSection = (listId, label) => `
+  const renderImageListSection = (listId, label, options = {}) => {
+    const { showLabel = true } = options;
+    return `
     <div class="space-y-3">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p class="text-xs font-bold uppercase tracking-wider text-gray-500">${label}</p>
+          ${
+            showLabel
+              ? `<p class="text-xs font-bold uppercase tracking-wider text-gray-500">${label}</p>`
+              : ''
+          }
           <p class="text-xs text-gray-400">Dodawaj zdjęcia i przeciągaj, aby zmienić kolejność</p>
         </div>
         <div class="flex flex-wrap gap-2">
@@ -1335,11 +2094,116 @@ window.editPage = async (id) => {
       <div id="${listId}" class="grid grid-cols-2 gap-3 md:grid-cols-3"></div>
     </div>
   `;
+  };
+
+  const renderCaptionListSection = (baseId, label, values = []) => {
+    const normalized = [0, 1, 2].map((index) => String(values?.[index] || '').trim());
+    return `
+      <div class="space-y-3">
+        <p class="text-xs font-bold uppercase tracking-wider text-gray-500">${label}</p>
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+          ${normalized
+            .map(
+              (value, index) => `
+                <div class="space-y-2">
+                  <label class="text-[10px] font-bold uppercase tracking-widest text-gray-500">Podpis #${index + 1}</label>
+                  <input
+                    type="text"
+                    id="${baseId}_${index}"
+                    value="${escapeHtml(value)}"
+                    class="w-full rounded border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 outline-none focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white"
+                  />
+                </div>
+              `,
+            )
+            .join('')}
+        </div>
+      </div>
+    `;
+  };
+
+  const renderFaqItems = (items, openIndexes = new Set()) =>
+    (items || [])
+      .map(
+        (item, index) => `
+        <div class="rounded-lg border border-gray-200 p-4 dark:border-white/10 faq-item-row" data-faq-index="${index}">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="flex-1 space-y-2">
+              <label class="text-[10px] font-bold uppercase tracking-widest text-gray-500">Pytanie #${index + 1}</label>
+              <input type="text" class="faq-question w-full rounded border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 outline-none focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white" value="${escapeHtml(item.question || '')}" />
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" class="rounded border border-gray-200 px-2 py-1 text-[10px] uppercase tracking-widest text-gray-600 transition-colors hover:border-gold hover:text-gold disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:text-gray-300" data-move-faq="up" data-faq-index="${index}" ${
+                index === 0 ? 'disabled' : ''
+              }>Góra</button>
+              <button type="button" class="rounded border border-gray-200 px-2 py-1 text-[10px] uppercase tracking-widest text-gray-600 transition-colors hover:border-gold hover:text-gold disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:text-gray-300" data-move-faq="down" data-faq-index="${index}" ${
+                index === (items || []).length - 1 ? 'disabled' : ''
+              }>Dół</button>
+              <button type="button" class="rounded border border-gray-200 px-2 py-1 text-[10px] uppercase tracking-widest text-gray-600 transition-colors hover:border-gold hover:text-gold dark:border-white/10 dark:text-gray-300" data-toggle-faq="${index}" aria-expanded="${
+                openIndexes.has(index) ? 'true' : 'false'
+              }">${openIndexes.has(index) ? 'Zwiń' : 'Rozwiń'}</button>
+              <button type="button" class="text-xs uppercase tracking-widest text-red-500" data-remove-faq="${index}">Usuń</button>
+            </div>
+          </div>
+          <div class="faq-answer-panel mt-3 space-y-2 ${openIndexes.has(index) ? '' : 'hidden'}" data-faq-panel="${index}">
+            <label class="text-[10px] font-bold uppercase tracking-widest text-gray-500">Odpowiedź</label>
+            <textarea id="faq_answer_${index}" class="faq-wysiwyg h-48">${item.answer || ''}</textarea>
+          </div>
+        </div>
+      `,
+      )
+      .join('');
+
+  const collectFaqItemsFromDom = () => {
+    if (window.tinymce) tinymce.triggerSave();
+    const rows = Array.from(document.querySelectorAll('.faq-item-row'));
+    return rows.map((row) => {
+      const questionInput = row.querySelector('.faq-question');
+      const answerTextarea = row.querySelector('.faq-wysiwyg');
+      return {
+        question: questionInput?.value || '',
+        answer: answerTextarea?.value || '',
+      };
+    });
+  };
+
+  const normalizeFaqOpenIndexes = (openIndexes, total) => {
+    const normalized = new Set();
+    openIndexes.forEach((index) => {
+      if (Number.isInteger(index) && index >= 0 && index < total) normalized.add(index);
+    });
+    return normalized;
+  };
+
+  const moveFaqOpenIndex = (openIndexes, from, to) => {
+    const moved = new Set();
+    openIndexes.forEach((index) => {
+      if (index === from) {
+        moved.add(to);
+      } else if (from < to && index > from && index <= to) {
+        moved.add(index - 1);
+      } else if (from > to && index >= to && index < from) {
+        moved.add(index + 1);
+      } else {
+        moved.add(index);
+      }
+    });
+    return moved;
+  };
+
+  const removeFaqOpenIndex = (openIndexes, removedIndex) => {
+    const next = new Set();
+    openIndexes.forEach((index) => {
+      if (index === removedIndex) return;
+      next.add(index > removedIndex ? index - 1 : index);
+    });
+    return next;
+  };
 
   const html = `
         <form id="page-form" class="space-y-6">
-            <div class="space-y-6 rounded-xl border border-gray-200 dark:border-white/10 p-4">
-              <h3 class="text-sm font-bold uppercase tracking-widest text-gray-500">Ustawienia ogólne</h3>
+            <div class="space-y-6 p-4">
+              <h3 class="mb-4 text-lg font-bold text-gray-900 dark:text-white">Ustawienia ogólne</h3>
               <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div class="space-y-4">
                   <div class="space-y-2">
@@ -1363,22 +2227,16 @@ window.editPage = async (id) => {
                     value: page.hero_image || '',
                     sizeClass: 'h-56',
                   })}
-                  ${renderImagePicker({
-                    inputId: 'home_hero_logo',
-                    label: 'Logo na środku Hero',
-                    value: page.home_hero_logo || '',
-                    sizeClass: 'h-48',
-                  })}
+
                 </div>
               </div>
             </div>
 
-            <div id="details-section" class="space-y-6 rounded-xl border border-gray-200 dark:border-white/10 p-4">
-              <h3 class="text-sm font-bold uppercase tracking-widest text-gray-500">Szczegóły</h3>
+            <div id="details-section" class="mt-8 space-y-6 border-t border-gray-200 pt-6 dark:border-white/10 p-4">
+              <h3 class="mb-4 text-lg font-bold text-gray-900 dark:text-white">Szczegóły</h3>
 
-              <div id="home-details-section" class="space-y-8">
-                <div class="space-y-4">
-                  <h4 class="text-xs font-bold uppercase tracking-wider text-gray-500">Galerie na stronie głównej</h4>
+              <div id="home-details-section" class="space-y-4">
+                <div class="space-y-4" data-details-item data-details-title="Galerie na stronie głównej">
                   <div class="space-y-6">
                     ${renderImageListSection('home_gallery_wedding_images', 'Galeria Wedding')}
                     ${renderImageListSection('home_gallery_portrait_images', 'Galeria Portrait')}
@@ -1386,25 +2244,26 @@ window.editPage = async (id) => {
                   </div>
                 </div>
 
-                <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  ${renderImagePicker({
-                    inputId: 'home_moments_image',
-                    label: 'Zdjęcie Moments Preserved',
-                    value: page.home_moments_image || '',
-                    sizeClass: 'h-56',
-                  })}
-                  ${renderImagePicker({
-                    inputId: 'home_latest_moments_bg',
-                    label: 'Tło Latest Moments',
-                    value: page.home_latest_moments_bg || '',
-                    sizeClass: 'h-56',
-                  })}
+                <div class="space-y-4" data-details-item data-details-title="Pozostałe zdjęcia">
+                  <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    ${renderImagePicker({
+                      inputId: 'home_moments_image',
+                      label: 'Zdjęcie Moments Preserved',
+                      value: page.home_moments_image || '',
+                      sizeClass: 'h-56',
+                    })}
+                    ${renderImagePicker({
+                      inputId: 'home_latest_moments_bg',
+                      label: 'Tło Latest Moments',
+                      value: page.home_latest_moments_bg || '',
+                      sizeClass: 'h-56',
+                    })}
+                  </div>
                 </div>
 
-                <div class="space-y-4">
+                <div class="space-y-4" data-details-item data-details-title="Latest Moments">
                   <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p class="text-xs font-bold uppercase tracking-wider text-gray-500">Latest Moments</p>
                       <p class="text-xs text-gray-400">Wybierz dokładnie 6 sesji zdjęciowych</p>
                     </div>
                     <span id="latest-galleries-count" class="text-xs uppercase tracking-widest text-gray-400">0 / 6</span>
@@ -1421,10 +2280,9 @@ window.editPage = async (id) => {
                   </div>
                 </div>
 
-                <div class="space-y-4">
+                <div class="space-y-4" data-details-item data-details-title="Opinie na stronie głównej">
                   <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p class="text-xs font-bold uppercase tracking-wider text-gray-500">Opinie na stronie głównej</p>
                       <p class="text-xs text-gray-400">Wybierz minimum 3 opinie</p>
                     </div>
                     <span id="home-testimonials-count" class="text-xs uppercase tracking-widest text-gray-400">0</span>
@@ -1442,41 +2300,96 @@ window.editPage = async (id) => {
                 </div>
               </div>
 
-              <div id="wedding-details-section" class="space-y-6">
-                <div class="space-y-4">
-                  <h4 class="text-xs font-bold uppercase tracking-wider text-gray-500">Wedding slider</h4>
+              <div id="wedding-details-section" class="space-y-4">
+                <div class="space-y-4" data-details-item data-details-title="Wedding slider">
                   ${renderImageListSection('wedding_slider_images', 'Zdjęcia do slidera')}
                 </div>
-              </div>
-
-              <div id="portfolio-details-section" class="space-y-6">
-                <div class="space-y-4">
+                <div class="space-y-4" data-details-item data-details-title="Wedding Session Types">
                   <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p class="text-xs font-bold uppercase tracking-wider text-gray-500">Portfolio</p>
-                      <p class="text-xs text-gray-400">Wybierz galerie do portfolio i ustaw ich kolejność</p>
+                      <p class="text-xs font-bold uppercase tracking-wider text-gray-500">Wedding Session Types</p>
+                      <p class="text-xs text-gray-400">Dodawaj, usuwaj i ustawiaj kolejność bloków z tytułem, opisem i zdjęciem.</p>
                     </div>
-                    <span id="portfolio-galleries-count" class="text-xs uppercase tracking-widest text-gray-400">0</span>
+                    <button type="button" id="add-wedding-session-type" class="rounded bg-gray-200 px-3 py-1.5 text-xs uppercase tracking-widest text-gray-900 transition-colors hover:bg-gray-300 dark:bg-white/10 dark:text-white dark:hover:bg-white/20">Dodaj Session Type</button>
                   </div>
-                  <div class="flex flex-wrap items-center justify-between gap-4">
-                    <div class="flex flex-wrap gap-2">
-                      <button data-portfolio-category="all" class="px-3 py-1 text-xs rounded-full border border-gray-200 dark:border-white/10 uppercase tracking-widest">Wszystkie</button>
-                      <button data-portfolio-category="wedding" class="px-3 py-1 text-xs rounded-full border border-gray-200 dark:border-white/10 uppercase tracking-widest">Ślubne</button>
-                      <button data-portfolio-category="portrait" class="px-3 py-1 text-xs rounded-full border border-gray-200 dark:border-white/10 uppercase tracking-widest">Portretowe</button>
-                      <button data-portfolio-category="product" class="px-3 py-1 text-xs rounded-full border border-gray-200 dark:border-white/10 uppercase tracking-widest">Produktowe</button>
+                  <div id="wedding-session-types-list" class="space-y-4"></div>
+                </div>
+                <div class="space-y-4" data-details-item data-details-title="Opinie na Wedding">
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p class="text-xs font-bold uppercase tracking-wider text-gray-500">Opinie na Wedding landing page</p>
+                      <p class="text-xs text-gray-400">Wybierz opinie i ustaw ich kolejność</p>
                     </div>
-                    <input id="portfolio-galleries-filter" type="text" placeholder="Szukaj sesji" class="w-56 max-w-full rounded-full border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 px-4 py-1.5 text-xs uppercase tracking-widest text-gray-600 dark:text-gray-200 placeholder-gray-400 focus:border-gold focus:outline-none" />
+                    <span id="wedding-testimonials-count" class="text-xs uppercase tracking-widest text-gray-400">0</span>
                   </div>
                   <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div class="space-y-2">
-                      <p class="text-[10px] uppercase tracking-widest text-gray-400">Wszystkie sesje</p>
-                      <div id="portfolio-galleries-all" class="space-y-2"></div>
+                      <p class="text-[10px] uppercase tracking-widest text-gray-400">Wszystkie opinie</p>
+                      <div id="wedding-testimonials-all" class="space-y-2"></div>
                     </div>
                     <div class="space-y-2">
                       <p class="text-[10px] uppercase tracking-widest text-gray-400">Wybrane (przeciągnij, aby zmienić kolejność)</p>
-                      <div id="portfolio-galleries-selected" class="space-y-2"></div>
+                      <div id="wedding-testimonials-selected" class="space-y-2"></div>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <div id="portfolio-details-section" class="space-y-4">
+                <div class="space-y-4" data-details-item data-details-title="Portfolio">
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p class="text-xs text-gray-400">Wybierz zdjęcia z biblioteki mediów i ustaw ich kolejność</p>
+                    </div>
+                    <span id="portfolio-media-count" class="text-xs uppercase tracking-widest text-gray-400">0</span>
+                  </div>
+                  <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex flex-wrap gap-2">
+                      <button data-portfolio-tag="all" class="px-3 py-1 text-xs rounded-full border border-gray-200 dark:border-white/10 uppercase tracking-widest">Wszystkie</button>
+                      <button data-portfolio-tag="wedding" class="px-3 py-1 text-xs rounded-full border border-gray-200 dark:border-white/10 uppercase tracking-widest">Ślubne</button>
+                      <button data-portfolio-tag="portrait" class="px-3 py-1 text-xs rounded-full border border-gray-200 dark:border-white/10 uppercase tracking-widest">Portretowe</button>
+                      <button data-portfolio-tag="product" class="px-3 py-1 text-xs rounded-full border border-gray-200 dark:border-white/10 uppercase tracking-widest">Produktowe</button>
+                      <button data-portfolio-tag="other" class="px-3 py-1 text-xs rounded-full border border-gray-200 dark:border-white/10 uppercase tracking-widest">Inne</button>
+                    </div>
+                    <input id="portfolio-media-filter" type="text" placeholder="Szukaj zdjęcia" class="w-56 max-w-full rounded-full border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 px-4 py-1.5 text-xs uppercase tracking-widest text-gray-600 dark:text-gray-200 placeholder-gray-400 focus:border-gold focus:outline-none" />
+                  </div>
+                  <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div class="space-y-2">
+                      <p class="text-[10px] uppercase tracking-widest text-gray-400">Wszystkie zdjęcia</p>
+                      <div id="portfolio-media-all" class="space-y-2"></div>
+                    </div>
+                    <div class="space-y-2">
+                      <p class="text-[10px] uppercase tracking-widest text-gray-400">Wybrane (przeciągnij, aby zmienić kolejność)</p>
+                      <div id="portfolio-media-selected" class="space-y-2"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="about-details-section" class="space-y-4">
+                <div class="space-y-4" data-details-item data-details-title="Pierwsze trzy zdjęcia">
+                  ${renderImageListSection('about_origin_images', 'Pierwsze trzy zdjęcia', { showLabel: false })}
+                </div>
+
+                <div class="space-y-4" data-details-item data-details-title="Trzy zdjęcia z podpisami">
+                  ${renderImageListSection('about_story_images', 'Trzy zdjęcia z podpisami', { showLabel: false })}
+                  ${renderCaptionListSection('about_story_caption', 'Podpisy pod zdjęciami', page.about_story_captions || [])}
+                </div>
+
+                <div class="space-y-4" data-details-item data-details-title="Drugie trzy zdjęcia">
+                  ${renderImageListSection('about_work_images', 'Drugie trzy zdjęcia', { showLabel: false })}
+                </div>
+              </div>
+
+              <div id="faq-details-section" class="space-y-4" data-details-item data-details-title="FAQ">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p class="text-xs text-gray-400">Dodawaj, usuwaj i edytuj pytania z odpowiedziami</p>
+                  </div>
+                  <button type="button" id="add-faq-item" class="rounded bg-gray-200 px-3 py-1.5 text-xs uppercase tracking-widest text-gray-900 transition-colors hover:bg-gray-300 dark:bg-white/10 dark:text-white dark:hover:bg-white/20">Dodaj pytanie</button>
+                </div>
+                <div id="faq-items" class="space-y-3">
+                  ${renderFaqItems(page.faq_items)}
                 </div>
               </div>
 
@@ -1488,14 +2401,112 @@ window.editPage = async (id) => {
 
             ${seoSection}
 
-            <div class="pt-4 border-t border-gray-200 dark:border-white/10 flex justify-end">
-                <button type="submit" class="bg-gold text-black px-6 py-2 rounded font-bold hover:bg-gold-hover transition-colors">Zapisz zmiany</button>
-            </div>
         </form>
     `;
 
   openModal('Edycja strony', html);
+  setModalPrimaryAction(() => {
+    const form = document.getElementById('page-form');
+    if (form) form.requestSubmit();
+  });
   initTinyMCE();
+
+  const initFaqWysiwygEditors = () => {
+    if (!window.tinymce) return;
+    const isDark = document.documentElement.classList.contains('dark');
+    document.querySelectorAll('.faq-answer-panel:not(.hidden) .faq-wysiwyg').forEach((textarea) => {
+      if (!textarea.id || tinymce.get(textarea.id)) return;
+      tinymce.init({
+        target: textarea,
+        height: 220,
+        skin: isDark ? 'oxide-dark' : 'oxide',
+        content_css: isDark ? 'dark' : 'default',
+        promotion: false,
+        branding: false,
+        menubar: false,
+        plugins: 'link lists',
+        toolbar:
+          'undo redo | blocks | bold italic underline | bullist numlist | link | removeformat',
+        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+      });
+    });
+  };
+  initFaqWysiwygEditors();
+
+  const renderFaqRows = (faqItems, openIndexes = new Set()) => {
+    const faqContainer = document.getElementById('faq-items');
+    if (!faqContainer) return;
+
+    document.querySelectorAll('.faq-wysiwyg').forEach((textarea) => {
+      if (textarea.id) {
+        const instance = tinymce.get(textarea.id);
+        if (instance) instance.remove();
+      }
+    });
+
+    const normalizedOpenIndexes = normalizeFaqOpenIndexes(openIndexes, faqItems.length);
+    faqContainer.innerHTML = renderFaqItems(faqItems, normalizedOpenIndexes);
+    initFaqWysiwygEditors();
+  };
+
+  let faqItems = [...(page.faq_items || [])];
+  let faqOpenIndexes = new Set();
+  const addFaqButton = document.getElementById('add-faq-item');
+  if (addFaqButton) {
+    addFaqButton.addEventListener('click', () => {
+      faqItems = collectFaqItemsFromDom();
+      faqItems.push({ question: '', answer: '' });
+      faqOpenIndexes = new Set([faqItems.length - 1]);
+      renderFaqRows(faqItems, faqOpenIndexes);
+    });
+  }
+
+  const faqContainer = document.getElementById('faq-items');
+  if (faqContainer) {
+    faqContainer.addEventListener('click', (event) => {
+      const toggleButton = event.target.closest('[data-toggle-faq]');
+      if (toggleButton) {
+        const index = Number(toggleButton.getAttribute('data-toggle-faq'));
+        const panel = faqContainer.querySelector(`[data-faq-panel="${index}"]`);
+        if (Number.isNaN(index) || !panel) return;
+        const isHidden = panel.classList.contains('hidden');
+        panel.classList.toggle('hidden', !isHidden);
+        toggleButton.setAttribute('aria-expanded', String(isHidden));
+        toggleButton.textContent = isHidden ? 'Zwiń' : 'Rozwiń';
+        if (isHidden) initFaqWysiwygEditors();
+        if (isHidden) {
+          faqOpenIndexes.add(index);
+        } else {
+          faqOpenIndexes.delete(index);
+        }
+        return;
+      }
+
+      const moveButton = event.target.closest('[data-move-faq]');
+      if (moveButton) {
+        faqItems = collectFaqItemsFromDom();
+        const direction = moveButton.getAttribute('data-move-faq');
+        const index = Number(moveButton.getAttribute('data-faq-index'));
+        if (Number.isNaN(index)) return;
+        const targetIndex = direction === 'up' ? index - 1 : index + 1;
+        if (targetIndex < 0 || targetIndex >= faqItems.length) return;
+        const [movedItem] = faqItems.splice(index, 1);
+        faqItems.splice(targetIndex, 0, movedItem);
+        faqOpenIndexes = moveFaqOpenIndex(faqOpenIndexes, index, targetIndex);
+        renderFaqRows(faqItems, faqOpenIndexes);
+        return;
+      }
+
+      const removeButton = event.target.closest('[data-remove-faq]');
+      if (!removeButton) return;
+      const index = Number(removeButton.getAttribute('data-remove-faq'));
+      if (Number.isNaN(index)) return;
+      faqItems = collectFaqItemsFromDom();
+      faqItems.splice(index, 1);
+      faqOpenIndexes = removeFaqOpenIndex(faqOpenIndexes, index);
+      renderFaqRows(faqItems, faqOpenIndexes);
+    });
+  }
   applySeoUseHeroState();
   initMetaCounters();
 
@@ -1543,17 +2554,116 @@ window.editPage = async (id) => {
     });
   };
 
-  ['hero_image', 'home_hero_logo', 'home_moments_image', 'home_latest_moments_bg'].forEach(
-    (inputId) => {
-      bindImageUpload(inputId);
-    },
-  );
+  ['hero_image', 'seo_image', 'home_moments_image', 'home_latest_moments_bg'].forEach((inputId) => {
+    bindImageUpload(inputId);
+  });
 
   const imageLists = {
     home_gallery_wedding_images: [...(page.home_gallery_wedding_images || [])],
     home_gallery_portrait_images: [...(page.home_gallery_portrait_images || [])],
     home_gallery_product_images: [...(page.home_gallery_product_images || [])],
     wedding_slider_images: [...(page.wedding_slider_images || [])],
+    about_origin_images: [...(page.about_origin_images || [])],
+    about_story_images: [...(page.about_story_images || [])],
+    about_work_images: [...(page.about_work_images || [])],
+  };
+  let weddingSessionTypes = (page.wedding_session_types || []).map((item) => ({ ...item }));
+
+  const collectWeddingSessionTypesFromDom = () => {
+    const rows = Array.from(document.querySelectorAll('.wedding-session-type-row'));
+    return rows
+      .map((row) => ({
+        title: row.querySelector('.wedding-session-type-title')?.value?.trim() || '',
+        description: row.querySelector('.wedding-session-type-description')?.value?.trim() || '',
+        image: row.querySelector('.wedding-session-type-image')?.value?.trim() || '',
+        items: (row.querySelector('.wedding-session-type-items')?.value?.trim() || '')
+          .split('\n')
+          .map((item) => item.trim())
+          .filter(Boolean),
+      }))
+      .filter((item) => item.title || item.description || item.image);
+  };
+
+  const renderWeddingSessionTypes = () => {
+    const container = document.getElementById('wedding-session-types-list');
+    if (!container) return;
+
+    if (!weddingSessionTypes.length) {
+      container.innerHTML = `
+        <div class="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-gray-400 dark:border-white/10">
+          Brak Session Types. Dodaj pierwszy blok, aby pojawił się na stronie Wedding Photography.
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = weddingSessionTypes
+      .map((item, index) => {
+        const hasImage = Boolean(item.image);
+        return `
+          <div class="wedding-session-type-row rounded-lg border border-gray-200 p-4 dark:border-white/10" data-session-type-index="${index}">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p class="text-[10px] font-bold uppercase tracking-widest text-gray-500">Session Type #${index + 1}</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button type="button" class="rounded border border-gray-200 px-2 py-1 text-[10px] uppercase tracking-widest text-gray-600 transition-colors hover:border-gold hover:text-gold disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:text-gray-300" data-move-session-type="up" data-session-type-index="${index}" ${index === 0 ? 'disabled' : ''}>Góra</button>
+                <button type="button" class="rounded border border-gray-200 px-2 py-1 text-[10px] uppercase tracking-widest text-gray-600 transition-colors hover:border-gold hover:text-gold disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:text-gray-300" data-move-session-type="down" data-session-type-index="${index}" ${index === weddingSessionTypes.length - 1 ? 'disabled' : ''}>Dół</button>
+                <button type="button" class="text-xs uppercase tracking-widest text-red-500" data-remove-session-type="${index}">Usuń</button>
+              </div>
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+              <div class="space-y-3">
+                <label class="text-[10px] font-bold uppercase tracking-widest text-gray-500">Zdjęcie</label>
+                <div>
+                  <div class="${hasImage ? 'hidden' : ''} rounded-lg border-2 border-dashed border-gray-300 p-6 text-center text-gray-400 transition-colors hover:border-gold hover:text-gold dark:border-white/10">
+                    <div class="flex flex-col items-center justify-center gap-3 text-center">
+                      <p class="text-sm">Wybierz z biblioteki lub dodaj z komputera</p>
+                      <div class="flex flex-wrap gap-2">
+                        <button type="button" class="rounded bg-gray-200 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-300 dark:bg-white/10 dark:text-white dark:hover:bg-white/20" data-pick-session-image="${index}">Wybierz z biblioteki</button>
+                        <button type="button" class="rounded bg-gray-100 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10" data-upload-session-image="${index}">Dodaj z komputera</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="${hasImage ? '' : 'hidden'}">
+                    ${getAdminImageMarkup(item.image || '', {
+                      alt: item.title || `Session Type ${index + 1}`,
+                      className:
+                        'h-56 w-full rounded-lg border border-gray-200 object-cover dark:border-white/10',
+                      placeholderClass:
+                        'flex h-56 w-full items-center justify-center rounded-lg border border-gray-200 bg-gray-100 px-4 text-center text-gray-500 dark:border-white/10 dark:bg-black/40 dark:text-gray-400',
+                      label: 'Brak zdjęcia session type',
+                    })}
+                    <div class="mt-3 flex flex-wrap gap-2">
+                      <button type="button" class="rounded bg-gray-200 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-300 dark:bg-white/10 dark:text-white dark:hover:bg-white/20" data-pick-session-image="${index}">Zmień</button>
+                      <button type="button" class="rounded bg-gray-100 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10" data-clear-session-image="${index}">Usuń</button>
+                    </div>
+                  </div>
+                  <input type="text" class="hidden wedding-session-type-image" value="${escapeHtml(item.image || '')}" />
+                  <input type="file" class="hidden" accept="image/*" data-session-type-upload-input="${index}" />
+                </div>
+              </div>
+
+              <div class="space-y-4">
+                <div class="space-y-2">
+                  <label class="text-[10px] font-bold uppercase tracking-widest text-gray-500">Tytuł</label>
+                  <input type="text" class="wedding-session-type-title w-full rounded border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 outline-none focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white" value="${escapeHtml(item.title || '')}" />
+                </div>
+                <div class="space-y-2">
+                  <label class="text-[10px] font-bold uppercase tracking-widest text-gray-500">Opis</label>
+                  <textarea class="wedding-session-type-description min-h-[96px] w-full rounded border border-gray-300 bg-gray-50 p-3 text-sm leading-relaxed text-gray-900 outline-none focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white">${escapeHtml(item.description || '')}</textarea>
+                </div>
+                <div class="space-y-2">
+                  <label class="text-[10px] font-bold uppercase tracking-widest text-gray-500">Punkty listy (każda linia osobno)</label>
+                  <textarea class="wedding-session-type-items min-h-[120px] w-full rounded border border-gray-300 bg-gray-50 p-3 text-sm leading-relaxed text-gray-900 outline-none focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white" placeholder="Punkt 1&#10;Punkt 2&#10;Punkt 3">${escapeHtml((item.items || []).join('\n'))}</textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      })
+      .join('');
   };
 
   const renderImageList = (listId) => {
@@ -1574,7 +2684,13 @@ window.editPage = async (id) => {
       .map(
         (url, index) => `
         <div class="group relative aspect-square overflow-hidden rounded border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-black/40" data-url="${url}">
-          <img src="${resolveUploadsUrl(url)}" class="h-full w-full object-cover" />
+          ${getAdminImageMarkup(url, {
+            alt: `Obraz ${index + 1}`,
+            className: 'h-full w-full object-cover',
+            placeholderClass:
+              'flex h-full w-full items-center justify-center bg-gray-100 px-4 text-center text-gray-500 dark:bg-black/40 dark:text-gray-400',
+            label: 'Brak obrazu',
+          })}
           <div class="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
             <button type="button" class="rounded bg-red-500/80 px-3 py-1 text-xs uppercase tracking-widest text-white" data-remove-index="${index}" data-list-id="${listId}">Usuń</button>
           </div>
@@ -1616,12 +2732,16 @@ window.editPage = async (id) => {
     button.addEventListener('click', async (event) => {
       const listId = event.currentTarget.getAttribute('data-add-library');
       if (!listId) return;
-      const url = await openMediaPicker();
-      if (!url) return;
-      if (!imageLists[listId].includes(url)) {
-        imageLists[listId].push(url);
-        renderImageList(listId);
-      }
+      const urls = await openMediaPicker({ multiple: true });
+      if (!Array.isArray(urls) || urls.length === 0) return;
+      let hasChanges = false;
+      urls.forEach((url) => {
+        if (!imageLists[listId].includes(url)) {
+          imageLists[listId].push(url);
+          hasChanges = true;
+        }
+      });
+      if (hasChanges) renderImageList(listId);
     });
   });
 
@@ -1657,13 +2777,20 @@ window.editPage = async (id) => {
     });
   });
 
-  const galleryById = new Map((galleries || []).map((g) => [g.id, g]));
+  const galleryById = new Map(publishedGalleries.map((g) => [g.id, g]));
+  const testimonialById = new Map(publishedTestimonials.map((t) => [t.id, t]));
   let latestGalleryIds = (page.home_latest_gallery_ids || []).filter((id) => galleryById.has(id));
   let homeTestimonialIds = (page.home_testimonial_ids || []).filter((id) =>
-    (testimonials || []).some((t) => t.id === id),
+    testimonialById.has(id),
   );
-  let portfolioGalleryIds = (page.portfolio_gallery_ids || []).filter((id) => galleryById.has(id));
-  let portfolioCategory = 'all';
+  let weddingTestimonialIds = (page.wedding_testimonial_ids || []).filter((id) =>
+    testimonialById.has(id),
+  );
+  const mediaByUrl = new Map((mediaFiles || []).map((file) => [file.url, file]));
+  let portfolioMediaUrls = (page.portfolio_gallery_ids || [])
+    .map((item) => String(item || '').trim())
+    .filter((url) => mediaByUrl.has(url));
+  let portfolioTag = 'all';
   let portfolioQuery = '';
 
   const renderLatestGalleries = () => {
@@ -1673,7 +2800,7 @@ window.editPage = async (id) => {
     if (!allContainer || !selectedContainer) return;
     if (countEl) countEl.textContent = `${latestGalleryIds.length} / 6`;
 
-    allContainer.innerHTML = (galleries || [])
+    allContainer.innerHTML = publishedGalleries
       .map((gallery) => {
         const isSelected = latestGalleryIds.includes(gallery.id);
         const disabled = isSelected || latestGalleryIds.length >= 6;
@@ -1737,7 +2864,7 @@ window.editPage = async (id) => {
     if (!allContainer || !selectedContainer) return;
     if (countEl) countEl.textContent = `${homeTestimonialIds.length}`;
 
-    allContainer.innerHTML = (testimonials || [])
+    allContainer.innerHTML = publishedTestimonials
       .map((t) => {
         const isSelected = homeTestimonialIds.includes(t.id);
         return `
@@ -1762,7 +2889,7 @@ window.editPage = async (id) => {
 
     selectedContainer.innerHTML = homeTestimonialIds
       .map((id) => {
-        const t = (testimonials || []).find((item) => item.id === id);
+        const t = testimonialById.get(id);
         if (!t) return '';
         return `
           <div class="flex items-center gap-3 rounded border border-gray-200 dark:border-white/10 bg-white/70 px-3 py-2 text-sm text-gray-700 dark:bg-black/30 dark:text-gray-200" data-selected-testimonial="${id}">
@@ -1797,61 +2924,54 @@ window.editPage = async (id) => {
     }
   };
 
-  renderLatestGalleries();
-  renderTestimonialsPicker();
-
-  const renderPortfolioPicker = () => {
-    const allContainer = document.getElementById('portfolio-galleries-all');
-    const selectedContainer = document.getElementById('portfolio-galleries-selected');
-    const countEl = document.getElementById('portfolio-galleries-count');
-    const filterInput = document.getElementById('portfolio-galleries-filter');
+  const renderWeddingTestimonialsPicker = () => {
+    const allContainer = document.getElementById('wedding-testimonials-all');
+    const selectedContainer = document.getElementById('wedding-testimonials-selected');
+    const countEl = document.getElementById('wedding-testimonials-count');
     if (!allContainer || !selectedContainer) return;
-    if (countEl) countEl.textContent = `${portfolioGalleryIds.length}`;
-    if (filterInput) filterInput.value = portfolioQuery;
+    if (countEl) countEl.textContent = `${weddingTestimonialIds.length}`;
 
-    const filtered = (galleries || []).filter((gallery) => {
-      if (portfolioCategory !== 'all' && gallery.category !== portfolioCategory) return false;
-      if (!portfolioQuery) return true;
-      return `${gallery.name || ''}`.toLowerCase().includes(portfolioQuery.toLowerCase());
-    });
-
-    allContainer.innerHTML = filtered
-      .map((gallery) => {
-        const isSelected = portfolioGalleryIds.includes(gallery.id);
-        const thumb = gallery.cover_image || gallery.items?.[0]?.image_path || '';
-        const thumbUrl = thumb ? resolveUploadsUrl(thumb) : '';
+    allContainer.innerHTML = publishedTestimonials
+      .map((t) => {
+        const isSelected = weddingTestimonialIds.includes(t.id);
         return `
           <button type="button" class="flex w-full items-center gap-3 rounded border border-gray-200 dark:border-white/10 bg-white/70 px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:border-gold dark:bg-black/30 dark:text-gray-200 ${
             isSelected ? 'opacity-40 cursor-not-allowed' : ''
-          }" data-add-portfolio-gallery="${gallery.id}" ${isSelected ? 'disabled' : ''}>
-            <div class="h-12 w-12 flex-shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-black/40">
-              ${thumbUrl ? `<img src="${thumbUrl}" class="h-full w-full object-cover" />` : ''}
+          }" data-add-wedding-testimonial="${t.id}" ${isSelected ? 'disabled' : ''}>
+            <div class="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-black/40">
+              ${
+                t.avatar_image
+                  ? `<img src="${resolveUploadsUrl(t.avatar_image)}" class="h-full w-full object-cover" />`
+                  : ''
+              }
             </div>
             <div>
-              <p class="font-medium">${gallery.name || 'Bez nazwy'}</p>
-              <p class="text-xs text-gray-400">${CATEGORY_MAP[gallery.category] || gallery.category}</p>
+              <p class="font-medium">${t.author || 'Bez autora'}</p>
+              <p class="text-xs text-gray-400">${t.content ? t.content.slice(0, 40) + '…' : 'Brak treści'}</p>
             </div>
           </button>
         `;
       })
       .join('');
 
-    selectedContainer.innerHTML = portfolioGalleryIds
+    selectedContainer.innerHTML = weddingTestimonialIds
       .map((id) => {
-        const gallery = galleryById.get(id);
-        if (!gallery) return '';
-        const thumb = gallery.cover_image || gallery.items?.[0]?.image_path || '';
-        const thumbUrl = thumb ? resolveUploadsUrl(thumb) : '';
+        const t = testimonialById.get(id);
+        if (!t) return '';
         return `
-          <div class="flex items-center gap-3 rounded border border-gray-200 dark:border-white/10 bg-white/70 px-3 py-2 text-sm text-gray-700 dark:bg-black/30 dark:text-gray-200" data-selected-portfolio-gallery="${id}">
-            <div class="h-12 w-12 flex-shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-black/40">
-              ${thumbUrl ? `<img src="${thumbUrl}" class="h-full w-full object-cover" />` : ''}
+          <div class="flex items-center gap-3 rounded border border-gray-200 dark:border-white/10 bg-white/70 px-3 py-2 text-sm text-gray-700 dark:bg-black/30 dark:text-gray-200" data-selected-wedding-testimonial="${id}">
+            <div class="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-black/40">
+              ${
+                t.avatar_image
+                  ? `<img src="${resolveUploadsUrl(t.avatar_image)}" class="h-full w-full object-cover" />`
+                  : ''
+              }
             </div>
             <div class="flex-1">
-              <p class="font-medium">${gallery.name || 'Bez nazwy'}</p>
-              <p class="text-xs text-gray-400">${CATEGORY_MAP[gallery.category] || gallery.category}</p>
+              <p class="font-medium">${t.author || 'Bez autora'}</p>
+              <p class="text-xs text-gray-400">${t.content ? t.content.slice(0, 40) + '…' : 'Brak treści'}</p>
             </div>
-            <button type="button" class="text-xs uppercase tracking-widest text-red-500" data-remove-portfolio-gallery="${id}">Usuń</button>
+            <button type="button" class="text-xs uppercase tracking-widest text-red-500" data-remove-wedding-testimonial="${id}">Usuń</button>
           </div>
         `;
       })
@@ -1861,22 +2981,220 @@ window.editPage = async (id) => {
       Sortable.create(selectedContainer, {
         animation: 150,
         onEnd: () => {
-          portfolioGalleryIds = Array.from(selectedContainer.children)
-            .map((child) => Number(child.dataset.selectedPortfolioGallery))
+          weddingTestimonialIds = Array.from(selectedContainer.children)
+            .map((child) => Number(child.dataset.selectedWeddingTestimonial))
             .filter((id) => !Number.isNaN(id));
-          renderPortfolioPicker();
+          renderWeddingTestimonialsPicker();
+        },
+      });
+      selectedContainer.dataset.sortable = 'true';
+    }
+  };
+
+  renderLatestGalleries();
+  renderTestimonialsPicker();
+  renderWeddingTestimonialsPicker();
+  renderWeddingSessionTypes();
+
+  const addWeddingSessionTypeButton = document.getElementById('add-wedding-session-type');
+  if (addWeddingSessionTypeButton) {
+    addWeddingSessionTypeButton.addEventListener('click', () => {
+      weddingSessionTypes = collectWeddingSessionTypesFromDom();
+      weddingSessionTypes.push({ title: '', description: '', image: '', items: [] });
+      renderWeddingSessionTypes();
+    });
+  }
+
+  const weddingSessionTypesContainer = document.getElementById('wedding-session-types-list');
+  if (weddingSessionTypesContainer) {
+    weddingSessionTypesContainer.addEventListener('input', (event) => {
+      const row = event.target.closest('.wedding-session-type-row');
+      if (!row) return;
+      const index = Number(row.getAttribute('data-session-type-index'));
+      if (Number.isNaN(index) || !weddingSessionTypes[index]) return;
+      if (event.target.classList.contains('wedding-session-type-title')) {
+        weddingSessionTypes[index].title = event.target.value;
+      }
+      if (event.target.classList.contains('wedding-session-type-description')) {
+        weddingSessionTypes[index].description = event.target.value;
+      }
+      if (event.target.classList.contains('wedding-session-type-image')) {
+        weddingSessionTypes[index].image = event.target.value;
+      }
+      if (event.target.classList.contains('wedding-session-type-items')) {
+        weddingSessionTypes[index].items = event.target.value
+          .split('\n')
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+    });
+
+    weddingSessionTypesContainer.addEventListener('click', async (event) => {
+      const removeButton = event.target.closest('[data-remove-session-type]');
+      if (removeButton) {
+        weddingSessionTypes = collectWeddingSessionTypesFromDom();
+        const index = Number(removeButton.getAttribute('data-remove-session-type'));
+        if (!Number.isNaN(index)) {
+          weddingSessionTypes.splice(index, 1);
+          renderWeddingSessionTypes();
+        }
+        return;
+      }
+
+      const moveButton = event.target.closest('[data-move-session-type]');
+      if (moveButton) {
+        weddingSessionTypes = collectWeddingSessionTypesFromDom();
+        const direction = moveButton.getAttribute('data-move-session-type');
+        const index = Number(moveButton.getAttribute('data-session-type-index'));
+        const nextIndex = direction === 'up' ? index - 1 : index + 1;
+        if (!Number.isNaN(index) && nextIndex >= 0 && nextIndex < weddingSessionTypes.length) {
+          const [moved] = weddingSessionTypes.splice(index, 1);
+          weddingSessionTypes.splice(nextIndex, 0, moved);
+          renderWeddingSessionTypes();
+        }
+        return;
+      }
+
+      const pickButton = event.target.closest('[data-pick-session-image]');
+      if (pickButton) {
+        weddingSessionTypes = collectWeddingSessionTypesFromDom();
+        const index = Number(pickButton.getAttribute('data-pick-session-image'));
+        if (Number.isNaN(index)) return;
+        const url = await openMediaPicker();
+        if (url) {
+          weddingSessionTypes[index].image = url;
+          renderWeddingSessionTypes();
+        }
+        return;
+      }
+
+      const clearButton = event.target.closest('[data-clear-session-image]');
+      if (clearButton) {
+        weddingSessionTypes = collectWeddingSessionTypesFromDom();
+        const index = Number(clearButton.getAttribute('data-clear-session-image'));
+        if (Number.isNaN(index)) return;
+        weddingSessionTypes[index].image = '';
+        renderWeddingSessionTypes();
+        return;
+      }
+
+      const uploadButton = event.target.closest('[data-upload-session-image]');
+      if (uploadButton) {
+        const index = Number(uploadButton.getAttribute('data-upload-session-image'));
+        if (Number.isNaN(index)) return;
+        weddingSessionTypesContainer
+          .querySelector(`[data-session-type-upload-input="${index}"]`)
+          ?.click();
+      }
+    });
+
+    weddingSessionTypesContainer.addEventListener('change', async (event) => {
+      const uploadInput = event.target.closest('[data-session-type-upload-input]');
+      if (!uploadInput) return;
+      const index = Number(uploadInput.getAttribute('data-session-type-upload-input'));
+      const file = event.target.files?.[0];
+      if (Number.isNaN(index) || !file) return;
+      try {
+        updateUploadToast({
+          title: 'Przesyłanie',
+          message: `Wysyłanie: ${file.name}`,
+          percent: 0,
+          visible: true,
+        });
+        const result = await uploadFileWithResolution(file, (ratio) => {
+          updateUploadToast({
+            message: `Wysyłanie: ${file.name}`,
+            percent: Math.round(ratio * 100),
+          });
+        });
+        updateUploadToast({ title: 'Gotowe', message: 'Plik przesłany.', percent: 100 });
+        setTimeout(() => updateUploadToast({ visible: false }), 1500);
+        weddingSessionTypes = collectWeddingSessionTypesFromDom();
+        if (result?.url) {
+          weddingSessionTypes[index].image = result.url;
+          renderWeddingSessionTypes();
+        }
+      } catch (err) {
+        updateUploadToast({ title: 'Błąd', message: 'Nie udało się przesłać pliku.', percent: 0 });
+        setTimeout(() => updateUploadToast({ visible: false }), 2500);
+      }
+      event.target.value = '';
+    });
+  }
+
+  const renderPortfolioPicker = () => {
+    const allContainer = document.getElementById('portfolio-media-all');
+    const selectedContainer = document.getElementById('portfolio-media-selected');
+    const countEl = document.getElementById('portfolio-media-count');
+    const filterInput = document.getElementById('portfolio-media-filter');
+    if (!allContainer || !selectedContainer) return;
+    if (countEl) countEl.textContent = `${portfolioMediaUrls.length}`;
+    if (filterInput) filterInput.value = portfolioQuery;
+
+    const filtered = (mediaFiles || []).filter((file) => {
+      if (portfolioTag !== 'all' && file.tag !== portfolioTag) return false;
+      if (!portfolioQuery) return true;
+      const haystack = `${file.name || ''} ${file.url || ''}`.toLowerCase();
+      return haystack.includes(portfolioQuery.toLowerCase());
+    });
+
+    allContainer.innerHTML = filtered
+      .map((file) => {
+        const isSelected = portfolioMediaUrls.includes(file.url);
+        return `
+          <button type="button" class="flex w-full items-center gap-3 rounded border border-gray-200 dark:border-white/10 bg-white/70 px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:border-gold dark:bg-black/30 dark:text-gray-200 ${
+            isSelected ? 'opacity-40 cursor-not-allowed' : ''
+          }" data-add-portfolio-media="${file.url}" ${isSelected ? 'disabled' : ''}>
+            <div class="h-12 w-12 flex-shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-black/40">
+              <img src="${resolveUploadsUrl(file.url)}" class="h-full w-full object-cover" />
+            </div>
+            <div>
+              <p class="font-medium">${file.name || 'Bez nazwy'}</p>
+              <p class="text-xs text-gray-400">Tag: ${file.tag || 'other'}</p>
+            </div>
+          </button>
+        `;
+      })
+      .join('');
+
+    selectedContainer.innerHTML = portfolioMediaUrls
+      .map((url) => {
+        const file = mediaByUrl.get(url);
+        if (!file) return '';
+        return `
+          <div class="flex items-center gap-3 rounded border border-gray-200 dark:border-white/10 bg-white/70 px-3 py-2 text-sm text-gray-700 dark:bg-black/30 dark:text-gray-200" data-selected-portfolio-media="${url}">
+            <div class="h-12 w-12 flex-shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-black/40">
+              <img src="${resolveUploadsUrl(file.url)}" class="h-full w-full object-cover" />
+            </div>
+            <div class="flex-1">
+              <p class="font-medium">${file.name || 'Bez nazwy'}</p>
+              <p class="text-xs text-gray-400">Tag: ${file.tag || 'other'}</p>
+            </div>
+            <button type="button" class="text-xs uppercase tracking-widest text-red-500" data-remove-portfolio-media="${url}">Usuń</button>
+          </div>
+        `;
+      })
+      .join('');
+
+    if (!selectedContainer.dataset.sortable) {
+      Sortable.create(selectedContainer, {
+        animation: 150,
+        onEnd: () => {
+          portfolioMediaUrls = Array.from(selectedContainer.children)
+            .map((child) => child.dataset.selectedPortfolioMedia)
+            .filter(Boolean);
         },
       });
       selectedContainer.dataset.sortable = 'true';
     }
 
-    document.querySelectorAll('[data-portfolio-category]').forEach((button) => {
-      const value = button.getAttribute('data-portfolio-category');
-      button.classList.toggle('bg-gold', portfolioCategory === value);
-      button.classList.toggle('text-black', portfolioCategory === value);
-      button.classList.toggle('border-gold', portfolioCategory === value);
-      button.classList.toggle('text-gray-500', portfolioCategory !== value);
-      button.classList.toggle('dark:text-gray-300', portfolioCategory !== value);
+    document.querySelectorAll('[data-portfolio-tag]').forEach((button) => {
+      const value = button.getAttribute('data-portfolio-tag');
+      button.classList.toggle('bg-gold', portfolioTag === value);
+      button.classList.toggle('text-black', portfolioTag === value);
+      button.classList.toggle('border-gold', portfolioTag === value);
+      button.classList.toggle('text-gray-500', portfolioTag !== value);
+      button.classList.toggle('dark:text-gray-300', portfolioTag !== value);
     });
   };
 
@@ -1930,17 +3248,97 @@ window.editPage = async (id) => {
     });
   }
 
+  const weddingTestimonialsAllContainer = document.getElementById('wedding-testimonials-all');
+  if (weddingTestimonialsAllContainer) {
+    weddingTestimonialsAllContainer.addEventListener('click', (event) => {
+      const addTestimonial = event.target.closest('[data-add-wedding-testimonial]');
+      if (!addTestimonial) return;
+      const id = Number(addTestimonial.getAttribute('data-add-wedding-testimonial'));
+      if (!Number.isNaN(id) && !weddingTestimonialIds.includes(id)) {
+        weddingTestimonialIds.push(id);
+        renderWeddingTestimonialsPicker();
+      }
+    });
+  }
+
+  const weddingTestimonialsSelectedContainer = document.getElementById(
+    'wedding-testimonials-selected',
+  );
+  if (weddingTestimonialsSelectedContainer) {
+    weddingTestimonialsSelectedContainer.addEventListener('click', (event) => {
+      const removeTestimonial = event.target.closest('[data-remove-wedding-testimonial]');
+      if (!removeTestimonial) return;
+      const id = Number(removeTestimonial.getAttribute('data-remove-wedding-testimonial'));
+      weddingTestimonialIds = weddingTestimonialIds.filter((item) => item !== id);
+      renderWeddingTestimonialsPicker();
+    });
+  }
+
   const applyHomeContentVisibility = () => {
     const contentSection = document.getElementById('content-section');
     const homeDetailsSection = document.getElementById('home-details-section');
     const weddingDetailsSection = document.getElementById('wedding-details-section');
     const portfolioDetailsSection = document.getElementById('portfolio-details-section');
+    const aboutDetailsSection = document.getElementById('about-details-section');
+    const faqDetailsSection = document.getElementById('faq-details-section');
     if (contentSection)
-      contentSection.classList.toggle('hidden', isHomePage || isWeddingPage || isPortfolioPage);
+      contentSection.classList.toggle(
+        'hidden',
+        isHomePage || isWeddingPage || isPortfolioPage || isAboutPage,
+      );
     if (homeDetailsSection) homeDetailsSection.classList.toggle('hidden', !isHomePage);
     if (weddingDetailsSection) weddingDetailsSection.classList.toggle('hidden', !isWeddingPage);
     if (portfolioDetailsSection)
       portfolioDetailsSection.classList.toggle('hidden', !isPortfolioPage);
+    if (aboutDetailsSection) aboutDetailsSection.classList.toggle('hidden', !isAboutPage);
+    if (faqDetailsSection) faqDetailsSection.classList.toggle('hidden', !isLandingFaqPage);
+  };
+
+  const initDetailsAccordions = () => {
+    const items = Array.from(document.querySelectorAll('[data-details-item]'));
+    items.forEach((item, index) => {
+      if (item.dataset.accordionReady === 'true') return;
+
+      const sectionTitle = item.dataset.detailsTitle || `Sekcja ${index + 1}`;
+      const panel = document.createElement('div');
+      panel.className = 'details-accordion-panel mt-4 hidden space-y-4';
+      panel.id = `details-accordion-panel-${index}`;
+
+      while (item.firstChild) {
+        panel.appendChild(item.firstChild);
+      }
+
+      const trigger = document.createElement('button');
+      trigger.type = 'button';
+      trigger.className =
+        'details-accordion-trigger flex w-full items-center justify-between gap-3 rounded border border-gray-200 bg-gray-50/60 px-4 py-3 text-left transition-colors hover:border-gold dark:border-white/10 dark:bg-black/20';
+      trigger.setAttribute('aria-expanded', 'false');
+      trigger.setAttribute('aria-controls', panel.id);
+      trigger.innerHTML = `
+        <span class="text-xs font-bold uppercase tracking-widest text-gray-600 dark:text-gray-200">${sectionTitle}</span>
+        <span class="text-base text-gold" data-accordion-icon>+</span>
+      `;
+
+      trigger.addEventListener('click', () => {
+        const isOpen = !panel.classList.contains('hidden');
+        panel.classList.toggle('hidden', isOpen);
+        trigger.setAttribute('aria-expanded', String(!isOpen));
+        const icon = trigger.querySelector('[data-accordion-icon]');
+        if (icon) icon.textContent = isOpen ? '+' : '−';
+      });
+
+      item.classList.add('rounded-lg');
+      item.appendChild(trigger);
+      item.appendChild(panel);
+      item.dataset.accordionReady = 'true';
+    });
+
+    const firstVisibleTrigger = document.querySelector(
+      '[data-details-item]:not(.hidden) .details-accordion-trigger',
+    );
+    if (firstVisibleTrigger instanceof HTMLElement) {
+      firstVisibleTrigger.click();
+    }
   };
 
   const seoUseHero = document.getElementById('seo_use_hero');
@@ -1957,32 +3355,33 @@ window.editPage = async (id) => {
   }
 
   applyHomeContentVisibility();
+  initDetailsAccordions();
 
-  const portfolioAllContainer = document.getElementById('portfolio-galleries-all');
+  const portfolioAllContainer = document.getElementById('portfolio-media-all');
   if (portfolioAllContainer) {
     portfolioAllContainer.addEventListener('click', (event) => {
-      const addGallery = event.target.closest('[data-add-portfolio-gallery]');
-      if (!addGallery) return;
-      const id = Number(addGallery.getAttribute('data-add-portfolio-gallery'));
-      if (!Number.isNaN(id) && !portfolioGalleryIds.includes(id)) {
-        portfolioGalleryIds.push(id);
+      const addMedia = event.target.closest('[data-add-portfolio-media]');
+      if (!addMedia) return;
+      const mediaUrl = addMedia.getAttribute('data-add-portfolio-media') || '';
+      if (mediaUrl && !portfolioMediaUrls.includes(mediaUrl)) {
+        portfolioMediaUrls.push(mediaUrl);
         renderPortfolioPicker();
       }
     });
   }
 
-  const portfolioSelectedContainer = document.getElementById('portfolio-galleries-selected');
+  const portfolioSelectedContainer = document.getElementById('portfolio-media-selected');
   if (portfolioSelectedContainer) {
     portfolioSelectedContainer.addEventListener('click', (event) => {
-      const removeGallery = event.target.closest('[data-remove-portfolio-gallery]');
-      if (!removeGallery) return;
-      const id = Number(removeGallery.getAttribute('data-remove-portfolio-gallery'));
-      portfolioGalleryIds = portfolioGalleryIds.filter((item) => item !== id);
+      const removeMedia = event.target.closest('[data-remove-portfolio-media]');
+      if (!removeMedia) return;
+      const mediaUrl = removeMedia.getAttribute('data-remove-portfolio-media') || '';
+      portfolioMediaUrls = portfolioMediaUrls.filter((item) => item !== mediaUrl);
       renderPortfolioPicker();
     });
   }
 
-  const portfolioFilterInput = document.getElementById('portfolio-galleries-filter');
+  const portfolioFilterInput = document.getElementById('portfolio-media-filter');
   if (portfolioFilterInput) {
     portfolioFilterInput.addEventListener('input', (event) => {
       portfolioQuery = event.target.value;
@@ -1990,16 +3389,16 @@ window.editPage = async (id) => {
     });
   }
 
-  document.querySelectorAll('[data-portfolio-category]').forEach((button) => {
+  document.querySelectorAll('[data-portfolio-tag]').forEach((button) => {
     button.addEventListener('click', () => {
-      portfolioCategory = button.getAttribute('data-portfolio-category') || 'all';
+      portfolioTag = button.getAttribute('data-portfolio-tag') || 'all';
       renderPortfolioPicker();
     });
   });
 
   document.getElementById('page-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (tinymce.activeEditor) tinymce.activeEditor.save(); // Ensure tinyMCE saves to textarea
+    if (window.tinymce) tinymce.triggerSave();
 
     if (isHomePage && latestGalleryIds.length !== 6) {
       alert('Wybierz dokładnie 6 sesji do sekcji Latest Moments.');
@@ -2011,6 +3410,21 @@ window.editPage = async (id) => {
       return;
     }
 
+    if (isAboutPage) {
+      if (imageLists.about_origin_images.length !== 3) {
+        alert('W sekcji "From North Africa..." wybierz dokładnie 3 zdjęcia.');
+        return;
+      }
+      if (imageLists.about_story_images.length !== 3) {
+        alert('W sekcji zdjęć z podpisami wybierz dokładnie 3 zdjęcia.');
+        return;
+      }
+      if (imageLists.about_work_images.length !== 3) {
+        alert('W sekcji "What excites me most..." wybierz dokładnie 3 zdjęcia.');
+        return;
+      }
+    }
+
     const data = {
       title: document.getElementById('title').value,
       content: document.getElementById('content')?.value || '',
@@ -2019,7 +3433,6 @@ window.editPage = async (id) => {
     };
 
     if (isHomePage) {
-      data.home_hero_logo = document.getElementById('home_hero_logo')?.value || '';
       data.home_gallery_wedding_images = imageLists.home_gallery_wedding_images;
       data.home_gallery_portrait_images = imageLists.home_gallery_portrait_images;
       data.home_gallery_product_images = imageLists.home_gallery_product_images;
@@ -2031,10 +3444,35 @@ window.editPage = async (id) => {
 
     if (isWeddingPage) {
       data.wedding_slider_images = imageLists.wedding_slider_images;
+      data.wedding_testimonial_ids = weddingTestimonialIds;
+      data.wedding_session_types = collectWeddingSessionTypesFromDom();
     }
 
     if (isPortfolioPage) {
-      data.portfolio_gallery_ids = portfolioGalleryIds;
+      data.portfolio_gallery_ids = portfolioMediaUrls;
+    }
+
+    if (isAboutPage) {
+      data.about_origin_images = imageLists.about_origin_images;
+      data.about_story_images = imageLists.about_story_images;
+      data.about_work_images = imageLists.about_work_images;
+      data.about_story_captions = [0, 1, 2].map(
+        (index) => document.getElementById(`about_story_caption_${index}`)?.value?.trim() || '',
+      );
+    }
+
+    if (isLandingFaqPage) {
+      const rows = Array.from(document.querySelectorAll('.faq-item-row'));
+      data.faq_items = rows
+        .map((row) => {
+          const questionInput = row.querySelector('.faq-question');
+          const answerTextarea = row.querySelector('.faq-wysiwyg');
+          return {
+            question: questionInput?.value?.trim() || '',
+            answer: answerTextarea?.value?.trim() || '',
+          };
+        })
+        .filter((item) => item.question && item.answer);
     }
 
     // Add SEO Link data if admin
@@ -2113,7 +3551,7 @@ function renderGalleries(galleries) {
                     ? `<img src="${resolveUploadsUrl(cover)}" class="w-full h-full object-cover">`
                     : '<div class="flex items-center justify-center h-full text-gray-500">Brak zdjęć</div>'
                 }
-                <div class="absolute top-2 right-2 bg-black/70 px-2 py-1 rounded text-xs text-gold uppercase tracking-wider font-semibold">
+                <div class="absolute top-3 left-3 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-gold">
                   ${CATEGORY_MAP[g.category] || g.category}
                 </div>
               </div>
@@ -2123,8 +3561,8 @@ function renderGalleries(galleries) {
                 }</h3>
                 <p class="text-xs text-gray-500 uppercase tracking-widest mb-4">${g.items ? g.items.length : 0} zdjęć</p>
                 <div class="grid grid-cols-2 gap-2">
-                  <button onclick="editGallery(${g.id})" class="w-full py-2 border border-gray-300 dark:border-white/10 rounded text-gray-600 dark:text-gray-300 hover:bg-gold hover:text-black hover:border-gold transition-colors font-medium">Edytuj</button>
-                  <button onclick="deleteGallery(${g.id})" class="w-full py-2 border border-red-500/40 rounded text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors font-medium">Usuń</button>
+                  <button type="button" onclick="editGallery(${g.id})" class="w-full py-2 border border-gray-300 dark:border-white/10 rounded text-gray-600 dark:text-gray-300 hover:bg-gold hover:text-black hover:border-gold transition-colors font-medium">Edytuj</button>
+                  <button type="button" onclick="deleteGallery(${g.id})" class="w-full py-2 border border-red-500/40 rounded text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors font-medium">Usuń</button>
                 </div>
               </div>
             </div>
@@ -2142,6 +3580,7 @@ function renderGalleries(galleries) {
             <th class="px-6 py-4">Sesja</th>
             <th class="px-6 py-4">Kategoria</th>
             <th class="px-6 py-4">Zdjęcia</th>
+            <th class="px-6 py-4">Status</th>
             <th class="px-6 py-4 text-right">Akcje</th>
           </tr>
         </thead>
@@ -2150,12 +3589,25 @@ function renderGalleries(galleries) {
             .map(
               (g) => `
               <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">${g.name || 'Bez nazwy'}</td>
-                <td class="px-6 py-4 text-gray-500">${CATEGORY_MAP[g.category] || g.category}</td>
+                <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                  <button type="button" onclick="editGallery(${g.id})" class="text-left transition-colors hover:text-gold">
+                    ${g.name || 'Bez nazwy'}
+                  </button>
+                </td>
+                <td class="px-6 py-4"><span class="inline-flex rounded-full bg-black/5 px-3 py-1 text-xs font-medium text-gray-600 dark:bg-white/5 dark:text-gray-200">${CATEGORY_MAP[g.category] || g.category}</span></td>
                 <td class="px-6 py-4">${g.items ? g.items.length : 0}</td>
+                <td class="px-6 py-4">
+                  <span class="px-2 py-1 rounded text-xs font-bold uppercase ${
+                    g.published !== false
+                      ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
+                      : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-500'
+                  }">
+                    ${g.published !== false ? 'Opublikowana' : 'Ukryta'}
+                  </span>
+                </td>
                 <td class="px-6 py-4 text-right space-x-2">
-                  <button onclick="editGallery(${g.id})" class="text-gold hover:text-black dark:hover:text-white transition-colors font-medium">Edytuj</button>
-                  <button onclick="deleteGallery(${g.id})" class="text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors">Usuń</button>
+                  <button type="button" onclick="editGallery(${g.id})" class="text-gold hover:text-black dark:hover:text-white transition-colors font-medium">Edytuj</button>
+                  <button type="button" onclick="deleteGallery(${g.id})" class="text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors">Usuń</button>
                 </td>
               </tr>
             `,
@@ -2167,41 +3619,26 @@ function renderGalleries(galleries) {
   `;
 
   const categoryButton = (value, label) => `
-    <button data-category="${value}" class="px-3 py-1 text-xs rounded-full border border-gray-200 dark:border-white/10 uppercase tracking-widest transition-colors ${
-      galleriesFilterCategory === value
-        ? 'bg-gold text-black border-gold'
-        : 'text-gray-500 dark:text-gray-300 hover:bg-gold hover:text-black'
-    }">${label}</button>
+    <button type="button" data-category="${value}" class="${getTagPillClass(galleriesFilterCategory === value)}">${label}</button>
   `;
 
   container.innerHTML = `
-    <div class="flex flex-col gap-4 mb-6">
-      <div class="flex flex-wrap justify-between items-center gap-4">
-        <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Sesje zdjęciowe</h2>
-        <button onclick="editGallery(null)" class="bg-gold text-black px-4 py-2 rounded font-bold hover:bg-gold-hover transition-colors shadow-lg shadow-gold/20 flex items-center">
-          <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-          Nowa sesja
-        </button>
-      </div>
+    <div class="mb-6 space-y-4">
       <div class="flex flex-wrap items-center justify-between gap-4">
-        <div class="flex flex-wrap gap-2">
-          ${categoryButton('all', 'Wszystkie')}
-          ${categoryButton('wedding', 'Ślubne')}
-          ${categoryButton('portrait', 'Portretowe')}
-          ${categoryButton('product', 'Produktowe')}
+        <div class="flex flex-wrap items-center gap-4">
+          <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Sesje zdjęciowe</h2>
+          <input id="galleries-filter" type="text" placeholder="Szukaj sesji" class="${CONTENT_SEARCH_INPUT_CLASS}" />
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <input id="galleries-filter" type="text" placeholder="Szukaj sesji" class="w-56 max-w-full rounded-full border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 px-4 py-1.5 text-xs uppercase tracking-widest text-gray-600 dark:text-gray-200 placeholder-gray-400 focus:border-gold focus:outline-none" />
-          <button id="galleries-view-grid" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
-            galleriesViewMode === 'grid'
-              ? 'bg-gold text-black border-gold'
-              : 'text-gray-500 dark:text-gray-300'
-          }">Siatka</button>
-          <button id="galleries-view-list" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
-            galleriesViewMode === 'list'
-              ? 'bg-gold text-black border-gold'
-              : 'text-gray-500 dark:text-gray-300'
-          }">Lista</button>
+        <button type="button" onclick="editGallery(null)" class="${CONTENT_ACTION_BUTTON_CLASS}">${PLUS_ICON_HTML}<span>Nowa sesja</span></button>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        ${categoryButton('all', 'Wszystkie')}
+        ${categoryButton('wedding', 'Ślubne')}
+        ${categoryButton('portrait', 'Portretowe')}
+        ${categoryButton('product', 'Produktowe')}
+        <div class="ml-auto flex flex-wrap items-center gap-2">
+          <button type="button" id="galleries-view-list" class="${getToggleButtonClass(galleriesViewMode === 'list')}">Lista</button>
+          <button type="button" id="galleries-view-grid" class="${getToggleButtonClass(galleriesViewMode === 'grid')}">Siatka</button>
         </div>
       </div>
     </div>
@@ -2263,9 +3700,13 @@ window.deleteGallery = async (id) => {
 };
 
 window.editGallery = async (id) => {
-  // ... (rest of editGallery remains same, skipping for brevity, will rely on original file if not replaced)
-
-  let gallery = { category: 'wedding', name: '', items: [] };
+  let gallery = {
+    category: 'wedding',
+    name: '',
+    short_description: '',
+    items: [],
+    published: false,
+  };
   if (id) {
     const res = await fetch(`${ADMIN_API_URL}/galleries`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -2274,88 +3715,125 @@ window.editGallery = async (id) => {
     gallery = all.find((g) => g.id === id) || gallery;
   }
 
+  if (id) {
+    const firstImage = gallery.items?.[0]?.image_path || null;
+    gallery.cover_image = firstImage || gallery.cover_image || null;
+  }
+
   const html = `
-        <div class="grid grid-cols-12 gap-8 h-[70vh]">
-            <!-- Settings Sidebar -->
-            <div class="col-span-4 space-y-6 border-r border-gray-200 dark:border-white/10 pr-6 overflow-y-auto">
-                 <form id="gallery-form" class="space-y-6">
-                    <div class="space-y-2">
-                        <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Kategoria</label>
-                        <select id="category" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold font-medium">
-                            <option value="wedding" ${gallery.category === 'wedding' ? 'selected' : ''}>Ślubna</option>
-                            <option value="portrait" ${gallery.category === 'portrait' ? 'selected' : ''}>Portretowa</option>
-                            <option value="product" ${gallery.category === 'product' ? 'selected' : ''}>Produktowa</option>
-                        </select>
+        <div class="h-[72vh] space-y-6 overflow-y-auto pr-1">
+            <form id="gallery-form" class="rounded-xl border border-gray-200 bg-gray-50/50 p-5 dark:border-white/10 dark:bg-black/20">
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_16rem]">
+            <div class="space-y-2">
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Nazwa sesji</label>
+                      <input type="text" id="name" value="${gallery.name || ''}" class="w-full rounded border border-gray-300 bg-white p-2 font-medium text-gray-900 outline-none focus:border-gold dark:border-white/10 dark:bg-black/30 dark:text-white">
                     </div>
-                    <div class="space-y-2">
-                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Nazwa</label>
-                      <input type="text" id="name" value="${gallery.name || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold font-medium">
-                    </div>
-                    <div class="space-y-2">
-                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Zdjęcie okładki</label>
-                      <div class="flex items-center gap-4">
-                        <img id="cover_preview" src="${resolveUploadsUrl(gallery.cover_image || '')}" class="w-16 h-16 rounded-lg object-cover border border-gray-200 dark:border-white/10 ${
-                          gallery.cover_image ? '' : 'hidden'
-                        }" />
-                        <div class="flex-1 space-y-2">
-                          <input type="text" id="cover_image" value="${gallery.cover_image || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none">
-                          <div class="flex gap-2">
-                            <button type="button" onclick="openMediaPicker().then(url => setImageField('cover_image','cover_preview',url))" class="bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 px-3 py-2 rounded text-xs transition-colors text-gray-900 dark:text-white">Wybierz</button>
-                            <button type="button" onclick="clearImageField('cover_image','cover_preview')" class="bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 px-3 py-2 rounded text-xs transition-colors text-gray-900 dark:text-white">Usuń</button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <button type="submit" class="w-full bg-gold text-black py-2 rounded font-bold hover:bg-gold-hover transition-colors">Zapisz Ustawienia</button>
-                    
-                    ${!id ? '<p class="text-xs text-center text-gray-500 mt-4">Zapisz sesję, aby móc dodawać zdjęcia.</p>' : ''}
-                 </form>
-
-                 ${
-                   id
-                     ? `
-                    <div class="pt-6 border-t border-gray-200 dark:border-white/10">
-                        <h4 class="text-gray-900 dark:text-white font-medium mb-4">Dodaj Zdjęcia</h4>
-                        <button onclick="handleGalleryAddImages(${id})" class="w-full py-4 border-2 border-dashed border-gray-300 dark:border-white/10 rounded hover:border-gold/50 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-gray-400 flex flex-col items-center justify-center gap-2">
-                            <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                            <span>Wybierz z biblioteki</span>
-                        </button>
-                    </div>
-                 `
-                     : ''
-                 }
+            <div class="space-y-2">
+              <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Kategoria</label>
+              <select id="category" class="w-full rounded border border-gray-300 bg-white p-2 font-medium text-gray-900 outline-none focus:border-gold dark:border-white/10 dark:bg-black/30 dark:text-white">
+                <option value="wedding" ${gallery.category === 'wedding' ? 'selected' : ''}>Ślubna</option>
+                <option value="portrait" ${gallery.category === 'portrait' ? 'selected' : ''}>Portretowa</option>
+                <option value="product" ${gallery.category === 'product' ? 'selected' : ''}>Produktowa</option>
+              </select>
             </div>
-
-            <!-- Images Grid -->
-            <div class="col-span-8 overflow-y-auto pl-2">
-                <div class="flex justify-between items-end mb-4">
-                    <h3 class="text-xl font-display text-gray-900 dark:text-white">Zdjęcia (${gallery.items ? gallery.items.length : 0})</h3>
-                    <span class="text-xs text-gray-500 uppercase tracking-wider">Przeciągnij by zmienić kolejność</span>
                 </div>
-                
-                <div id="gallery-grid" class="grid grid-cols-4 gap-4 pb-10">
+                <div class="mt-4 space-y-2">
+                  <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Krótki opis</label>
+                  <textarea id="short_description" rows="3" class="w-full rounded border border-gray-300 bg-white p-2 text-gray-900 outline-none focus:border-gold dark:border-white/10 dark:bg-black/30 dark:text-white">${gallery.short_description || ''}</textarea>
+                </div>
+                ${!id ? '<p class="mt-3 text-xs text-gray-500">Zapisz sesję, aby móc dodawać zdjęcia.</p>' : ''}
+            </form>
+
+            ${
+              id
+                ? `
+                <div class="rounded-xl border border-gray-200 p-5 dark:border-white/10">
+                  <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 class="font-display text-xl text-gray-900 dark:text-white">Zdjęcia (${gallery.items ? gallery.items.length : 0})</h3>
+                      <p class="text-xs uppercase tracking-widest text-gray-500">Pierwsze zdjęcie jest automatycznie okładką</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                      <span class="text-xs uppercase tracking-wider text-gray-500">Przeciągnij, by zmienić kolejność</span>
+                      <button onclick="handleGalleryAddImages(${id})" type="button" class="inline-flex items-center gap-2 rounded border border-gray-300 px-3 py-2 text-sm text-gray-700 transition-colors hover:border-gold hover:text-gold dark:border-white/10 dark:text-gray-300">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        Dodaj zdjęcia
+                      </button>
+                    </div>
+                  </div>
+                  <div id="gallery-grid" class="grid grid-cols-2 gap-4 pb-2 md:grid-cols-4">
                     ${(gallery.items || [])
                       .map(
-                        (item) => `
-                        <div class="relative group aspect-square bg-gray-100 dark:bg-black rounded border border-gray-200 dark:border-white/10 cursor-move overflow-hidden" data-id="${item.id}">
-                            <img src="${resolveUploadsUrl(item.image_path)}" class="w-full h-full object-cover">
-                            <!-- Overlay -->
-                            <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <button onclick="deleteGalleryItem(${item.id}, ${id})" class="text-red-500 hover:text-red-400 p-2">
-                                     <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        (item, index) => `
+                        <div class="relative group aspect-square cursor-move overflow-hidden rounded border border-gray-200 bg-gray-100 dark:border-white/10 dark:bg-black ${
+                          index === 0 ? 'ring-2 ring-gold border-gold' : ''
+                        }" data-id="${item.id}" data-image-path="${item.image_path || ''}">
+                            <img src="${resolveUploadsUrl(item.image_path)}" class="h-full w-full object-cover">
+                            ${
+                              index === 0
+                                ? '<span class="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-1 text-[10px] uppercase tracking-widest text-gold">Okładka</span>'
+                                : ''
+                            }
+                            <div class="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
+                                <button onclick="deleteGalleryItem(${item.id}, ${id})" class="p-2 text-red-500 hover:text-red-400">
+                                     <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                 </button>
                             </div>
                         </div>
                     `,
                       )
                       .join('')}
+                  </div>
                 </div>
-            </div>
+              `
+                : ''
+            }
         </div>
     `;
 
   openModal(id ? 'Edycja Sesji' : 'Nowa Sesja', html);
+  setModalHeaderAccessory(`
+    <label class="inline-flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
+      <input type="checkbox" id="gallery_published" ${gallery.published !== false ? 'checked' : ''} class="h-4 w-4 cursor-pointer accent-gold">
+      <span>Opublikowana</span>
+    </label>
+  `);
+  setModalPrimaryAction(() => {
+    const form = document.getElementById('gallery-form');
+    if (form) form.requestSubmit();
+  });
+
+  const galleryGrid = document.getElementById('gallery-grid');
+  const updateCoverMarker = () => {
+    if (!galleryGrid) return;
+    Array.from(galleryGrid.children).forEach((child, index) => {
+      child.classList.toggle('ring-2', index === 0);
+      child.classList.toggle('ring-gold', index === 0);
+      child.classList.toggle('border-gold', index === 0);
+
+      const oldBadge = child.querySelector('[data-cover-badge]');
+      if (oldBadge) oldBadge.remove();
+      if (index === 0) {
+        const badge = document.createElement('span');
+        badge.dataset.coverBadge = 'true';
+        badge.className =
+          'absolute left-2 top-2 rounded-full bg-black/70 px-2 py-1 text-[10px] uppercase tracking-widest text-gold';
+        badge.textContent = 'Okładka';
+        child.appendChild(badge);
+      }
+    });
+  };
+
+  const persistCoverFromGrid = async () => {
+    if (!id || !galleryGrid) return;
+    const firstItem = galleryGrid.firstElementChild;
+    const coverImage = firstItem?.getAttribute('data-image-path') || null;
+    await fetch(`${ADMIN_API_URL}/galleries/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ cover_image: coverImage }),
+    });
+  };
 
   // Save Form Logic
   document.getElementById('gallery-form').addEventListener('submit', async (e) => {
@@ -2363,6 +3841,8 @@ window.editGallery = async (id) => {
     const data = {
       category: document.getElementById('category').value,
       name: document.getElementById('name').value,
+      short_description: document.getElementById('short_description').value || null,
+      published: document.getElementById('gallery_published').checked,
       cover_image: document.getElementById('cover_image').value || null,
     };
     const method = id ? 'PUT' : 'POST';
@@ -2378,47 +3858,70 @@ window.editGallery = async (id) => {
         closeModal();
         editGallery(saved.id); // Reopen for uploads
       } else {
+        await persistCoverFromGrid();
         loadGalleries(); // Just refresh list background
-        alert('Zapisano ustawienia');
+        alert('Zapisano');
       }
     }
   });
 
   // Init Sortable if existing
   if (id) {
-    const grid = document.getElementById('gallery-grid');
-    if (grid) {
-      Sortable.create(grid, {
+    if (galleryGrid) {
+      Sortable.create(galleryGrid, {
         animation: 150,
         onEnd: async () => {
-          const ids = Array.from(grid.children).map((el) => el.dataset.id);
+          const ids = Array.from(galleryGrid.children).map((el) => el.dataset.id);
           await fetch(`${ADMIN_API_URL}/gallery-items/reorder`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({ items: ids }),
           });
+
+          updateCoverMarker();
+          await persistCoverFromGrid();
         },
       });
+
+      updateCoverMarker();
     }
   }
 };
 
-window.handleGalleryAddImages = async (galleryId) => {
-  openMediaPicker().then(async (url) => {
-    // Create Item
-    await fetch(`${ADMIN_API_URL}/gallery-items`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        gallery_id: galleryId,
-        image_path: url,
-        title: 'Image',
-      }),
-    });
-    // Reload Modal
-    closeModal();
-    editGallery(galleryId);
+window.syncGalleryCoverToFirst = async (galleryId) => {
+  const res = await fetch(`${ADMIN_API_URL}/galleries`, {
+    headers: { Authorization: `Bearer ${token}` },
   });
+  const galleries = await res.json();
+  const gallery = (galleries || []).find((item) => item.id === galleryId);
+  const coverImage = gallery?.items?.[0]?.image_path || null;
+
+  await fetch(`${ADMIN_API_URL}/galleries/${galleryId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ cover_image: coverImage }),
+  });
+};
+
+window.handleGalleryAddImages = async (galleryId) => {
+  const urls = await openMediaPicker({ multiple: true });
+  if (!Array.isArray(urls) || urls.length === 0) return;
+  await Promise.all(
+    urls.map((url) =>
+      fetch(`${ADMIN_API_URL}/gallery-items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          gallery_id: galleryId,
+          image_path: url,
+          title: 'Image',
+        }),
+      }),
+    ),
+  );
+  await window.syncGalleryCoverToFirst(galleryId);
+  closeModal();
+  editGallery(galleryId);
 };
 
 window.deleteGalleryItem = async (itemId, galleryId) => {
@@ -2427,6 +3930,7 @@ window.deleteGalleryItem = async (itemId, galleryId) => {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   });
+  await window.syncGalleryCoverToFirst(galleryId);
   closeModal();
   editGallery(galleryId);
 };
@@ -2443,12 +3947,19 @@ async function loadTestimonials() {
   const testimonials = await res.json();
 
   const query = testimonialsFilterQuery.trim().toLowerCase();
+  const filteredByCategory =
+    testimonialsFilterCategory === 'all'
+      ? testimonials
+      : testimonials.filter((t) => {
+          const category = t.gallery?.category || 'other';
+          return category === testimonialsFilterCategory;
+        });
   const filteredTestimonials = query
-    ? testimonials.filter((t) => {
+    ? filteredByCategory.filter((t) => {
         const label = `${t.author || ''} ${t.content || ''}`.toLowerCase();
         return label.includes(query);
       })
-    : testimonials;
+    : filteredByCategory;
 
   const renderList = () => `
     <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-lg overflow-hidden shadow-sm">
@@ -2457,6 +3968,7 @@ async function loadTestimonials() {
           <tr>
             <th class="px-6 py-4">Avatar</th>
             <th class="px-6 py-4">Klient</th>
+            <th class="px-6 py-4">Kategoria</th>
             <th class="px-6 py-4">Status</th>
             <th class="px-6 py-4 text-right">Akcje</th>
           </tr>
@@ -2469,26 +3981,31 @@ async function loadTestimonials() {
                 <td class="px-6 py-4">
                   ${
                     t.avatar_image
-                      ? `<img src="${resolveUploadsUrl(t.avatar_image)}" srcset="${getImageSrcSet(
+                      ? `<button type="button" onclick="editTestimonial(${t.id})" class="block rounded-full transition-transform hover:scale-105"><img src="${resolveUploadsUrl(t.avatar_image)}" srcset="${getImageSrcSet(
                           t.avatar_image,
                           [160, 480],
-                        )}" sizes="40px" loading="lazy" decoding="async" class="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-white/10" />`
+                        )}" sizes="40px" loading="lazy" decoding="async" class="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-white/10" /></button>`
                       : '<span class="text-xs text-gray-400">Brak</span>'
                   }
                 </td>
-                <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">${t.author}</td>
+                <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                  <button type="button" onclick="editTestimonial(${t.id})" class="text-left transition-colors hover:text-gold">${t.author}</button>
+                </td>
+                <td class="px-6 py-4">
+                  <span class="inline-flex rounded-full bg-black/5 px-3 py-1 text-xs font-medium text-gray-600 dark:bg-white/5 dark:text-gray-200">${CATEGORY_MAP[t.gallery?.category] || (t.gallery ? t.gallery.category : 'Inne')}</span>
+                </td>
                 <td class="px-6 py-4">
                   <span class="px-2 py-1 rounded text-xs font-bold uppercase ${
                     t.approved
                       ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
                       : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-500'
                   }">
-                    ${t.approved ? 'Widoczna' : 'Ukryta'}
+                    ${t.approved ? 'Opublikowana' : 'Ukryta'}
                   </span>
                 </td>
                 <td class="px-6 py-4 text-right space-x-2">
-                  <button onclick="editTestimonial(${t.id})" class="text-gold hover:text-black dark:hover:text-white transition-colors font-medium">Edytuj</button>
-                  <button onclick="deleteTestimonial(${t.id})" class="text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors">Usuń</button>
+                  <button type="button" onclick="editTestimonial(${t.id})" class="text-gold hover:text-black dark:hover:text-white transition-colors font-medium">Edytuj</button>
+                  <button type="button" onclick="deleteTestimonial(${t.id})" class="text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors">Usuń</button>
                 </td>
               </tr>
             `,
@@ -2505,25 +4022,28 @@ async function loadTestimonials() {
         .map(
           (t) => `
           <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl p-5 shadow-sm">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3">
+            <div class="flex items-start gap-3">
+              <button type="button" onclick="editTestimonial(${t.id})" class="shrink-0 rounded-full transition-transform hover:scale-105">
                 ${
                   t.avatar_image
                     ? `<img src="${resolveUploadsUrl(t.avatar_image)}" class="w-12 h-12 rounded-full object-cover border border-gray-200 dark:border-white/10" />`
                     : '<div class="w-12 h-12 rounded-full bg-gray-200 dark:bg-white/10"></div>'
                 }
-                <div>
-                  <p class="text-sm font-medium text-gray-900 dark:text-white">${t.author}</p>
+              </button>
+              <div class="min-w-0 flex-1">
+                <button type="button" onclick="editTestimonial(${t.id})" class="text-left text-sm font-medium text-gray-900 transition-colors hover:text-gold dark:text-white">${t.author}</button>
+                <div class="mt-1 flex flex-wrap items-center gap-2">
+                  <span class="inline-flex rounded-full bg-black/5 px-3 py-1 text-xs font-medium text-gray-600 dark:bg-white/5 dark:text-gray-200">${CATEGORY_MAP[t.gallery?.category] || (t.gallery ? t.gallery.category : 'Inne')}</span>
                   <span class="text-xs ${
                     t.approved ? 'text-emerald-500' : 'text-yellow-500'
-                  }">${t.approved ? 'Widoczna' : 'Ukryta'}</span>
+                  }">${t.approved ? 'Opublikowana' : 'Ukryta'}</span>
                 </div>
               </div>
-              <button onclick="editTestimonial(${t.id})" class="text-gold hover:text-black dark:hover:text-white transition-colors text-sm font-medium">Edytuj</button>
             </div>
             <p class="mt-4 text-xs text-gray-500 line-clamp-4">${t.content || ''}</p>
-            <div class="mt-4 flex justify-end">
-              <button onclick="deleteTestimonial(${t.id})" class="text-xs text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors">Usuń</button>
+            <div class="mt-4 grid grid-cols-2 gap-2">
+              <button type="button" onclick="editTestimonial(${t.id})" class="w-full py-2 border border-gray-300 dark:border-white/10 rounded text-gray-600 dark:text-gray-300 hover:bg-gold hover:text-black hover:border-gold transition-colors font-medium">Edytuj</button>
+              <button type="button" onclick="deleteTestimonial(${t.id})" class="w-full py-2 border border-red-500/40 rounded text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors font-medium">Usuń</button>
             </div>
           </div>
         `,
@@ -2533,24 +4053,23 @@ async function loadTestimonials() {
   `;
 
   container.innerHTML = `
-    <div class="flex flex-col gap-4 mb-6">
-      <div class="flex flex-wrap justify-between items-center gap-4">
-        <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Opinie klientów</h2>
-        <button onclick="editTestimonial(null)" class="bg-gold text-black px-4 py-2 rounded font-bold hover:bg-gold-hover transition-colors">Dodaj opinię</button>
-      </div>
+    <div class="mb-6 space-y-4">
       <div class="flex flex-wrap items-center justify-between gap-4">
-        <input id="testimonials-filter" type="text" placeholder="Szukaj opinii" class="w-56 max-w-full rounded-full border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 px-4 py-1.5 text-xs uppercase tracking-widest text-gray-600 dark:text-gray-200 placeholder-gray-400 focus:border-gold focus:outline-none" />
-        <div class="flex gap-2">
-          <button id="testimonials-view-list" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
-            testimonialsViewMode === 'list'
-              ? 'bg-gold text-black border-gold'
-              : 'text-gray-500 dark:text-gray-300'
-          }">Lista</button>
-          <button id="testimonials-view-grid" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
-            testimonialsViewMode === 'grid'
-              ? 'bg-gold text-black border-gold'
-              : 'text-gray-500 dark:text-gray-300'
-          }">Siatka</button>
+        <div class="flex flex-wrap items-center gap-4">
+          <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Opinie klientów</h2>
+          <input id="testimonials-filter" type="text" placeholder="Szukaj opinii" class="${CONTENT_SEARCH_INPUT_CLASS}" />
+        </div>
+        <button type="button" onclick="editTestimonial(null)" class="${CONTENT_ACTION_BUTTON_CLASS}">${PLUS_ICON_HTML}<span>Dodaj opinię</span></button>
+      </div>
+      <div class="mb-6 flex flex-wrap items-center gap-2">
+        <button type="button" data-testimonials-category="all" class="${getTagPillClass(testimonialsFilterCategory === 'all')}">Wszystkie</button>
+        <button type="button" data-testimonials-category="wedding" class="${getTagPillClass(testimonialsFilterCategory === 'wedding')}">Ślubne</button>
+        <button type="button" data-testimonials-category="portrait" class="${getTagPillClass(testimonialsFilterCategory === 'portrait')}">Portretowe</button>
+        <button type="button" data-testimonials-category="product" class="${getTagPillClass(testimonialsFilterCategory === 'product')}">Produktowe</button>
+        <button type="button" data-testimonials-category="other" class="${getTagPillClass(testimonialsFilterCategory === 'other')}">Inne</button>
+        <div class="ml-auto flex flex-wrap items-center gap-2">
+          <button type="button" id="testimonials-view-list" class="${getToggleButtonClass(testimonialsViewMode === 'list')}">Lista</button>
+          <button type="button" id="testimonials-view-grid" class="${getToggleButtonClass(testimonialsViewMode === 'grid')}">Siatka</button>
         </div>
       </div>
     </div>
@@ -2575,15 +4094,28 @@ async function loadTestimonials() {
   const listBtn = document.getElementById('testimonials-view-list');
   const gridBtn = document.getElementById('testimonials-view-grid');
   if (listBtn)
-    listBtn.addEventListener('click', () => {
+    listBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
       testimonialsViewMode = 'list';
       loadTestimonials();
     });
   if (gridBtn)
-    gridBtn.addEventListener('click', () => {
+    gridBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
       testimonialsViewMode = 'grid';
       loadTestimonials();
     });
+
+  container.querySelectorAll('[data-testimonials-category]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      testimonialsFilterCategory = button.getAttribute('data-testimonials-category') || 'all';
+      loadTestimonials();
+    });
+  });
 }
 
 window.editTestimonial = async (id) => {
@@ -2611,59 +4143,81 @@ window.editTestimonial = async (id) => {
 
   const html = `
         <form id="t-form" class="space-y-6">
-            <div class="grid grid-cols-1 gap-6">
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_22rem]">
+              <div class="space-y-6">
                 <div>
                     <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Autor</label>
-                    <input type="text" id="t_author" value="${t.author}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium" required>
+                    <input type="text" id="t_author" value="${t.author}" class="mt-1 w-full rounded border border-gray-300 bg-gray-50 p-2 font-medium text-gray-900 outline-none focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white" required>
                 </div>
-            </div>
 
-            <div class="space-y-2">
-              <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Avatar (wymagany)</label>
-              <div class="flex items-center gap-4">
-                <img id="t_avatar_preview" src="${resolveUploadsUrl(t.avatar_image || '')}" class="w-16 h-16 rounded-full object-cover border border-gray-200 dark:border-white/10 ${t.avatar_image ? '' : 'hidden'}" />
-                <div class="flex-1 space-y-2">
-                  <input type="text" id="t_avatar" value="${t.avatar_image || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none" required>
-                  <div class="flex gap-2">
-                    <button type="button" onclick="openMediaPicker().then(url => setImageField('t_avatar','t_avatar_preview',url))" class="bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Wybierz</button>
-                    <button type="button" onclick="clearImageField('t_avatar','t_avatar_preview')" class="bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Usuń</button>
+                <div class="space-y-2">
+                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Powiązana sesja (opcjonalnie)</label>
+                    <select id="t_gallery" class="mt-1 w-full rounded border border-gray-300 bg-gray-50 p-2 font-medium text-gray-900 outline-none focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white">
+                        <option value="">-- Brak --</option>
+                        ${galleries
+                          .map(
+                            (g) => `
+                            <option value="${g.id}" ${t.gallery_id === g.id ? 'selected' : ''}>${g.name || 'Bez nazwy'} (${g.category})</option>
+                         `,
+                          )
+                          .join('')}
+                    </select>
+                </div>
+              </div>
+
+              <div class="space-y-2">
+                <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Avatar (wymagany)</label>
+                <div>
+                  <div id="t_avatar_empty" class="${t.avatar_image ? 'hidden' : ''} w-full rounded-lg border-2 border-dashed border-gray-300 p-6 text-gray-400 transition-colors hover:border-gold hover:text-gold dark:border-white/10">
+                    <div class="flex flex-col items-center justify-center gap-3 text-center">
+                      <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                      <p class="text-sm">Wybierz avatar z biblioteki lub z komputera</p>
+                      <div class="flex flex-wrap gap-2">
+                        <button type="button" class="rounded bg-gray-200 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-300 dark:bg-white/10 dark:text-white dark:hover:bg-white/20" onclick="openMediaPicker().then(url => updateImagePicker('t_avatar', url))">Z biblioteki</button>
+                        <button type="button" class="rounded bg-gray-100 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10" onclick="document.getElementById('t_avatar_upload').click()">Z komputera</button>
+                      </div>
+                    </div>
                   </div>
+                  <div id="t_avatar_filled" class="${t.avatar_image ? '' : 'hidden'}">
+                    <img id="t_avatar_preview" src="${resolveUploadsUrl(t.avatar_image || '')}" class="h-56 w-full rounded-lg border border-gray-200 object-cover dark:border-white/10" />
+                    <div class="mt-3 flex flex-wrap gap-2">
+                      <button type="button" class="rounded bg-gray-200 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-300 dark:bg-white/10 dark:text-white dark:hover:bg-white/20" onclick="openMediaPicker().then(url => updateImagePicker('t_avatar', url))">Zmień</button>
+                      <button type="button" class="rounded bg-gray-100 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10" onclick="updateImagePicker('t_avatar', '')">Usuń</button>
+                    </div>
+                  </div>
+                  <input type="text" id="t_avatar" value="${t.avatar_image || ''}" class="hidden">
+                  <input type="file" id="t_avatar_upload" class="hidden" accept="image/*">
                 </div>
               </div>
             </div>
             
             <div class="space-y-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Treść</label>
-                <textarea id="t_content" class="w-full h-24 bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold">${t.content || ''}</textarea>
+                <textarea id="t_content" class="wysiwyg h-56">${t.content || ''}</textarea>
             </div>
-            
-            <div class="space-y-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Powiązana sesja (opcjonalnie)</label>
-                <select id="t_gallery" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
-                    <option value="">-- Brak --</option>
-                    ${galleries
-                      .map(
-                        (g) => `
-                        <option value="${g.id}" ${t.gallery_id === g.id ? 'selected' : ''}>${g.name || 'Bez nazwy'} (${g.category})</option>
-                     `,
-                      )
-                      .join('')}
-                </select>
-            </div>
-
-            <div class="flex items-center space-x-3 bg-gray-50 dark:bg-white/5 p-4 rounded border border-gray-200 dark:border-white/5">
-                <input type="checkbox" id="t_approved" ${t.approved ? 'checked' : ''} class="w-5 h-5 accent-gold cursor-pointer">
-                <label for="t_approved" class="text-sm font-medium text-gray-900 dark:text-white cursor-pointer select-none">Zatwierdzona (Publikuj na stronie)</label>
-            </div>
-
-            <button type="submit" class="w-full bg-gold text-black py-2 rounded font-bold hover:bg-gold-hover transition-colors">Zapisz</button>
         </form>
     `;
 
   openModal(id ? 'Edycja Opinii' : 'Nowa Opinia', html);
+  initTinyMCE();
+  setModalHeaderAccessory(`
+    <label class="inline-flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
+      <input type="checkbox" id="t_approved" ${t.approved ? 'checked' : ''} class="h-4 w-4 cursor-pointer accent-gold">
+      <span>Opublikowana</span>
+    </label>
+  `);
+  setModalPrimaryAction(() => {
+    const form = document.getElementById('t-form');
+    if (form) form.requestSubmit();
+  });
 
   document.getElementById('t-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (window.tinymce) tinymce.triggerSave();
+    if (!document.getElementById('t_avatar').value) {
+      alert('Avatar jest wymagany.');
+      return;
+    }
     const data = {
       author: document.getElementById('t_author').value,
       rating: 5,
@@ -2684,6 +4238,35 @@ window.editTestimonial = async (id) => {
     closeModal();
     loadTestimonials();
   });
+
+  const avatarUploadInput = document.getElementById('t_avatar_upload');
+  if (avatarUploadInput) {
+    avatarUploadInput.addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      try {
+        updateUploadToast({
+          title: 'Przesyłanie',
+          message: `Wysyłanie: ${file.name}`,
+          percent: 0,
+          visible: true,
+        });
+        const result = await uploadFileWithResolution(file, (ratio) => {
+          updateUploadToast({
+            message: `Wysyłanie: ${file.name}`,
+            percent: Math.round(ratio * 100),
+          });
+        });
+        updateUploadToast({ title: 'Gotowe', message: 'Plik przesłany.', percent: 100 });
+        setTimeout(() => updateUploadToast({ visible: false }), 1500);
+        if (result?.url) window.updateImagePicker('t_avatar', result.url);
+      } catch (err) {
+        updateUploadToast({ title: 'Błąd', message: 'Nie udało się przesłać pliku.', percent: 0 });
+        setTimeout(() => updateUploadToast({ visible: false }), 2500);
+      }
+      event.target.value = '';
+    });
+  }
 };
 
 window.deleteTestimonial = async (id) => {
@@ -2742,14 +4325,164 @@ async function loadMediaLibraryTab() {
     return lines;
   };
 
+  const TAG_LABEL_MAP = {
+    wedding: 'Ślubne',
+    portrait: 'Portretowe',
+    product: 'Produktowe',
+    utility: 'Użytkowe',
+    other: 'Inne',
+  };
+
+  const renderUsageSection = (title, items = []) => {
+    if (!items.length) return '';
+    return `
+      <div class="rounded border border-gray-200 p-3 dark:border-white/10">
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-500">${title}</p>
+        <ul class="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300">
+          ${items.map((item) => `<li>${item}</li>`).join('')}
+        </ul>
+      </div>
+    `;
+  };
+
+  const openMediaDetailsModal = async (file) => {
+    if (!file) return;
+
+    const pageItems = (file.usage?.pages || []).map((page) => {
+      const where = page.locations?.length ? ` (${page.locations.join(', ')})` : '';
+      const label = page.title || page.slug || 'Strona';
+      return `${label}${where}`;
+    });
+    const galleryItems = (file.usage?.galleries || []).map((gallery) => {
+      const category = CATEGORY_MAP[gallery.category] || gallery.category || 'Galeria';
+      return `${gallery.name || 'Bez nazwy'} (${category})`;
+    });
+    const testimonialItems = (file.usage?.testimonials || []).map(
+      (testimonial) => `Opinia: ${testimonial.author || 'Bez autora'}`,
+    );
+    const settingsItems = (file.usage?.settings || []).map((setting) => `Ustawienia: ${setting}`);
+
+    const meta = await getMediaPreviewMeta(file.url);
+    const html = `
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div class="space-y-4">
+          <div class="overflow-hidden rounded-xl border border-gray-200 bg-black dark:border-white/10">
+            <img src="${resolveUploadsUrl(file.url)}" alt="${file.name}" class="h-full w-full object-contain" onerror="console.error('Media details failed', this.src)">
+          </div>
+          <div class="grid grid-cols-2 gap-3 text-sm text-gray-600 dark:text-gray-300">
+            <div class="rounded border border-gray-200 p-3 dark:border-white/10">
+              <p class="text-xs uppercase tracking-widest text-gray-500">Tag</p>
+              <p class="mt-1 font-medium">${TAG_LABEL_MAP[file.tag] || 'Inne'}</p>
+            </div>
+            <div class="rounded border border-gray-200 p-3 dark:border-white/10">
+              <p class="text-xs uppercase tracking-widest text-gray-500">Użycia</p>
+              <p class="mt-1 font-medium">${file.usageCount || 0}</p>
+            </div>
+            <div class="rounded border border-gray-200 p-3 dark:border-white/10">
+              <p class="text-xs uppercase tracking-widest text-gray-500">Wymiary</p>
+              <p class="mt-1 font-medium">${meta.dimensions}</p>
+            </div>
+            <div class="rounded border border-gray-200 p-3 dark:border-white/10">
+              <p class="text-xs uppercase tracking-widest text-gray-500">Rozmiar</p>
+              <p class="mt-1 font-medium">${meta.size}</p>
+            </div>
+          </div>
+        </div>
+        <div class="space-y-4">
+          <div class="rounded border border-gray-200 p-4 dark:border-white/10">
+            <p class="text-xs font-bold uppercase tracking-widest text-gray-500">Plik</p>
+            <p class="mt-2 break-all text-sm font-medium text-gray-900 dark:text-white">${file.name}</p>
+            <p class="mt-1 text-xs text-gray-500">${file.url}</p>
+          </div>
+          <div class="rounded border border-gray-200 p-4 dark:border-white/10">
+            <p class="text-xs font-bold uppercase tracking-widest text-gray-500">SEO obrazu</p>
+            <div class="mt-3 space-y-3">
+              <label class="block text-xs uppercase tracking-widest text-gray-500">
+                Tytuł
+                <input id="media-meta-title" type="text" value="${escapeHtml(file.title_text)}" class="mt-2 w-full rounded border border-gray-200 bg-white/90 px-3 py-2 text-sm text-gray-700 dark:border-white/10 dark:bg-black/40 dark:text-gray-100" placeholder="Np. Sesja ślubna - plener" />
+              </label>
+              <label class="block text-xs uppercase tracking-widest text-gray-500">
+                Alt text
+                <input id="media-meta-alt" type="text" value="${escapeHtml(file.alt_text)}" class="mt-2 w-full rounded border border-gray-200 bg-white/90 px-3 py-2 text-sm text-gray-700 dark:border-white/10 dark:bg-black/40 dark:text-gray-100" placeholder="Np. Para młoda na tle zachodu słońca" />
+              </label>
+              <p id="media-meta-status" class="text-sm text-gray-500"></p>
+            </div>
+          </div>
+          ${renderUsageSection('Strony', pageItems)}
+          ${renderUsageSection('Sesje', galleryItems)}
+          ${renderUsageSection('Opinie', testimonialItems)}
+          ${renderUsageSection('Globalne ustawienia', settingsItems)}
+          ${
+            !pageItems.length &&
+            !galleryItems.length &&
+            !testimonialItems.length &&
+            !settingsItems.length
+              ? '<p class="rounded border border-gray-200 p-3 text-sm text-gray-500 dark:border-white/10">To medium nie jest obecnie używane.</p>'
+              : ''
+          }
+        </div>
+      </div>
+    `;
+
+    openModal('Szczegóły medium', html);
+
+    const titleInput = document.getElementById('media-meta-title');
+    const altInput = document.getElementById('media-meta-alt');
+    const status = document.getElementById('media-meta-status');
+
+    setModalPrimaryAction(async () => {
+      if (!titleInput || !altInput) return;
+      const titleText = titleInput.value.trim();
+      const altText = altInput.value.trim();
+      if (dom.modalPrimaryAction) dom.modalPrimaryAction.setAttribute('disabled', 'disabled');
+      if (status) status.textContent = 'Zapisywanie...';
+
+      try {
+        const response = await fetch(
+          `${ADMIN_API_URL}/media/${encodeURIComponent(file.name)}/meta`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ title_text: titleText, alt_text: altText }),
+          },
+        );
+
+        if (!response.ok) throw new Error('Nie udało się zapisać metadanych.');
+
+        file.title_text = titleText || null;
+        file.alt_text = altText || null;
+        if (status) status.textContent = 'Zapisano.';
+      } catch (error) {
+        if (status) status.textContent = 'Błąd zapisu.';
+      } finally {
+        if (dom.modalPrimaryAction) dom.modalPrimaryAction.removeAttribute('disabled');
+      }
+    }, '<span>Zapisz</span>');
+  };
+
   const renderMediaLibrary = () => {
+    const previousScrollTop = container.scrollTop;
+    const previousWindowScrollY = window.scrollY;
     const filterText = mediaFilterQuery.trim().toLowerCase();
-    const filteredFiles = filterText
-      ? files.filter((file) => {
-          const usageText = buildUsageLines(file).join(' ').toLowerCase();
-          return file.name.toLowerCase().includes(filterText) || usageText.includes(filterText);
-        })
+    const tagFiltered = mediaTagFilter
+      ? files.filter((f) => (f.tag || 'other') === mediaTagFilter)
       : files;
+    const filteredFiles = filterText
+      ? tagFiltered.filter((file) => {
+          const usageText = buildUsageLines(file).join(' ').toLowerCase();
+          const tagText = String(file.tag || '').toLowerCase();
+          return (
+            file.name.toLowerCase().includes(filterText) ||
+            usageText.includes(filterText) ||
+            tagText.includes(filterText)
+          );
+        })
+      : tagFiltered;
+
+    const mediaTagPill = (value, label, activeValue, key) => {
+      const active = activeValue === value;
+      return `<button type="button" data-${key}="${value}" class="${getTagPillClass(active)}">${label}</button>`;
+    };
 
     const renderGrid = () => {
       return `
@@ -2759,22 +4492,27 @@ async function loadMediaLibraryTab() {
               const count = file.usageCount || 0;
               const used = count > 0;
               return `
-                <div class="group relative aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-black">
+                <div data-media-preview="${file.name}" class="group relative aspect-square cursor-pointer rounded-lg overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-black">
                   <img src="${resolveUploadsUrl(file.url)}" alt="${file.name}" class="h-full w-full object-cover" onerror="console.error('Media grid failed', this.src)" />
+                  <span class="${GRID_BADGE_LEFT_CLASS}">${TAG_LABEL_MAP[file.tag] || 'Inne'}</span>
+                  ${used ? `<span class="${GRID_STATUS_BADGE_CLASS}" aria-label="Używane">${SAVE_ICON_HTML}</span>` : ''}
                   <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end">
                     <div class="w-full p-3 text-xs text-white">
                       <p class="truncate">${file.name}</p>
                       <p class="mt-1 text-gold">Użycia: ${count}</p>
-                      <button data-file="${file.name}" class="mt-2 rounded-full border border-white/30 px-2 py-1 text-[10px] uppercase tracking-widest text-white hover:bg-white/10">
-                        Usuń
-                      </button>
+                      <select data-media-tag-select-grid="${file.name}" class="mt-1 w-full rounded border border-white/20 bg-black/60 px-1 py-1 text-[10px] uppercase tracking-widest text-white cursor-pointer">
+                        <option value="wedding" ${file.tag === 'wedding' ? 'selected' : ''}>Ślubne</option>
+                        <option value="portrait" ${file.tag === 'portrait' ? 'selected' : ''}>Portretowe</option>
+                        <option value="product" ${file.tag === 'product' ? 'selected' : ''}>Produktowe</option>
+                        <option value="utility" ${file.tag === 'utility' ? 'selected' : ''}>Użytkowe</option>
+                        <option value="other" ${file.tag === 'other' || !file.tag ? 'selected' : ''}>Inne</option>
+                      </select>
+                      <div class="mt-2 flex gap-2">
+                        <button data-media-preview="${file.name}" class="rounded-full border border-white/30 px-2 py-1 text-[10px] uppercase tracking-widest text-white hover:bg-white/10">Szczegóły</button>
+                        <button data-file="${file.name}" class="rounded-full border border-white/30 px-2 py-1 text-[10px] uppercase tracking-widest text-white hover:bg-white/10">Usuń</button>
+                      </div>
                     </div>
                   </div>
-                  ${
-                    used
-                      ? '<span class="absolute top-2 left-2 rounded-full bg-black/60 px-2 py-1 text-[10px] uppercase tracking-widest text-gold">Używane</span>'
-                      : ''
-                  }
                 </div>
               `;
             })
@@ -2791,12 +4529,22 @@ async function loadMediaLibraryTab() {
               const lines = buildUsageLines(file);
               return `
                 <div class="flex items-start gap-4 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black/20 p-4">
-                  <img src="${resolveUploadsUrl(file.url)}" alt="${file.name}" class="h-16 w-16 rounded object-cover border border-gray-200 dark:border-white/10" onerror="console.error('Media list failed', this.src)" />
+                  <button type="button" data-media-preview="${file.name}" class="h-16 w-16 shrink-0 overflow-hidden rounded border border-gray-200 dark:border-white/10">
+                    <img src="${resolveUploadsUrl(file.url)}" alt="${file.name}" class="h-full w-full object-cover" onerror="console.error('Media list failed', this.src)" />
+                  </button>
                   <div class="flex-1">
                     <div class="flex items-center justify-between">
                       <p class="text-sm font-medium text-gray-900 dark:text-white">${file.name}</p>
-                      <div class="flex items-center gap-3 text-xs text-gray-500">
+                      <div class="flex items-center gap-2 text-xs text-gray-500">
+                        <select data-media-tag-select="${file.name}" class="rounded border border-gray-200 bg-white/80 px-2 py-1 text-[10px] uppercase tracking-widest text-gray-600 dark:border-white/10 dark:bg-black/40 dark:text-gray-200">
+                          <option value="wedding" ${file.tag === 'wedding' ? 'selected' : ''}>Ślubne</option>
+                          <option value="portrait" ${file.tag === 'portrait' ? 'selected' : ''}>Portretowe</option>
+                          <option value="product" ${file.tag === 'product' ? 'selected' : ''}>Produktowe</option>
+                          <option value="utility" ${file.tag === 'utility' ? 'selected' : ''}>Użytkowe</option>
+                          <option value="other" ${file.tag === 'other' || !file.tag ? 'selected' : ''}>Inne</option>
+                        </select>
                         <span>Użycia: ${file.usageCount || 0}</span>
+                        <button data-media-preview="${file.name}" class="rounded-full border border-gray-200 px-2 py-1 text-[10px] uppercase tracking-widest text-gray-500 hover:text-gold dark:border-white/10">Szczegóły</button>
                         <button data-file="${file.name}" class="rounded-full border border-gray-200 dark:border-white/10 px-2 py-1 text-[10px] uppercase tracking-widest text-gray-500 hover:text-gold">
                           Usuń
                         </button>
@@ -2819,27 +4567,38 @@ async function loadMediaLibraryTab() {
     };
 
     container.innerHTML = `
-      <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-        <div>
-          <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Biblioteka mediów</h2>
-          <p class="text-sm text-gray-500">Zarządzaj obrazami i sprawdzaj, gdzie są używane.</p>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <input id="media-filter" type="text" placeholder="Filtruj po nazwie lub miejscu użycia" class="w-64 max-w-full rounded-full border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 px-4 py-1.5 text-xs uppercase tracking-widest text-gray-600 dark:text-gray-200 placeholder-gray-400 focus:border-gold focus:outline-none" />
-          <label class="rounded-full border border-gray-200 dark:border-white/10 px-3 py-1.5 text-xs uppercase tracking-widest text-gray-500 hover:text-gold cursor-pointer">
-            Dodaj media
+      <div class="mb-6 space-y-4">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div class="flex flex-wrap items-center gap-4">
+              <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white">Biblioteka mediów</h2>
+              <input id="media-filter" type="text" placeholder="Szukaj mediów" class="${CONTENT_SEARCH_INPUT_CLASS}" />
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <label for="media-upload-tag-select" class="text-xs font-bold uppercase tracking-widest text-gray-500">Tag nowych mediów</label>
+            <select id="media-upload-tag-select" class="min-w-[9rem] rounded-full border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 focus:border-gold focus:outline-none">
+              <option value="wedding" ${mediaUploadTag === 'wedding' ? 'selected' : ''}>Ślubne</option>
+              <option value="portrait" ${mediaUploadTag === 'portrait' ? 'selected' : ''}>Portretowe</option>
+              <option value="product" ${mediaUploadTag === 'product' ? 'selected' : ''}>Produktowe</option>
+              <option value="utility" ${mediaUploadTag === 'utility' ? 'selected' : ''}>Użytkowe</option>
+              <option value="other" ${mediaUploadTag === 'other' ? 'selected' : ''}>Inne</option>
+            </select>
+            <button type="button" id="media-upload-trigger" class="${CONTENT_ACTION_BUTTON_CLASS}">${PLUS_ICON_HTML}<span>Dodaj media</span></button>
             <input id="media-upload" type="file" class="hidden" multiple accept="image/*" />
-          </label>
-          <button id="media-view-grid" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
-            mediaViewMode === 'grid'
-              ? 'bg-gold text-black border-gold'
-              : 'text-gray-500 dark:text-gray-300'
-          }">Siatka</button>
-          <button id="media-view-list" class="px-3 py-1.5 rounded-full text-xs uppercase tracking-widest border border-gray-200 dark:border-white/10 ${
-            mediaViewMode === 'list'
-              ? 'bg-gold text-black border-gold'
-              : 'text-gray-500 dark:text-gray-300'
-          }">Lista</button>
+          </div>
+        </div>
+        <div class="mb-6 flex flex-wrap items-center gap-2">
+          ${mediaTagPill('', 'Wszystkie', mediaTagFilter, 'media-filter-pill')}
+          ${mediaTagPill('wedding', 'Ślubne', mediaTagFilter, 'media-filter-pill')}
+          ${mediaTagPill('portrait', 'Portretowe', mediaTagFilter, 'media-filter-pill')}
+          ${mediaTagPill('product', 'Produktowe', mediaTagFilter, 'media-filter-pill')}
+          ${mediaTagPill('utility', 'Użytkowe', mediaTagFilter, 'media-filter-pill')}
+          ${mediaTagPill('other', 'Inne', mediaTagFilter, 'media-filter-pill')}
+          <div class="ml-auto flex flex-wrap items-center gap-2">
+            <button type="button" id="media-view-list" class="${getToggleButtonClass(mediaViewMode === 'list')}">Lista</button>
+            <button type="button" id="media-view-grid" class="${getToggleButtonClass(mediaViewMode === 'grid')}">Siatka</button>
+          </div>
         </div>
       </div>
       <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl p-6 shadow-sm">
@@ -2851,7 +4610,12 @@ async function loadMediaLibraryTab() {
     const listBtn = document.getElementById('media-view-list');
     const filterInput = document.getElementById('media-filter');
     const uploadInput = document.getElementById('media-upload');
+    const uploadTrigger = document.getElementById('media-upload-trigger');
+    const uploadTagSelect = document.getElementById('media-upload-tag-select');
     const deleteButtons = Array.from(container.querySelectorAll('[data-file]'));
+    const previewTriggers = Array.from(container.querySelectorAll('[data-media-preview]'));
+    const tagSelects = Array.from(container.querySelectorAll('[data-media-tag-select]'));
+    const filterTagButtons = Array.from(container.querySelectorAll('[data-media-filter-pill]'));
     if (gridBtn)
       gridBtn.addEventListener('click', () => {
         mediaViewMode = 'grid';
@@ -2875,19 +4639,79 @@ async function loadMediaLibraryTab() {
         }
       });
     }
+    if (uploadTrigger && uploadInput) {
+      uploadTrigger.addEventListener('click', () => uploadInput.click());
+    }
+    if (uploadTagSelect) {
+      uploadTagSelect.addEventListener('change', (event) => {
+        mediaUploadTag = event.target.value || 'other';
+      });
+    }
     if (uploadInput) {
       uploadInput.addEventListener('change', async (event) => {
         const filesToUpload = event.target.files;
         if (!filesToUpload || !filesToUpload.length) return;
+        const selectedTag = mediaUploadTag || 'other';
         for (let file of filesToUpload) {
-          await uploadFileWithResolution(file, () => {});
+          await uploadFileWithResolution(file, () => {}, { tag: selectedTag });
         }
         uploadInput.value = '';
         loadMediaLibraryTab();
       });
     }
+    filterTagButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        mediaTagFilter = button.getAttribute('data-media-filter-pill') || '';
+        renderMediaLibrary();
+      });
+    });
+    previewTriggers.forEach((trigger) => {
+      trigger.addEventListener('click', async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const fileName = trigger.getAttribute('data-media-preview');
+        const file = files.find((item) => item.name === fileName);
+        if (file) {
+          await openMediaDetailsModal(file);
+        }
+      });
+    });
+    tagSelects.forEach((selectEl) => {
+      selectEl.addEventListener('change', async (event) => {
+        event.stopPropagation();
+        const fileName = event.target.getAttribute('data-media-tag-select');
+        const tag = event.target.value || 'other';
+        if (!fileName) return;
+        await fetch(`${ADMIN_API_URL}/media/${encodeURIComponent(fileName)}/tag`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ tag }),
+        });
+        const file = files.find((item) => item.name === fileName);
+        if (file) file.tag = tag;
+        renderMediaLibrary();
+      });
+    });
+    const tagSelectsGrid = Array.from(container.querySelectorAll('[data-media-tag-select-grid]'));
+    tagSelectsGrid.forEach((selectEl) => {
+      selectEl.addEventListener('change', async (event) => {
+        event.stopPropagation();
+        const fileName = event.target.getAttribute('data-media-tag-select-grid');
+        const tag = event.target.value || 'other';
+        if (!fileName) return;
+        await fetch(`${ADMIN_API_URL}/media/${encodeURIComponent(fileName)}/tag`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ tag }),
+        });
+        const file = files.find((item) => item.name === fileName);
+        if (file) file.tag = tag;
+        renderMediaLibrary();
+      });
+    });
     deleteButtons.forEach((btn) => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (event) => {
+        event.stopPropagation();
         const name = btn.dataset.file;
         const target = files.find((file) => file.name === name);
         const usageLines = target ? buildUsageLines(target) : [];
@@ -2902,6 +4726,11 @@ async function loadMediaLibraryTab() {
         loadMediaLibraryTab();
       });
     });
+
+    container.scrollTop = previousScrollTop;
+    if (Math.abs(window.scrollY - previousWindowScrollY) > 2) {
+      window.scrollTo({ top: previousWindowScrollY, behavior: 'auto' });
+    }
   };
 
   renderMediaLibrary();
@@ -2913,14 +4742,110 @@ async function loadSettings() {
   container.innerHTML =
     '<div class="loader mx-auto w-10 h-10 rounded-full border-2 border-t-gold"></div>';
 
-  const res = await fetch(`${API_URL}/settings`);
-  const s = await res.json();
+  const [settingsRes, usersRes] = await Promise.all([
+    fetch(`${API_URL}/settings`),
+    currentUser?.role === 'ADMIN'
+      ? fetch(`${ADMIN_API_URL}/users`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      : Promise.resolve(null),
+  ]);
+  const s = await settingsRes.json();
+  const users = usersRes && usersRes.ok ? await usersRes.json() : [];
+
+  const renderSettingsImagePicker = ({ inputId, label, value, sizeClass = 'h-40' }) => {
+    const hasValue = Boolean(value);
+    return `
+      <div class="space-y-2">
+        <label class="text-xs font-bold uppercase tracking-wider text-gray-500">${label}</label>
+        <div>
+          <div id="${inputId}_empty" class="${hasValue ? 'hidden' : ''} w-full rounded-lg border-2 border-dashed border-gray-300 dark:border-white/10 p-6 text-gray-400 transition-colors hover:border-gold hover:text-gold">
+            <div class="flex flex-col items-center justify-center gap-3 text-center">
+              <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+              <p class="text-sm">Wybierz z biblioteki lub dodaj z komputera</p>
+              <div class="flex flex-wrap justify-center gap-2">
+                <button type="button" class="rounded bg-gray-200 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-300 dark:bg-white/10 dark:text-white dark:hover:bg-white/20" onclick="openMediaPicker().then(url => updateImagePicker('${inputId}', url))">Wybierz z biblioteki</button>
+                <button type="button" class="rounded bg-gray-100 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10" onclick="document.getElementById('${inputId}_upload').click()">Dodaj z komputera</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="${inputId}_filled" class="${hasValue ? '' : 'hidden'}">
+            <img id="${inputId}_preview" src="${resolveUploadsUrl(value || '')}" class="w-full ${sizeClass} rounded-lg border border-gray-200 dark:border-white/10 object-cover" />
+            <div class="mt-3 flex flex-wrap gap-2">
+              <button type="button" class="rounded bg-gray-200 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-300 dark:bg-white/10 dark:text-white dark:hover:bg-white/20" onclick="openMediaPicker().then(url => updateImagePicker('${inputId}', url))">Zmień</button>
+              <button type="button" class="rounded bg-gray-100 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10" onclick="updateImagePicker('${inputId}', '')">Usuń</button>
+              <button type="button" class="rounded bg-gray-100 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10" onclick="document.getElementById('${inputId}_upload').click()">Z komputera</button>
+            </div>
+          </div>
+
+          <input type="text" id="${inputId}" value="${value || ''}" class="hidden" />
+          <input type="file" id="${inputId}_upload" class="hidden" accept="image/*" />
+        </div>
+      </div>
+    `;
+  };
+
+  const usersSection =
+    currentUser?.role === 'ADMIN'
+      ? `
+                  <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
+                    <h4 class="text-gold font-display font-medium">Zarządzanie użytkownikami</h4>
+                    <div id="user-create-panel" class="grid grid-cols-1 gap-4 rounded-lg border border-gray-200 p-4 dark:border-white/10 md:items-end md:grid-cols-[minmax(14rem,18rem)_10rem_auto]">
+                      <label class="space-y-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                        Email nowego użytkownika
+                        <input type="email" id="new-user-email" class="w-full rounded border border-gray-300 bg-gray-50 p-2 text-sm normal-case tracking-normal text-gray-900 outline-none focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white" placeholder="email@domena.pl">
+                      </label>
+                      <label class="space-y-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                        Rola
+                        <select id="new-user-role" class="w-full rounded border border-gray-300 bg-gray-50 p-2 text-sm normal-case tracking-normal text-gray-900 outline-none focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white">
+                          <option value="MANAGER">Manager</option>
+                          <option value="ADMIN">Admin</option>
+                        </select>
+                      </label>
+                      <div class="flex items-end md:justify-end">
+                        <button type="button" id="create-user-btn" class="${CONTENT_ACTION_BUTTON_CLASS} w-full justify-center whitespace-nowrap md:w-auto md:min-w-[13rem]">${PLUS_ICON_HTML}<span class="whitespace-nowrap">Dodaj użytkownika</span></button>
+                      </div>
+                    </div>
+                    <div class="rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden">
+                      <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 dark:bg-white/5 text-xs uppercase tracking-widest text-gray-500">
+                          <tr>
+                            <th class="px-4 py-3">E-mail</th>
+                            <th class="px-4 py-3">Rola</th>
+                            <th class="px-4 py-3 text-right">Akcja</th>
+                          </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-white/10 text-gray-700 dark:text-gray-200">
+                          ${users
+                            .map(
+                              (user) => `
+                                <tr>
+                                  <td class="px-4 py-3 font-medium">${escapeHtml(user.email || '')}</td>
+                                  <td class="px-4 py-3">${escapeHtml(user.role || 'MANAGER')}</td>
+                                  <td class="px-4 py-3 text-right">
+                                    <div class="flex justify-end gap-2">
+                                      <button type="button" data-user-reset="${user.id}" class="rounded border border-gray-200 dark:border-white/10 px-3 py-1.5 text-xs text-gray-600 transition-colors hover:border-gold hover:text-gold dark:text-gray-300">Wyślij reset hasła</button>
+                                      <button type="button" data-user-delete="${user.id}" data-user-email="${escapeHtml(user.email || '')}" class="rounded border border-red-500/30 px-3 py-1.5 text-xs text-red-500 transition-colors hover:border-red-500 hover:bg-red-500 hover:text-white">Usuń</button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              `,
+                            )
+                            .join('')}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p id="users-reset-status" class="hidden rounded border border-gray-200 px-3 py-2 text-xs text-gray-600 dark:border-white/10 dark:text-gray-300"></p>
+                  </div>
+                `
+      : '';
 
   container.innerHTML = `
         <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white mb-6">Ustawienia Globalne</h2>
         <!-- REMOVED max-w-2xl -->
         <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-xl p-8 shadow-sm">
-             <form id="settings-form" class="space-y-6">
+             <form id="settings-form" class="space-y-6 pb-28">
                  <div class="grid grid-cols-2 gap-6">
                     <div>
                         <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Nazwa Strony</label>
@@ -2948,20 +4873,16 @@ async function loadSettings() {
                  </div>
 
                  <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
-                   <h4 class="text-gold font-display font-medium">Mega menu</h4>
-                   <div class="space-y-2">
-                     <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Zdjęcie po lewej stronie</label>
-                     <div class="flex items-center gap-4">
-                       <img id="s_mega_menu_image_preview" src="${resolveUploadsUrl(s.mega_menu_image || '')}" class="w-20 h-20 rounded object-cover border border-gray-200 dark:border-white/10 ${s.mega_menu_image ? '' : 'hidden'}" />
-                       <div class="flex-1 space-y-2">
-                         <input type="text" id="s_mega_menu_image" value="${s.mega_menu_image || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none">
-                         <div class="flex gap-2">
-                           <button type="button" onclick="openMediaPicker().then(url => setImageField('s_mega_menu_image','s_mega_menu_image_preview',url))" class="bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Wybierz</button>
-                           <button type="button" onclick="clearImageField('s_mega_menu_image','s_mega_menu_image_preview')" class="bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Usuń</button>
-                         </div>
-                       </div>
+                     <h4 class="text-gold font-display font-medium">Logotypy globalne</h4>
+                     <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                       ${renderSettingsImagePicker({ inputId: 's_logo_path', label: 'Logo główne', value: s.logo_path || '', sizeClass: 'h-44' })}
+                       ${renderSettingsImagePicker({ inputId: 's_logo_secondary_path', label: 'Logo dodatkowe', value: s.logo_secondary_path || '', sizeClass: 'h-44' })}
                      </div>
-                   </div>
+                 </div>
+
+                 <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
+                   <h4 class="text-gold font-display font-medium">Mega menu</h4>
+                   ${renderSettingsImagePicker({ inputId: 's_mega_menu_image', label: 'Zdjęcie po lewej stronie', value: s.mega_menu_image || '', sizeClass: 'h-48' })}
                  </div>
 
                  <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
@@ -2976,32 +4897,8 @@ async function loadSettings() {
                     <textarea id="s_meta_description" class="w-full h-20 bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">${s.meta_description || ''}</textarea>
                     <p class="text-xs text-gray-500">Długość: <span id="s_meta_description_count">0</span> / 140-160</p>
                   </div>
-                  <div class="space-y-2">
-                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500">OG Image</label>
-                    <div class="flex items-center gap-4">
-                      <img id="s_og_image_preview" src="${resolveUploadsUrl(s.og_image || '')}" class="w-20 h-20 rounded object-cover border border-gray-200 dark:border-white/10 ${s.og_image ? '' : 'hidden'}" />
-                      <div class="flex-1 space-y-2">
-                        <input type="text" id="s_og_image" value="${s.og_image || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none">
-                        <div class="flex gap-2">
-                          <button type="button" onclick="openMediaPicker().then(url => setImageField('s_og_image','s_og_image_preview',url))" class="bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Wybierz</button>
-                          <button type="button" onclick="clearImageField('s_og_image','s_og_image_preview')" class="bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Usuń</button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="space-y-2">
-                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Favicon</label>
-                    <div class="flex items-center gap-4">
-                      <img id="s_favicon_preview" src="${resolveUploadsUrl(s.favicon || '')}" class="w-12 h-12 rounded object-cover border border-gray-200 dark:border-white/10 ${s.favicon ? '' : 'hidden'}" />
-                      <div class="flex-1 space-y-2">
-                        <input type="text" id="s_favicon" value="${s.favicon || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 text-gray-900 dark:text-white outline-none">
-                        <div class="flex gap-2">
-                          <button type="button" onclick="openMediaPicker().then(url => setImageField('s_favicon','s_favicon_preview',url))" class="bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Wybierz</button>
-                          <button type="button" onclick="clearImageField('s_favicon','s_favicon_preview')" class="bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 px-4 py-2 rounded text-sm transition-colors text-gray-900 dark:text-white">Usuń</button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  ${renderSettingsImagePicker({ inputId: 's_og_image', label: 'OG Image', value: s.og_image || '', sizeClass: 'h-44' })}
+                  ${renderSettingsImagePicker({ inputId: 's_favicon', label: 'Favicon', value: s.favicon || '', sizeClass: 'h-32' })}
                  </div>
 
                   <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
@@ -3062,17 +4959,162 @@ async function loadSettings() {
                     </div>
                   </div>
 
-                 <div class="pt-6">
-                    <button type="submit" class="w-full bg-gold text-black py-3 rounded font-bold hover:bg-gold-hover transition-colors shadow-lg shadow-gold/10">Zapisz Ustawienia</button>
-                 </div>
+                  ${usersSection}
+
              </form>
         </div>
+                 <div class="pointer-events-none fixed bottom-4 left-4 right-4 z-40 flex flex-col items-end gap-3 sm:bottom-6 sm:left-auto sm:right-6">
+                <p id="settings-save-status" class="pointer-events-auto hidden max-w-sm rounded-2xl border border-white/10 bg-white/95 px-4 py-3 text-sm text-gray-700 shadow-lg shadow-black/10 backdrop-blur dark:bg-dark-secondary/95 dark:text-gray-200"></p>
+                <button type="submit" form="settings-form" id="settings-save-btn" class="pointer-events-auto inline-flex min-h-[3.5rem] items-center justify-center gap-2 self-stretch rounded-full bg-gold px-6 py-3 text-base font-bold text-black transition-all hover:bg-gold-hover hover:shadow-2xl hover:shadow-gold/20 sm:min-w-[14rem] sm:self-auto">${SAVE_LABEL_HTML}</button>
+                 </div>
     `;
 
   initMetaCounters();
 
+  const bindSettingsImageUpload = (inputId) => {
+    const uploadInput = document.getElementById(`${inputId}_upload`);
+    if (!uploadInput) return;
+    uploadInput.addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      try {
+        updateUploadToast({
+          title: 'Przesyłanie',
+          message: `Wysyłanie: ${file.name}`,
+          percent: 0,
+          visible: true,
+        });
+        const result = await uploadFileWithResolution(file, (ratio) => {
+          updateUploadToast({
+            message: `Wysyłanie: ${file.name}`,
+            percent: Math.round(ratio * 100),
+          });
+        });
+        updateUploadToast({ title: 'Gotowe', message: 'Plik przesłany.', percent: 100 });
+        setTimeout(() => updateUploadToast({ visible: false }), 1500);
+        if (result?.url) window.updateImagePicker(inputId, result.url);
+      } catch (err) {
+        updateUploadToast({ title: 'Błąd', message: 'Nie udało się przesłać pliku.', percent: 0 });
+        setTimeout(() => updateUploadToast({ visible: false }), 2500);
+      }
+      event.target.value = '';
+    });
+  };
+
+  ['s_logo_path', 's_logo_secondary_path', 's_mega_menu_image', 's_og_image', 's_favicon'].forEach(
+    bindSettingsImageUpload,
+  );
+
+  const usersResetStatus = document.getElementById('users-reset-status');
+  const setUsersStatus = (message, isError = false) => {
+    if (!usersResetStatus) return;
+    usersResetStatus.textContent = message;
+    usersResetStatus.classList.remove('hidden', 'text-red-500', 'border-red-500/40');
+    if (isError) {
+      usersResetStatus.classList.add('text-red-500', 'border-red-500/40');
+    }
+  };
+
+  const createUserButton = document.getElementById('create-user-btn');
+  if (createUserButton) {
+    createUserButton.addEventListener('click', async () => {
+      const emailInput = document.getElementById('new-user-email');
+      const roleInput = document.getElementById('new-user-role');
+      const submitButton = createUserButton;
+      const email = emailInput?.value?.trim();
+      const role = roleInput?.value || 'MANAGER';
+      if (!email) return;
+
+      submitButton?.setAttribute('disabled', 'disabled');
+      try {
+        const res = await fetch(`${ADMIN_API_URL}/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ email, role }),
+        });
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}));
+          throw new Error(payload?.error || 'Nie udało się dodać użytkownika.');
+        }
+        setUsersStatus('Użytkownik został dodany i otrzymał e-mail do ustawienia hasła.');
+        loadSettings();
+      } catch (error) {
+        setUsersStatus(error.message || 'Wystąpił błąd podczas dodawania użytkownika.', true);
+      } finally {
+        submitButton?.removeAttribute('disabled');
+      }
+    });
+  }
+
+  document.querySelectorAll('[data-user-reset]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const userId = button.getAttribute('data-user-reset');
+      if (!userId) return;
+      button.setAttribute('disabled', 'disabled');
+      try {
+        const res = await fetch(`${ADMIN_API_URL}/users/${userId}/send-reset`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}));
+          throw new Error(payload?.error || 'Nie udało się wysłać resetu hasła.');
+        }
+        setUsersStatus('Wiadomość resetująca hasło została wysłana.');
+      } catch (error) {
+        setUsersStatus(error.message || 'Wystąpił błąd podczas wysyłki.', true);
+      } finally {
+        button.removeAttribute('disabled');
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-user-delete]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const userId = button.getAttribute('data-user-delete');
+      const userEmail = button.getAttribute('data-user-email') || 'tego użytkownika';
+      if (!userId) return;
+      if (!confirm(`Czy na pewno usunąć użytkownika ${userEmail}?`)) return;
+      button.setAttribute('disabled', 'disabled');
+      try {
+        const res = await fetch(`${ADMIN_API_URL}/users/${userId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}));
+          throw new Error(payload?.error || 'Nie udało się usunąć użytkownika.');
+        }
+        setUsersStatus('Użytkownik został usunięty.');
+        loadSettings();
+      } catch (error) {
+        setUsersStatus(error.message || 'Wystąpił błąd podczas usuwania użytkownika.', true);
+      } finally {
+        button.removeAttribute('disabled');
+      }
+    });
+  });
+
   document.getElementById('settings-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const saveButton = document.getElementById('settings-save-btn');
+    const saveStatus = document.getElementById('settings-save-status');
+    const setSaveStatus = (message, isError = false) => {
+      if (!saveStatus) return;
+      saveStatus.textContent = message;
+      saveStatus.classList.remove(
+        'hidden',
+        'text-red-500',
+        'border-red-500/40',
+        'text-emerald-500',
+        'border-emerald-500/40',
+      );
+      if (isError) {
+        saveStatus.classList.add('text-red-500', 'border-red-500/40');
+      } else {
+        saveStatus.classList.add('text-emerald-500', 'border-emerald-500/40');
+      }
+    };
     const data = {
       site_name: document.getElementById('s_site_name').value,
       email: document.getElementById('s_email').value,
@@ -3090,18 +5132,38 @@ async function loadSettings() {
       cta_url: document.getElementById('s_cta_url').value,
       footer_text: document.getElementById('s_footer_text').value,
       privacy_url: document.getElementById('s_privacy_url').value,
+      logo_path: document.getElementById('s_logo_path').value,
+      logo_secondary_path: document.getElementById('s_logo_secondary_path').value,
       mega_menu_image: document.getElementById('s_mega_menu_image').value,
       umami_script_url: document.getElementById('s_umami_script_url').value,
       umami_website_id: document.getElementById('s_umami_website_id').value,
       umami_domains: document.getElementById('s_umami_domains').value,
       umami_dashboard_url: document.getElementById('s_umami_dashboard_url').value,
     };
-    await fetch(`${ADMIN_API_URL}/settings`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(data),
-    });
-    alert('Ustawienia zapisane!');
+
+    saveButton?.setAttribute('disabled', 'disabled');
+    setSaveStatus('Zapisywanie ustawień...');
+
+    try {
+      const response = await fetch(`${ADMIN_API_URL}/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error || 'Nie udało się zapisać ustawień.');
+      }
+
+      await response.json().catch(() => null);
+      await syncAdminFavicon();
+      setSaveStatus('Ustawienia zostały zapisane.');
+    } catch (error) {
+      setSaveStatus(error.message || 'Wystąpił błąd podczas zapisu.', true);
+    } finally {
+      saveButton?.removeAttribute('disabled');
+    }
   });
 }
 
@@ -3535,39 +5597,106 @@ async function loadAnalytics() {
 }
 
 // --- Helpers ---
-window.setImageField = (inputId, previewId, url) => {
+window.updateImagePicker = (inputId, url) => {
   const input = document.getElementById(inputId);
-  if (input) input.value = url || '';
-  const preview = document.getElementById(previewId);
-  if (preview) {
-    if (url) {
-      preview.src = resolveUploadsUrl(url);
-      preview.classList.remove('hidden');
-    } else {
-      preview.src = '';
-      preview.classList.add('hidden');
-    }
-  }
-};
+  const preview = document.getElementById(`${inputId}_preview`);
+  const emptyState = document.getElementById(`${inputId}_empty`);
+  const filledState = document.getElementById(`${inputId}_filled`);
+  const hasValue = Boolean(url);
 
-window.clearImageField = (inputId, previewId) => {
-  window.setImageField(inputId, previewId, '');
+  if (input) input.value = url || '';
+  if (preview && url) preview.src = resolveUploadsUrl(url);
+  if (preview && !url) preview.removeAttribute('src');
+  if (emptyState) emptyState.classList.toggle('hidden', hasValue);
+  if (filledState) filledState.classList.toggle('hidden', !hasValue);
 };
 
 function initMetaCounters() {
   const counters = [
-    { input: 'meta_title', counter: 'meta_title_count' },
-    { input: 'meta_description', counter: 'meta_description_count' },
-    { input: 's_meta_title', counter: 's_meta_title_count' },
-    { input: 's_meta_description', counter: 's_meta_description_count' },
+    {
+      input: 'meta_title',
+      counter: 'meta_title_count',
+      hint: 'meta_title_hint',
+      min: 50,
+      max: 60,
+    },
+    {
+      input: 'meta_description',
+      counter: 'meta_description_count',
+      hint: 'meta_description_hint',
+      min: 140,
+      max: 160,
+    },
+    {
+      input: 's_meta_title',
+      counter: 's_meta_title_count',
+      min: 50,
+      max: 60,
+    },
+    {
+      input: 's_meta_description',
+      counter: 's_meta_description_count',
+      min: 140,
+      max: 160,
+    },
   ];
 
-  counters.forEach(({ input, counter }) => {
+  counters.forEach(({ input, counter, hint, min, max }) => {
     const inputEl = document.getElementById(input);
     const counterEl = document.getElementById(counter);
+    const hintEl = hint ? document.getElementById(hint) : null;
     if (!inputEl || !counterEl) return;
+
+    const applyState = (length) => {
+      if (!hintEl) return;
+
+      hintEl.classList.remove(
+        'border-emerald-400/60',
+        'bg-emerald-500/10',
+        'text-emerald-600',
+        'dark:text-emerald-300',
+        'border-amber-400/60',
+        'bg-amber-500/10',
+        'text-amber-700',
+        'dark:text-amber-300',
+        'border-rose-400/60',
+        'bg-rose-500/10',
+        'text-rose-700',
+        'dark:text-rose-300',
+      );
+
+      if (length < min) {
+        hintEl.classList.add(
+          'border-amber-400/60',
+          'bg-amber-500/10',
+          'text-amber-700',
+          'dark:text-amber-300',
+        );
+        return;
+      }
+
+      if (length > max) {
+        hintEl.classList.add(
+          'border-rose-400/60',
+          'bg-rose-500/10',
+          'text-rose-700',
+          'dark:text-rose-300',
+        );
+        return;
+      }
+
+      hintEl.classList.add(
+        'border-emerald-400/60',
+        'bg-emerald-500/10',
+        'text-emerald-600',
+        'dark:text-emerald-300',
+      );
+    };
+
     const update = () => {
-      counterEl.textContent = inputEl.value.length.toString();
+      const valueLength = inputEl.value.length;
+      counterEl.textContent = valueLength.toString();
+      applyState(valueLength);
     };
     update();
     inputEl.addEventListener('input', update);
@@ -3579,7 +5708,10 @@ function applySeoUseHeroState() {
   const heroInput = document.getElementById('hero_image');
   const seoInput = document.getElementById('seo_image');
   const seoPick = document.getElementById('seo_image_pick');
+  const seoPickFilled = document.getElementById('seo_image_pick_filled');
   const seoClear = document.getElementById('seo_image_clear');
+  const seoUploadBtn = document.getElementById('seo_image_upload_btn');
+  const seoUploadInput = document.getElementById('seo_image_upload');
 
   if (!useHero || !seoInput) return;
 
@@ -3588,16 +5720,22 @@ function applySeoUseHeroState() {
     if (!seoInput.dataset.customValue) {
       seoInput.dataset.customValue = seoInput.value;
     }
-    window.setImageField('seo_image', 'seo_image_preview', heroValue || '');
+    window.updateImagePicker('seo_image', heroValue || '');
     seoInput.disabled = true;
     if (seoPick) seoPick.disabled = true;
+    if (seoPickFilled) seoPickFilled.disabled = true;
     if (seoClear) seoClear.disabled = true;
+    if (seoUploadBtn) seoUploadBtn.disabled = true;
+    if (seoUploadInput) seoUploadInput.disabled = true;
   } else {
     const custom = seoInput.dataset.customValue || '';
-    window.setImageField('seo_image', 'seo_image_preview', custom);
+    window.updateImagePicker('seo_image', custom);
     seoInput.disabled = false;
     if (seoPick) seoPick.disabled = false;
+    if (seoPickFilled) seoPickFilled.disabled = false;
     if (seoClear) seoClear.disabled = false;
+    if (seoUploadBtn) seoUploadBtn.disabled = false;
+    if (seoUploadInput) seoUploadInput.disabled = false;
   }
 }
 
@@ -3608,16 +5746,46 @@ function resolveUmamiDashboardUrl(settings) {
   return settings.umami_script_url.replace(/\/script\.js$/i, '');
 }
 
+function setModalPrimaryAction(onClick, labelHtml = SAVE_LABEL_HTML) {
+  if (!dom.modalPrimaryAction) return;
+  dom.modalPrimaryAction.innerHTML = labelHtml;
+  dom.modalPrimaryAction.classList.remove('hidden');
+  dom.modalPrimaryAction.classList.add('inline-flex', 'items-center', 'gap-2');
+  dom.modalPrimaryAction.onclick = onClick;
+}
+
+function setModalHeaderAccessory(content) {
+  if (!dom.modalHeaderAccessory) return;
+  dom.modalHeaderAccessory.innerHTML = content || '';
+  dom.modalHeaderAccessory.classList.add('flex', 'items-center');
+  dom.modalHeaderAccessory.classList.toggle('hidden', !content);
+}
+
 function openModal(title, content) {
   dom.modalTitle.textContent = title;
   dom.modalContent.innerHTML = content;
+  setModalHeaderAccessory('');
+  if (dom.modalPrimaryAction) {
+    dom.modalPrimaryAction.innerHTML = SAVE_LABEL_HTML;
+    dom.modalPrimaryAction.classList.add('hidden');
+    dom.modalPrimaryAction.onclick = null;
+  }
   dom.modal.classList.remove('hidden');
   dom.modal.classList.add('flex');
+  if (dom.modalContent) {
+    dom.modalContent.scrollTop = 0;
+  }
 }
 
 function closeModal() {
   dom.modal.classList.add('hidden');
   dom.modal.classList.remove('flex');
+  setModalHeaderAccessory('');
+  if (dom.modalPrimaryAction) {
+    dom.modalPrimaryAction.innerHTML = SAVE_LABEL_HTML;
+    dom.modalPrimaryAction.classList.add('hidden');
+    dom.modalPrimaryAction.onclick = null;
+  }
   if (window.tinymce) tinymce.remove();
 }
 
@@ -3631,10 +5799,11 @@ function initTinyMCE() {
     height: 300,
     skin: isDark ? 'oxide-dark' : 'oxide',
     content_css: isDark ? 'dark' : 'default',
-    plugins:
-      'anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount',
-    toolbar:
-      'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table | align lineheight | numlist bullist indent outdent | emoticons charmap | removeformat',
+    promotion: false,
+    branding: false,
+    menubar: false,
+    plugins: 'link lists',
+    toolbar: 'undo redo | blocks | bold italic underline | bullist numlist | link | removeformat',
     content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
   });
 }

@@ -1,25 +1,42 @@
+@import '@fontsource/montserrat/300.css';
+@import '@fontsource/montserrat/400.css';
+@import '@fontsource/montserrat/500.css';
+@import '@fontsource/cinzel/400.css';
+@import '@fontsource/cinzel/500.css';
+@import '@fontsource/cinzel/600.css';
+@import '@fontsource/cormorant-garamond/300.css';
+@import '@fontsource/cormorant-garamond/400.css';
+@import '@fontsource/cormorant-garamond/600.css';
+@import '@fontsource/cormorant-garamond/400-italic.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --btn-dark-gold: #936328;
+    --btn-light-gold: #d4af37;
+    --btn-white: #fcfcfc;
+  }
+
   body {
     background-color: #080808;
     color: #fcfcfc;
+    font-family: 'Montserrat', sans-serif;
     overflow-x: hidden;
     position: relative;
   }
 }
 
 @layer components {
-  .btn-primary {
+  .btn-primary,
+  .btn-secondary {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    background: #ffffff;
-    color: #936328;
-    border: 1px solid transparent;
+    border: 1px solid;
     border-radius: 9999px;
     padding: 0.75rem 2.25rem;
     font-family: 'Montserrat', sans-serif;
@@ -34,10 +51,35 @@
       transform 0.3s ease;
   }
 
+  .btn-primary {
+    background: var(--btn-white);
+    color: var(--btn-dark-gold);
+    border-color: var(--btn-white);
+  }
+
   .btn-primary:hover {
-    background: #936328;
-    color: #ffffff;
-    border-color: #ffffff;
+    background: var(--btn-dark-gold);
+    color: var(--btn-white);
+    border-color: var(--btn-dark-gold);
+  }
+
+  .btn-secondary {
+    background: var(--btn-light-gold);
+    color: var(--btn-white);
+    border-color: var(--btn-light-gold);
+  }
+
+  .btn-secondary:hover {
+    background: var(--btn-white);
+    color: var(--btn-light-gold);
+    border-color: var(--btn-light-gold);
+  }
+
+  .btn-primary:disabled,
+  .btn-secondary:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    transform: none;
   }
 }
 
@@ -110,9 +152,9 @@ html {
 
 .faq-icon {
   display: inline-flex;
-  min-width: 1.5rem;
+  min-width: 1.75rem;
   justify-content: center;
-  font-size: 1.1rem;
+  font-size: 1.5rem;
   line-height: 1;
   color: rgba(0, 0, 0, 0.45);
   transition: color 0.2s ease;
@@ -128,6 +170,12 @@ html {
 
 .faq-item.is-open .faq-icon {
   color: #c5a059;
+}
+
+/* Wedding contact form - larger labels */
+.wedding-contact-form label {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
 
 .faq-content-inner {
@@ -154,8 +202,8 @@ html {
 .hotspot-wrap {
   position: relative;
   display: inline-flex;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   align-items: center;
   justify-content: center;
 }
@@ -164,19 +212,21 @@ html {
   position: relative;
   z-index: 2;
   display: inline-block;
-  width: 24px;
-  height: 24px;
-  background: url('https://inlexistudio.com/wp-content/uploads/In-Lexi-Studio-kursor-64-x-64-px-normal.svg')
-    center/contain no-repeat;
-  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.35));
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 0 0 5px rgba(255, 255, 255, 0.14),
+    0 0 14px rgba(255, 255, 255, 0.32);
 }
 
 .hotspot-pulse {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 26px;
-  height: 26px;
+  width: 20px;
+  height: 20px;
   transform: translate(-50%, -50%);
   border-radius: 9999px;
   border: 1px solid rgba(255, 255, 255, 0.85);
@@ -197,5 +247,154 @@ html {
   100% {
     opacity: 0;
     transform: translate(-50%, -50%) scale(1.6);
+  }
+}
+
+.body-copy {
+  font-size: clamp(1.04rem, 0.38vw + 0.96rem, 1.2rem);
+}
+
+.wysiwyg-content {
+  line-height: 1.8;
+}
+
+.wysiwyg-content > * + * {
+  margin-top: 1.1em;
+}
+
+.wysiwyg-content p + p {
+  margin-top: 1.35em;
+}
+
+.wysiwyg-content h2,
+.wysiwyg-content h3,
+.wysiwyg-content h4 {
+  margin-top: 1.9em;
+}
+
+.wysiwyg-content ul,
+.wysiwyg-content ol {
+  padding-left: 1.3em;
+}
+
+.wysiwyg-content li + li {
+  margin-top: 0.45em;
+}
+
+.landing-scroll-line {
+  animation: landingScrollLine 1.4s ease-in-out infinite;
+}
+
+@keyframes landingScrollLine {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(220%);
+    opacity: 0;
+  }
+}
+
+@property --cta-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes cta-orbit {
+  to {
+    --cta-angle: 360deg;
+  }
+}
+
+.cta-glow-box {
+  background:
+    linear-gradient(#080808, #080808) padding-box,
+    conic-gradient(
+        from var(--cta-angle),
+        rgba(212, 175, 55, 0) 0%,
+        rgba(212, 175, 55, 0) 30%,
+        rgba(212, 175, 55, 0.45) 44%,
+        rgba(212, 175, 55, 0.85) 50%,
+        rgba(212, 175, 55, 0.45) 56%,
+        rgba(212, 175, 55, 0) 70%,
+        rgba(212, 175, 55, 0) 100%
+      )
+      border-box;
+  border: 1px solid transparent !important;
+  animation: cta-orbit 4s linear infinite;
+}
+
+@media (pointer: fine) {
+  .has-custom-cursor,
+  .has-custom-cursor body,
+  .has-custom-cursor * {
+    cursor: none !important;
+  }
+
+  .custom-cursor {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 10001;
+    pointer-events: none;
+    width: 34px;
+    height: 34px;
+    opacity: 0;
+    transform: translate3d(-100px, -100px, 0) translate(-50%, -50%);
+    transition: opacity 0.2s ease;
+    will-change: transform, opacity;
+  }
+
+  .custom-cursor.is-visible {
+    opacity: 1;
+  }
+
+  .cursor-icon {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    transform-origin: center;
+    transition:
+      opacity 0.25s ease,
+      transform 0.25s ease;
+  }
+
+  .cursor-icon--normal {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .cursor-icon--hover {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+
+  .custom-cursor.is-hover .cursor-icon--normal {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  .custom-cursor.is-hover .cursor-icon--hover {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@layer utilities {
+  .section-pad {
+    padding-block: clamp(5rem, 8vw, 10rem);
+  }
+  .section-pad-lg {
+    padding-block: clamp(6rem, 10vw, 12rem);
   }
 }

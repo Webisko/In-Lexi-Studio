@@ -8,6 +8,8 @@ const PAGES = [
     meta_title: 'About Only - InLexi Studio',
     meta_description:
       'Born in Poland and raised in Algeria, my childhood in North Africa gifted me with my most cherished memories.',
+    hero_image:
+      'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?q=80&w=1000&auto=format&fit=crop',
     content: `
       <h3>My Story</h3>
       <h4>LET ME INTRODUCE MYSELF</h4>
@@ -41,6 +43,8 @@ const PAGES = [
     meta_title: 'My Approach - InLexi Studio',
     meta_description:
       'My passion/goal is creating beautiful, heartfelt photographs that become treasured pieces of your family’s story.',
+    hero_image:
+      'https://images.unsplash.com/photo-1502738828373-49d1d8dd1f6e?q=80&w=1000&auto=format&fit=crop',
     content: `
       <h3>My Approach to Photography</h3>
       <h4>HOW - WHAT - WHY - I DO?</h4>
@@ -56,6 +60,8 @@ const PAGES = [
   {
     slug: 'portfolio',
     title: 'Portfolio',
+    hero_image:
+      'https://images.unsplash.com/photo-1516867872200-904eecad73ca?q=80&w=1000&auto=format&fit=crop',
     content: `
       <h3>My Artwork</h3>
       <p>Explore my latest work across weddings, portraits, and more.</p>
@@ -64,6 +70,107 @@ const PAGES = [
   {
     slug: 'wedding-photography',
     title: 'Wedding Photography',
+    hero_image:
+      'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1000&auto=format&fit=crop',
+    wedding_slider_images: JSON.stringify([
+      'https://images.unsplash.com/photo-1519825590316-fefdc973d65c?q=80&w=1000&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1000&auto=format&fit=crop',
+    ]),
+    wedding_session_types: JSON.stringify([
+      {
+        title: 'Getting Ready Session',
+        image: '/uploads/ils-185.webp',
+        description:
+          'A documentary-style shoot capturing the anticipation and preparation before the ceremony.',
+        items: [
+          'Bride and bridesmaids getting hair and makeup done',
+          'Groom and groomsmen putting on suits',
+          'Candid moments of nervous excitement',
+          'Detail shots of wedding attire, jewellery, and accessories',
+        ],
+      },
+      {
+        title: 'Engagement Photoshoot',
+        image: '/uploads/ils-195.webp',
+        description:
+          'A relaxed pre-wedding session — our chance to work together so you feel completely at ease in front of my camera before the big day.',
+        items: [
+          'Casual and romantic outdoor locations',
+          'Urban settings in Glasgow or scenic Scottish landscapes',
+          'Perfect images for save-the-date cards',
+        ],
+      },
+      {
+        title: 'Traditional Ceremony Coverage',
+        image: '/uploads/ils-212.webp',
+        description:
+          'Discreet, full coverage of your ceremony — from the first arrival to the final kiss.',
+        items: [
+          'Processional and recessional',
+          'Exchange of vows and rings',
+          'Reactions of family and guests',
+          'Formal family group portraits',
+        ],
+      },
+      {
+        title: "Couple's Romantic Portraits",
+        image: '/uploads/ils-197.webp',
+        description:
+          'A dedicated window of time during your day for relaxed, intimate portraits of just the two of you.',
+        items: [
+          'Golden hour photography',
+          'Dramatic landscape backgrounds',
+          'Intimate, romantic poses',
+        ],
+      },
+      {
+        title: 'Reception Reportage',
+        image: '/uploads/ils-206.webp',
+        description:
+          'Pure documentary coverage of your reception — speeches, first dance, and everything in between.',
+        items: ['First dance', 'Speeches and toasts', 'Guest interactions', 'Dance floor energy'],
+      },
+      {
+        title: 'Destination Wedding Coverage',
+        image: '/uploads/ils-166.webp',
+        description:
+          "Wherever your love story takes you, I'll be there with you to capture every moment.",
+        items: [
+          'Full-day or multi-day coverage',
+          'Travel-friendly packages',
+          'Comprehensive documentation of destination events',
+        ],
+      },
+      {
+        title: 'Sunrise / Sunset Session',
+        image: '/uploads/ils-100.webp',
+        description:
+          'A dedicated golden-hour shoot at your venue or a nearby location for truly ethereal light.',
+        items: [
+          'Golden hour timing',
+          'Romantic lighting conditions',
+          'Location selection and setup',
+        ],
+      },
+      {
+        title: 'After-Wedding / Trash the Dress',
+        image: '/uploads/ils-177.webp',
+        description:
+          'An adventurous post-wedding shoot in your attire — relaxed, creative, and free from the timeline pressure of the day itself.',
+        items: ['Creative outfit session', 'Adventurous locations', 'Fun and candid moments'],
+      },
+      {
+        title: 'Micro-Wedding & Elopement Coverage',
+        image: '/uploads/ils-154.webp',
+        description:
+          'Intimate celebrations for just the two of you — or a small circle of loved ones in a landscape that moves you.',
+        items: [
+          'Intimate ceremony',
+          'Scenic couple portraits',
+          'Celebration with close loved ones',
+        ],
+      },
+    ]),
     content: `
       <h3>Wedding photography Glasgow</h3>
       <h4>Timeless wedding photography that tells your unique love story</h4>
@@ -122,17 +229,79 @@ const PAGES = [
   {
     slug: 'portrait-photography',
     title: 'Portrait Photography',
+    hero_image:
+      'https://images.unsplash.com/photo-1455849318169-8214ec3bdeae?q=80&w=1000&auto=format&fit=crop',
     content: '<p>Coming soon...</p>',
   },
   {
     slug: 'product-photography',
     title: 'Product Photography',
+    hero_image:
+      'https://images.unsplash.com/photo-1511632765486-a01980e01a18?q=80&w=1000&auto=format&fit=crop',
     content: '<p>Coming soon...</p>',
   },
   {
     slug: 'contact',
     title: 'Contact',
-    content: '<p>Get in touch with us.</p>',
+    meta_title: 'Contact - InLexi Studio | Get in Touch',
+    meta_description:
+      "Get in touch with InLexi Studio. Whether you're planning a wedding, interested in a portrait session, or just want to say hello - we'd love to hear from you.",
+    hero_image:
+      'https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=1000&auto=format&fit=crop',
+    content: `
+      <h3>Let's talk about your vision</h3>
+      <p>We'd love to hear from you. Whether you're planning a wedding, interested in a portrait session, or just want to say hello, fill out the form or reach out directly.</p>
+    `,
+    sort_order: 80,
+  },
+  {
+    slug: 'pricing',
+    title: 'Pricing',
+    hero_image:
+      'https://images.unsplash.com/photo-1516867872200-904eecad73ca?q=80&w=1000&auto=format&fit=crop',
+    meta_title: 'Wedding Photography Pricing - InLexi Studio | Glasgow',
+    meta_description:
+      'Transparent wedding photography pricing packages in Glasgow. From intimate ceremonies to full-day coverage with luxury experience. Investment starts at £1950.',
+    content: `
+      <h3>Investment in Your Memories</h3>
+      <p>Every wedding is unique, and so are our packages. We believe in transparent pricing and creating value that lasts a lifetime.</p>
+      <p>All packages include professional photography, high-resolution edited files, and an online gallery to share with family and friends.</p>
+    `,
+    sort_order: 90,
+  },
+  {
+    slug: 'privacy-policy',
+    title: 'Privacy Policy',
+    hero_image:
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1000&auto=format&fit=crop',
+    meta_title: 'Privacy Policy - InLexi Studio',
+    meta_description:
+      'Learn how InLexi Studio collects, uses, and protects your personal information. Our commitment to your privacy and data security.',
+    sort_order: 100,
+    content: `
+      <h2>1. Introduction</h2>
+      <p>[TO BE FILLED - Company introduction and commitment to privacy]</p>
+      
+      <h2>2. Information We Collect</h2>
+      <p>[TO BE FILLED - What personal data we collect]</p>
+      
+      <h2>3. How We Use Your Information</h2>
+      <p>[TO BE FILLED - Purpose of data collection and processing]</p>
+      
+      <h2>4. Data Storage and Security</h2>
+      <p>[TO BE FILLED - How we protect your data and where it's stored]</p>
+      
+      <h2>5. Your Rights</h2>
+      <p>[TO BE FILLED - User rights regarding their personal data (GDPR)]</p>
+      
+      <h2>6. Photography and Image Rights</h2>
+      <p>[TO BE FILLED - Specific policy regarding wedding/portrait photography images]</p>
+      
+      <h2>7. Contact Information</h2>
+      <p>[TO BE FILLED - Data controller contact details]</p>
+      
+      <p><small>Last updated: [TO BE FILLED - DATE]</small></p>
+    `,
   },
   {
     slug: '/',

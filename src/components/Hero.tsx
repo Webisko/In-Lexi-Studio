@@ -2,14 +2,15 @@ import React from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useStore } from '@nanostores/react';
 import { currentCategory, setCategory, type GalleryCategory } from '../store/galleryStore';
-import type { Page } from '../lib/api';
+import type { Page, Settings } from '../lib/api';
 import { getImageSizes, getImageSrcSet, getImageUrl } from '../lib/api';
 
 interface HeroProps {
   data?: Page | null;
+  settings?: Settings | null;
 }
 
-export const Hero: React.FC<HeroProps> = ({ data }) => {
+export const Hero: React.FC<HeroProps> = ({ data, settings }) => {
   const { scrollY } = useScroll();
   const activeCategory = useStore(currentCategory);
 
@@ -19,11 +20,9 @@ export const Hero: React.FC<HeroProps> = ({ data }) => {
   const bgSrcSet = data?.hero_image ? getImageSrcSet(data.hero_image) : '';
   const bgSizes = bgSrcSet ? getImageSizes('hero') : undefined;
 
-  const heroLogo = data?.home_hero_logo
-    ? getImageUrl(data.home_hero_logo)
-    : 'https://inlexistudio.com/wp-content/uploads/In-Lexi-Studio-1000X1000-5.webp';
-  const heroLogoSrcSet = data?.home_hero_logo ? getImageSrcSet(data.home_hero_logo) : '';
-  const heroLogoSizes = heroLogoSrcSet ? '320px' : undefined;
+  // Use only global logo_path for the hero logo (per-page logo variant is deprecated)
+  const heroLogoSource = settings?.logo_path || '';
+  const heroLogo = heroLogoSource ? getImageUrl(heroLogoSource) : getImageUrl('/uploads/5.webp');
 
   // Transform logic for the central graphic
   // Shrink slightly and fade out as we scroll down
@@ -40,9 +39,9 @@ export const Hero: React.FC<HeroProps> = ({ data }) => {
   };
 
   return (
-    <section className="relative h-[120vh] w-full bg-dark-bg">
+    <section data-page-hero className="relative h-[120vh] w-full bg-dark-bg">
       {/* Background Image */}
-      <div className="absolute inset-0 z-0">
+      <div className="pointer-events-none absolute inset-0 z-0">
         <img
           src={bgImage}
           srcSet={bgSrcSet || undefined}
@@ -65,16 +64,14 @@ export const Hero: React.FC<HeroProps> = ({ data }) => {
             y: graphicY,
           }}
           transition={{ duration: 0 }}
-          className="flex w-full max-w-2xl items-center justify-center px-4"
+          className="flex w-full max-w-[1400px] items-center justify-center px-4"
         >
           <img
             src={heroLogo}
-            srcSet={heroLogoSrcSet || undefined}
-            sizes={heroLogoSizes}
             alt="In Lexi Studio"
             loading="eager"
             decoding="async"
-            className="h-auto w-full object-contain drop-shadow-2xl md:w-[80%]"
+            className="h-[65vh] max-h-[65vh] w-auto object-contain drop-shadow-2xl"
           />
         </motion.div>
 
@@ -115,7 +112,7 @@ export const Hero: React.FC<HeroProps> = ({ data }) => {
                 href="#"
                 onClick={(e) => handleCategoryClick(e, category)}
                 onMouseEnter={() => setCategory(category)}
-                className={`group pointer-events-auto relative cursor-pointer font-display text-xl uppercase tracking-[0.2em] transition-all duration-300 md:text-2xl ${
+                className={`group pointer-events-auto relative cursor-pointer font-display text-2xl uppercase tracking-[0.2em] transition-all duration-300 md:text-3xl ${
                   isActive ? '-translate-y-1 text-gold' : 'translate-y-0 text-white hover:text-gold'
                 }`}
               >

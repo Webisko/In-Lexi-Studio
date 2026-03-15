@@ -1,10 +1,17 @@
 {
   "recommendations": [
     "astro-build.astro-vscode",
+    "dbaeumer.vscode-eslint",
     "esbenp.prettier-vscode",
     "bradlc.vscode-tailwindcss",
-    "github.copilot",
     "github.copilot-chat",
+    "github.vscode-github-actions",
+    "github.vscode-pull-request-github",
+    "eamodio.gitlens",
+    "prisma.prisma",
+    "humao.rest-client",
+    "ms-azuretools.vscode-docker",
+    "philipkief.material-icon-theme",
     "usernamehw.errorlens"
   ]
 }

@@ -1,38 +1,58 @@
 # Copilot instructions for this repo
 
-## Big picture
+## Project summary
 
-- This is an Astro frontend (currently the main page is the root Astro page) that composes multiple React components. It’s expected to grow into a multi-page site under the Astro pages directory.
-- The client’s 3 core services are separate landing pages/routes: `/wedding`, `/portrait`, `/product` (implemented as Astro pages under `src/pages`).
-- React components use Tailwind for styling and Framer Motion for animation (e.g., Hero, GallerySlider).
-- Global UI state for the gallery category is kept in a Nanostores atom and read in React via `useStore`.
-- Content is currently mocked in a shared data module (text + image URLs). This is intended to be replaced by a headless WordPress backend providing content (galleries/photos/texts) via an API.
-- Global styles and Tailwind layers are defined in the global stylesheet.
+- This repository contains one production web platform split into:
+  - Astro frontend in `src/`.
+  - Custom CMS backend (Express + Prisma + SQLite) in `api/` + `prisma/`.
+  - Admin panel static app in `admin/`.
+- Do not assume or plan WordPress integration in this project.
+- Treat `in-lexi-studio-ai-studio/` as reference-only unless explicitly requested.
 
-## Project conventions & patterns
+## Architecture map
 
-- Astro pages import React components and attach client directives like `client:load` or `client:visible` (see the root page). Preserve these directives when moving components or changing hydration behavior.
-- Gallery navigation uses the shared `currentCategory` atom; update the store (via `setCategory`) instead of local state if you add new category-aware components.
-- When creating links, account for `import.meta.env.BASE_URL` (see GallerySlider) to keep GitHub Pages base-path compatibility.
+- Frontend entry pages: `src/pages/index.astro`, `src/pages/[slug].astro`, `src/pages/contact.astro`.
+- Frontend data layer: `src/lib/api.ts` (API fetch + URL normalization).
+- Backend entry: `app.js` -> `api/server.js`.
+- Backend routes: `api/routes.js`.
+- Database schema/migrations: `prisma/schema.prisma`, `prisma/migrations/`.
+- CI deploy: `.github/workflows/deploy.yml`.
 
-## Headless WordPress notes
+## Always-follow rules
 
-- WordPress is the content backend (client edits content in WP); this repo is the Astro frontend.
-- Content in WP uses ACF fields on multiple pages; model data fetching to map ACF → frontend view models.
-- All site content is public (no logged-in areas expected in the frontend).
-- WP currently uses LiteSpeed Cache and QUIC.cloud CDN; avoid frontend changes that hardcode absolute asset paths or break CDN-friendly URLs.
-- **TBD**: REST API vs WPGraphQL (and any custom endpoints).
-- **TBD**: SSG vs SSR strategy in Astro (build-time fetch vs runtime fetch).
+- Keep changes minimal and scoped to the user request.
+- Preserve Astro hydration directives (`client:load`, `client:visible`) unless the task explicitly requires changing hydration behavior.
+- Keep `import.meta.env.BASE_URL` compatibility; do not hardcode absolute paths for internal links/assets.
+- Reuse existing API contracts in `api/routes.js` and client mapping in `src/lib/api.ts` before introducing new payload shapes.
+- Do not add or modify secrets in tracked files; use environment variables only.
 
-## Build & dev workflows
+## Development commands
 
-- Dev server: `npm run dev`
-- Production build: `npm run build`
-- Preview build: `npm run preview`
-- Format (Prettier + Tailwind class sorting): `npm run format`
-- Check formatting (CI-friendly): `npm run format:check`
-  (Commands defined in the root package manifest.)
+- Install dependencies: `npm ci` (preferred in clean environments) or `npm install`.
+- Frontend dev server: `npm run dev`.
+- Build frontend: `npm run build`.
+- Preview built frontend: `npm run preview`.
+- Format repository: `npm run format`.
+- Format check (CI-style): `npm run format:check`.
 
-## Integration notes
+## Backend & CMS notes
 
-- Site base path is configured for GitHub Pages in the Astro config; don’t hardcode absolute `/` paths for assets or links.
+- Local backend run: `node app.js` (loads `api/server.js`).
+- Backend serves uploads from `public/uploads` and API under `/api`.
+- Proxy prefix handling is built into backend (`/app` stripping in `api/server.js`); preserve this logic when editing routing.
+- When changing Prisma schema, run `npx prisma generate` and, if migration is part of task, `npx prisma migrate dev --name <migration_name>`.
+
+## Validation checklist before finishing a task
+
+- Run `npm run format:check` after code edits.
+- If frontend behavior changed, run `npm run build`.
+- If API or Prisma changed, ensure backend starts with `node app.js` and check impacted endpoint logic.
+- If CI/deploy files changed, re-read `.github/workflows/deploy.yml` and verify no path regressions (`dist`, `api`, `prisma`, `admin`).
+
+## Deployment context
+
+- Push to `main` triggers deploy workflow.
+- Workflow builds frontend and deploys:
+  - `dist/` -> production frontend host.
+  - `api/`, `prisma/`, `admin/`, `app.js`, package manifests -> CMS app host.
+- Do not change deploy paths or Passenger bootstrap behavior unless explicitly requested.

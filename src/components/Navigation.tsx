@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { API_URL, getImageUrl } from '../lib/api';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { API_URL, getImageUrl, getSettings } from '../lib/api';
+import type { Settings } from '../lib/api';
 
 type NavigationProps = {
+  currentPath?: string;
   ctaText?: string;
   ctaUrl?: string;
   megaMenuImage?: string;
@@ -9,35 +11,129 @@ type NavigationProps = {
 };
 
 export const Navigation: React.FC<NavigationProps> = ({
+  currentPath,
   ctaText,
   ctaUrl,
   megaMenuImage,
   instagramUrl,
 }) => {
+  const isHomePath = currentPath === '/';
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isNavVisible, setIsNavVisible] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [ctaFillProgress, setCtaFillProgress] = useState<number>(() => {
+    return isHomePath ? 0 : 1;
+  });
+  const [navTitleOpacity, setNavTitleOpacity] = useState<number>(() => {
+    return isHomePath ? 0 : 1;
+  });
   const [isMenuMounted, setIsMenuMounted] = useState(false);
+
   const [pages, setPages] = useState<Array<{ id: number; slug: string; title?: string }>>([]);
   const [isLoadingPages, setIsLoadingPages] = useState(false);
   const [pagesError, setPagesError] = useState<string | null>(null);
-  const [megaMenuImageRemote, setMegaMenuImageRemote] = useState('');
-  const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
-  const resolvedCtaText = ctaText || 'get in touch';
-  const resolvedCtaUrl = ctaUrl || '/contact';
+  const [remoteSettings, setRemoteSettings] = useState<Settings | null>(null);
+  const isMountedRef = useRef(true);
+  const lastScrollYRef = useRef(0);
+  const resolvedCtaText = remoteSettings?.cta_text || ctaText || 'get in touch';
+  const resolvedCtaUrl = remoteSettings?.cta_url || ctaUrl || '/contact';
   const baseUrl = import.meta.env.BASE_URL || '/';
   const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
   const megaMenuBgUrl = `${normalizedBaseUrl}In-Lexi-Studio_tlo.webp`;
   const megaMenuOverlayUrl = `${normalizedBaseUrl}In-Lexi-Studio-nakladka.webp`;
-  const megaMenuImageUrl = megaMenuImage || megaMenuImageRemote || megaMenuBgUrl;
-  const resolvedInstagramUrl = instagramUrl || '';
+  const megaMenuImageUrl =
+    megaMenuImage ||
+    (remoteSettings?.mega_menu_image ? getImageUrl(remoteSettings.mega_menu_image) : '') ||
+    megaMenuBgUrl;
+  const resolvedInstagramUrl = remoteSettings?.instagram || instagramUrl || '';
+  const logoUrl = remoteSettings?.logo_path ? getImageUrl(remoteSettings.logo_path) : '';
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
+      const currentScrollY = window.scrollY;
+      const heroElement = document.querySelector<HTMLElement>('[data-page-hero]');
+      const heroScrollThreshold = heroElement ? Math.max(heroElement.offsetHeight - 120, 50) : 50;
+      setIsScrolled(currentScrollY > heroScrollThreshold);
+
+      const scrollingDown = currentScrollY > lastScrollYRef.current;
+      const hasScrollThreshold = currentScrollY > 800;
+
+      if (scrollingDown && hasScrollThreshold && !isMenuOpen) {
+        setIsNavVisible(false);
+      } else {
+        setIsNavVisible(true);
+      }
+
+      // Sync nav title opacity with hero logo fade-out (Hero fades logo 0→300px)
+      const onHome = Boolean(heroElement);
+      if (onHome) {
+        const FADE_START = 220;
+        const FADE_END = 330;
+        const CTA_START = 100;
+        const CTA_END = 220;
+        const opacity = Math.max(
+          0,
+          Math.min(1, (currentScrollY - FADE_START) / (FADE_END - FADE_START)),
+        );
+        const ctaProgress = Math.max(
+          0,
+          Math.min(1, (currentScrollY - CTA_START) / (CTA_END - CTA_START)),
+        );
+        setNavTitleOpacity(opacity);
+        setCtaFillProgress(ctaProgress);
+      } else {
+        setNavTitleOpacity(1);
+        setCtaFillProgress(1);
+      }
+
+      lastScrollYRef.current = currentScrollY;
     };
+
+    handleScroll();
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, [isMenuOpen]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
+
+  const loadSettings = useCallback(async () => {
+    const data = await getSettings();
+    if (!isMountedRef.current || !data) return;
+    setRemoteSettings(data);
+  }, []);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  useEffect(() => {
+    let lastRun = 0;
+
+    const revalidate = () => {
+      const now = Date.now();
+      if (now - lastRun < 5000) return;
+      lastRun = now;
+      loadSettings();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        revalidate();
+      }
+    };
+
+    window.addEventListener('focus', revalidate);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', revalidate);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [loadSettings]);
 
   useEffect(() => {
     if (isMenuOpen) return;
@@ -78,26 +174,6 @@ export const Navigation: React.FC<NavigationProps> = ({
 
     loadPages();
   }, [isMenuOpen, pages.length, isLoadingPages]);
-
-  useEffect(() => {
-    if (!isMenuOpen) return;
-    if (hasLoadedSettings || megaMenuImage) return;
-    const loadSettings = async () => {
-      setHasLoadedSettings(true);
-      try {
-        const res = await fetch(`${API_URL}/settings`);
-        if (!res.ok) throw new Error('Failed to load settings');
-        const data = await res.json();
-        if (data?.mega_menu_image) {
-          setMegaMenuImageRemote(getImageUrl(data.mega_menu_image));
-        }
-      } catch (err) {
-        console.error('Nie udalo sie pobrac ustawien mega menu', err);
-      }
-    };
-
-    loadSettings();
-  }, [isMenuOpen, hasLoadedSettings, megaMenuImage]);
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -147,10 +223,24 @@ export const Navigation: React.FC<NavigationProps> = ({
       .filter((page): page is { id: number; slug: string; title?: string } => Boolean(page));
   }, [pages]);
 
+  const navCtaStyle = useMemo(
+    () => ({
+      backgroundColor: `rgba(252, 252, 252, ${ctaFillProgress})`,
+      borderColor: `rgba(252, 252, 252, ${0.34 + ctaFillProgress * 0.66})`,
+      color: ctaFillProgress > 0.58 ? '#936328' : '#fcfcfc',
+      boxShadow:
+        ctaFillProgress > 0.16
+          ? `0 16px 34px rgba(0, 0, 0, ${0.16 + ctaFillProgress * 0.12})`
+          : 'none',
+      backdropFilter: ctaFillProgress < 0.98 ? 'blur(10px)' : 'none',
+    }),
+    [ctaFillProgress],
+  );
+
   return (
     <>
       <nav
-        className={`fixed left-0 right-0 top-0 z-50 px-8 py-6 transition-all duration-500 ${isScrolled ? 'bg-dark-bg/70 py-4 backdrop-blur-md' : 'bg-transparent'}`}
+        className={`fixed left-0 right-0 top-0 z-50 px-8 py-6 transition-all duration-500 ${isScrolled ? 'bg-[#1f2c24]/45 py-4 backdrop-blur-md' : 'bg-transparent'} ${isNavVisible || isMenuOpen ? 'translate-y-0' : '-translate-y-full'}`}
       >
         <div className="flex w-full items-center justify-between">
           {/* Left: Custom Menu Icon */}
@@ -169,19 +259,24 @@ export const Navigation: React.FC<NavigationProps> = ({
             </button>
           </div>
 
-          {/* Center: IN LEXI STUDIO (Logo Text) */}
-          <div className="flex w-1/3 justify-center">
-            <span className="font-display text-lg tracking-widest text-white md:text-xl">
+          {/* Center: IN LEXI STUDIO */}
+          <div
+            className={`flex w-1/3 justify-center transition-opacity duration-150 ${
+              navTitleOpacity < 0.05 ? 'pointer-events-none' : ''
+            }`}
+            style={{ opacity: navTitleOpacity }}
+          >
+            <a
+              href="/"
+              className="font-display text-lg tracking-widest text-white transition-colors hover:text-gold md:text-xl"
+            >
               IN LEXI STUDIO
-            </span>
+            </a>
           </div>
 
           {/* Right: GET IN TOUCH */}
           <div className="flex w-1/3 justify-end">
-            <a
-              href={resolvedCtaUrl}
-              className="border-b border-transparent pb-1 font-sans text-[10px] uppercase tracking-[0.2em] text-white transition-colors hover:border-gold hover:text-gold md:text-xs"
-            >
+            <a href={resolvedCtaUrl} className="btn-primary" style={navCtaStyle}>
               {resolvedCtaText}
             </a>
           </div>
@@ -215,7 +310,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               onClick={closeMenu}
               className="absolute left-8 top-6 z-20 rounded-full border border-white/30 px-4 py-2 text-xs uppercase tracking-widest text-white transition-colors hover:bg-white/10"
             >
-              Zamknij
+              Close
             </button>
             <div className="relative flex h-full flex-1 flex-col overflow-y-auto px-2 py-4 text-white lg:order-first lg:px-10 lg:py-10">
               <div
@@ -266,29 +361,38 @@ export const Navigation: React.FC<NavigationProps> = ({
               </div>
 
               <div className="mt-10 flex flex-col gap-6 border-t border-white/10 pt-6 md:flex-row md:items-center md:justify-between">
-                {resolvedInstagramUrl ? (
-                  <a
-                    href={resolvedInstagramUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs uppercase tracking-[0.35em] text-white/50 transition hover:text-gold"
-                  >
-                    Follow me
-                  </a>
-                ) : (
-                  <span className="text-xs uppercase tracking-[0.35em] text-white/50">
-                    Follow me
-                  </span>
-                )}
+                <div className="flex flex-wrap items-center gap-4 text-xs uppercase tracking-[0.35em] text-white/50">
+                  <span>Follow me</span>
+                  {resolvedInstagramUrl ? (
+                    <a
+                      href={resolvedInstagramUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="transition hover:text-gold"
+                    >
+                      Instagram
+                    </a>
+                  ) : null}
+                  {remoteSettings?.facebook ? (
+                    <a
+                      href={remoteSettings.facebook}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="transition hover:text-gold"
+                    >
+                      Facebook
+                    </a>
+                  ) : null}
+                </div>
                 <a
                   href={resolvedCtaUrl}
-                  className="inline-flex items-center justify-center rounded-full bg-gold px-8 py-4 text-sm uppercase tracking-[0.3em] text-black shadow-lg shadow-gold/20 transition hover:bg-gold-hover md:text-base"
+                  className="btn-secondary shadow-lg shadow-gold/20 md:text-base"
                 >
                   {resolvedCtaText}
                 </a>
               </div>
             </div>
-            <div className="hidden w-full lg:order-last lg:block lg:h-full lg:w-[45%] lg:-mr-16">
+            <div className="hidden w-full lg:order-last lg:-mr-16 lg:block lg:h-full lg:w-[45%]">
               <div className="relative h-full overflow-hidden">
                 <div className="absolute inset-0 bg-black/30" />
                 <div

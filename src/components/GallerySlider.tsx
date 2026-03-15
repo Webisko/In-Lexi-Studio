@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { animate, motion, useMotionValue } from 'framer-motion';
 import { useStore } from '@nanostores/react';
-import { currentCategory, type GalleryCategory } from '../store/galleryStore';
+import { currentCategory } from '../store/galleryStore';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Lightbox } from './Lightbox';
 import type { GalleryItem } from '../lib/api';
@@ -13,11 +13,10 @@ type SliderLayout = {
 };
 
 const getLayoutForWidth = (width: number): SliderLayout => {
-  // Tailwind defaults: sm=640, md=768, lg=1024
-  if (width >= 1024) return { slideWidthVw: 25, visibleCount: 4 };
-  if (width >= 768) return { slideWidthVw: 33.333, visibleCount: 3 };
-  if (width >= 640) return { slideWidthVw: 50, visibleCount: 2 };
-  return { slideWidthVw: 80, visibleCount: 1 };
+  // Desktop: 3 slides, Tablet: 2 slides, Mobile: 1 slide
+  if (width >= 1024) return { slideWidthVw: 33.333, visibleCount: 3 };
+  if (width >= 768) return { slideWidthVw: 50, visibleCount: 2 };
+  return { slideWidthVw: 100, visibleCount: 1 };
 };
 
 interface GallerySliderProps {
@@ -41,10 +40,11 @@ export const GallerySlider: React.FC<GallerySliderProps> = ({ data }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
-  const [layout, setLayout] = useState<SliderLayout>({ slideWidthVw: 25, visibleCount: 4 });
+  const [layout, setLayout] = useState<SliderLayout>({ slideWidthVw: 33.333, visibleCount: 3 });
   const [slideWidthPx, setSlideWidthPx] = useState(0);
   const autoPlayRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dragStartX = useRef(0);
+  const shouldSuppressClickRef = useRef(false);
   const lastAnimationStop = useRef<(() => void) | null>(null);
   const slideWidthPxRef = useRef(0);
   const x = useMotionValue(0);
@@ -132,13 +132,10 @@ export const GallerySlider: React.FC<GallerySliderProps> = ({ data }) => {
 
   const prevSlide = () => moveSlides(-1);
 
-  const nextPage = () => moveSlides(layout.visibleCount);
-
-  const prevPage = () => moveSlides(-layout.visibleCount);
-
   const handleDragStart = (event: any, info: any) => {
     if (lastAnimationStop.current) lastAnimationStop.current();
     setIsDragging(true);
+    shouldSuppressClickRef.current = false;
     dragStartX.current = info.point.x;
   };
 
@@ -146,6 +143,9 @@ export const GallerySlider: React.FC<GallerySliderProps> = ({ data }) => {
     const widthPx = slideWidthPxRef.current || (window.innerWidth * layout.slideWidthVw) / 100;
     const threshold = Math.min(140, Math.max(50, widthPx * 0.2));
     const dragDistance = Math.abs(info.point.x - dragStartX.current);
+    if (dragDistance > 6) {
+      shouldSuppressClickRef.current = true;
+    }
     let delta = Math.round(-info.offset.x / widthPx);
     if (delta === 0 && dragDistance > threshold) {
       delta = info.offset.x < 0 ? 1 : -1;
@@ -154,6 +154,7 @@ export const GallerySlider: React.FC<GallerySliderProps> = ({ data }) => {
     setIsDragging(false);
 
     if (dragDistance > threshold && delta !== 0) {
+      shouldSuppressClickRef.current = true;
       setCurrentIndex((prev) => prev + delta);
       return;
     }
@@ -169,6 +170,10 @@ export const GallerySlider: React.FC<GallerySliderProps> = ({ data }) => {
   };
 
   const handleImageClick = (index: number) => {
+    if (shouldSuppressClickRef.current) {
+      shouldSuppressClickRef.current = false;
+      return;
+    }
     if (isDragging) return;
 
     // Calculate the actual image index in the original array
@@ -180,6 +185,11 @@ export const GallerySlider: React.FC<GallerySliderProps> = ({ data }) => {
   const handleLightboxNavigate = (newIndex: number) => {
     setLightboxIndex(newIndex);
   };
+
+  if (originalImages.length === 0) return null;
+
+  const activeIndex =
+    ((currentIndex % originalImages.length) + originalImages.length) % originalImages.length;
 
   return (
     <>
@@ -205,7 +215,7 @@ export const GallerySlider: React.FC<GallerySliderProps> = ({ data }) => {
             {images.map((img, i) => (
               <div
                 key={`${img.id}-${i}`}
-                className="group relative h-full w-[80vw] flex-shrink-0 cursor-pointer sm:w-[50vw] md:w-[33.333vw] lg:w-[25vw]"
+                className="group relative h-full w-full flex-shrink-0 cursor-pointer md:w-1/2 lg:w-1/3"
                 onClick={() => handleImageClick(i)}
               >
                 <img
@@ -215,6 +225,7 @@ export const GallerySlider: React.FC<GallerySliderProps> = ({ data }) => {
                   loading="lazy"
                   decoding="async"
                   alt={img.alt}
+                  data-lightbox="off"
                   className="pointer-events-none h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                   draggable={false}
                 />
@@ -224,7 +235,7 @@ export const GallerySlider: React.FC<GallerySliderProps> = ({ data }) => {
           </motion.div>
 
           {/* Dynamic CTA Button Overlay */}
-          <div className="pointer-events-auto absolute bottom-12 left-1/2 z-20 -translate-x-1/2 transform">
+          <div className="pointer-events-auto absolute bottom-16 left-1/2 z-20 -translate-x-1/2 transform">
             <a
               href={`${import.meta.env.BASE_URL}${category === 'wedding' ? 'wedding-photography' : category === 'portrait' ? 'portrait-photography' : category === 'product' ? 'product-photography' : category}`}
               className="btn-primary shadow-xl"
@@ -234,30 +245,47 @@ export const GallerySlider: React.FC<GallerySliderProps> = ({ data }) => {
             </a>
           </div>
 
+          {/* Counter */}
+          <div className="absolute bottom-5 left-6 z-10 font-display text-xs tracking-[0.2em] text-white/70">
+            <span className="text-[#d4af37]">{String(activeIndex + 1).padStart(2, '0')}</span>
+            {' / '}
+            {String(originalImages.length).padStart(2, '0')}
+          </div>
+
+          {/* Dot indicators */}
+          <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 gap-2">
+            {originalImages.map((_, i) => {
+              return (
+                <button
+                  key={i}
+                  onClick={() => {
+                    setCurrentIndex(originalImages.length + i);
+                  }}
+                  aria-label={`Slide ${i + 1}`}
+                  className={`h-[2px] transition-all duration-300 ${
+                    i === activeIndex ? 'w-8 bg-[#d4af37]' : 'w-4 bg-white/40 hover:bg-white/70'
+                  }`}
+                />
+              );
+            })}
+          </div>
+
           {/* Prev Button Overlay */}
           <button
-            onClick={prevPage}
-            className="pointer-events-auto absolute left-4 top-1/2 z-20 -translate-y-1/2 transform p-2 text-white/50 mix-blend-difference transition-colors hover:text-white"
+            onClick={prevSlide}
+            aria-label="Previous slide"
+            className="absolute left-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/35 bg-black/55 text-white/90 shadow-[0_10px_30px_rgba(0,0,0,0.24)] transition-all hover:border-[#d4af37] hover:bg-[#d4af37] hover:text-black"
           >
-            <motion.div
-              animate={{ x: [-5, 0, -5] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-            >
-              <ChevronLeft size={48} strokeWidth={1} />
-            </motion.div>
+            <ChevronLeft size={18} strokeWidth={1.5} />
           </button>
 
           {/* Next Button Overlay */}
           <button
-            onClick={nextPage}
-            className="pointer-events-auto absolute right-4 top-1/2 z-20 -translate-y-1/2 transform p-2 text-white/50 mix-blend-difference transition-colors hover:text-white"
+            onClick={nextSlide}
+            aria-label="Next slide"
+            className="absolute right-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/35 bg-black/55 text-white/90 shadow-[0_10px_30px_rgba(0,0,0,0.24)] transition-all hover:border-[#d4af37] hover:bg-[#d4af37] hover:text-black"
           >
-            <motion.div
-              animate={{ x: [5, 0, 5] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-            >
-              <ChevronRight size={48} strokeWidth={1} />
-            </motion.div>
+            <ChevronRight size={18} strokeWidth={1.5} />
           </button>
         </div>
       </div>
