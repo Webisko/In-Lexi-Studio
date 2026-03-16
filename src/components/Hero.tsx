@@ -20,9 +20,9 @@ export const Hero: React.FC<HeroProps> = ({ data, settings }) => {
   const bgSrcSet = data?.hero_image ? getImageSrcSet(data.hero_image) : '';
   const bgSizes = bgSrcSet ? getImageSizes('hero') : undefined;
 
-  // Use only global logo_path for the hero logo (per-page logo variant is deprecated)
-  const heroLogoSource = settings?.logo_path || '';
-  const heroLogo = heroLogoSource ? getImageUrl(heroLogoSource) : getImageUrl('/uploads/5.webp');
+  // The global CMS settings are the single source of truth for the hero logo.
+  const heroLogoSource = settings?.logo_path || data?.home_hero_logo || '';
+  const heroLogo = heroLogoSource ? getImageUrl(heroLogoSource) : '';
 
   // Transform logic for the central graphic
   // Shrink slightly and fade out as we scroll down
@@ -69,13 +69,15 @@ export const Hero: React.FC<HeroProps> = ({ data, settings }) => {
           transition={{ duration: 0 }}
           className="flex w-full max-w-[1400px] items-center justify-center px-4 sm:px-6"
         >
-          <img
-            src={heroLogo}
-            alt="In Lexi Studio"
-            loading="eager"
-            decoding="async"
-            className="max-h-[48svh] w-[min(82vw,420px)] object-contain drop-shadow-2xl sm:max-h-[52svh] sm:w-[min(72vw,520px)] md:h-[52vh] md:max-h-[60vh] md:w-auto lg:h-[65vh] lg:max-h-[65vh]"
-          />
+          {heroLogo ? (
+            <img
+              src={heroLogo}
+              alt="In Lexi Studio"
+              loading="eager"
+              decoding="async"
+              className="max-h-[48svh] w-[min(82vw,420px)] object-contain drop-shadow-2xl sm:max-h-[52svh] sm:w-[min(72vw,520px)] md:h-[52vh] md:max-h-[60vh] md:w-auto lg:h-[65vh] lg:max-h-[65vh]"
+            />
+          ) : null}
         </motion.div>
 
         {/* Scroll Indicator */}
