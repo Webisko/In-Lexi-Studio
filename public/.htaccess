@@ -22,12 +22,22 @@ RewriteRule ^(.*[^/])$ /$1/ [R=301,L]
 # Ensure Apache looks for index.html (standard behavior, but being explicit helps)
 DirectoryIndex index.html
 
-# 4. STANDARD FILE SERVING
+# 4. STATIC ASSETS
+# Let Astro bundles and other static assets pass through untouched.
+RewriteRule ^_astro/ - [L]
+RewriteRule ^.*\.(?:css|js|mjs|json|map|svg|webp|png|jpe?g|gif|ico|woff2?|ttf)$ - [L,NC]
+
+# 5. STATIC PAGE RESOLUTION
+# Resolve clean URLs like /pricing or /pricing/ to their generated index.html files.
+RewriteCond %{REQUEST_FILENAME}/index.html -f
+RewriteRule ^(.+?)/?$ /$1/index.html [L]
+
+# 6. STANDARD FILE SERVING
 # If file exists, serve it.
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
-# 5. SPA / 404 FALLBACK
+# 7. SPA / 404 FALLBACK
 # If request is not a file and not a directory, show 404 or index.html
 # Since this is a static site with subpages, we prefer 404 for missing pages
 # rather than redirecting everything to home (which confuses invalid links).
