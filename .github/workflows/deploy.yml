@@ -29,8 +29,11 @@ jobs:
         shell: bash
         run: |
           install -m 700 -d ~/.ssh
-          printf '%s\n' "${{ secrets.SSH_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key
+          printf '%s' "${{ secrets.SSH_KEY }}" \
+            | perl -0pe 's/\r//g; s/\\n/\n/g' \
+            > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null
 
       - name: Adding Known Hosts
         shell: bash
