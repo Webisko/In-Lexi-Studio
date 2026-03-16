@@ -39,7 +39,10 @@ export const Hero: React.FC<HeroProps> = ({ data, settings }) => {
   };
 
   return (
-    <section data-page-hero className="relative h-[120vh] w-full bg-dark-bg">
+    <section
+      data-page-hero
+      className="relative min-h-[100svh] w-full bg-dark-bg md:h-[120vh] md:min-h-0"
+    >
       {/* Background Image */}
       <div className="pointer-events-none absolute inset-0 z-0">
         <img
@@ -55,7 +58,7 @@ export const Hero: React.FC<HeroProps> = ({ data, settings }) => {
       </div>
 
       {/* Top Section (0-100vh) - Graphic & Scroll Indicator */}
-      <div className="pointer-events-none relative z-10 flex h-[100vh] w-full flex-col items-center justify-center">
+      <div className="pointer-events-none relative z-10 flex h-[82svh] w-full flex-col items-center justify-center md:h-[100vh]">
         {/* Central Graphic */}
         <motion.div
           style={{
@@ -64,21 +67,21 @@ export const Hero: React.FC<HeroProps> = ({ data, settings }) => {
             y: graphicY,
           }}
           transition={{ duration: 0 }}
-          className="flex w-full max-w-[1400px] items-center justify-center px-4"
+          className="flex w-full max-w-[1400px] items-center justify-center px-4 sm:px-6"
         >
           <img
             src={heroLogo}
             alt="In Lexi Studio"
             loading="eager"
             decoding="async"
-            className="h-[65vh] max-h-[65vh] w-auto object-contain drop-shadow-2xl"
+            className="max-h-[48svh] w-[min(82vw,420px)] object-contain drop-shadow-2xl sm:max-h-[52svh] sm:w-[min(72vw,520px)] md:h-[52vh] md:max-h-[60vh] md:w-auto lg:h-[65vh] lg:max-h-[65vh]"
           />
         </motion.div>
 
         {/* Scroll Indicator */}
         <motion.div
           style={{ opacity: scrollIndicatorOpacity }}
-          className="absolute bottom-8 flex flex-col items-center gap-4"
+          className="absolute bottom-6 flex flex-col items-center gap-3 md:bottom-8 md:gap-4"
         >
           <div className="relative h-12 w-[1px] overflow-hidden bg-white/20">
             <motion.div
@@ -94,9 +97,9 @@ export const Hero: React.FC<HeroProps> = ({ data, settings }) => {
       </div>
 
       {/* Bottom Section (100vh-120vh) - Navigation Links */}
-      <div className="relative z-10 flex h-[20vh] w-full items-center justify-center">
+      <div className="relative z-10 flex min-h-[18svh] w-full items-center justify-center px-4 pb-8 md:h-[20vh] md:min-h-0 md:px-0 md:pb-0">
         <motion.div
-          className="flex flex-col items-center gap-8 md:flex-row md:gap-24"
+          className="flex flex-col items-center gap-5 text-center md:flex-row md:gap-24"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
@@ -112,7 +115,7 @@ export const Hero: React.FC<HeroProps> = ({ data, settings }) => {
                 href="#"
                 onClick={(e) => handleCategoryClick(e, category)}
                 onMouseEnter={() => setCategory(category)}
-                className={`group pointer-events-auto relative cursor-pointer font-display text-2xl uppercase tracking-[0.2em] transition-all duration-300 md:text-3xl ${
+                className={`group pointer-events-auto relative cursor-pointer font-display text-xl uppercase tracking-[0.18em] transition-all duration-300 sm:text-2xl md:text-3xl ${
                   isActive ? '-translate-y-1 text-gold' : 'translate-y-0 text-white hover:text-gold'
                 }`}
               >

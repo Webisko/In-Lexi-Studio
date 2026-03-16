@@ -210,7 +210,7 @@ export default function Portfolio({ page, galleries = [], mediaFiles = [] }: Pro
                 loading="lazy"
                 decoding="async"
                 data-lightbox="off"
-                className="h-auto w-full grayscale transition-all duration-500 group-hover:scale-105 group-hover:grayscale-0"
+                className="h-auto w-full grayscale-0 transition-all duration-500 lg:grayscale lg:group-hover:scale-105 lg:group-hover:grayscale-0"
               />
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-4 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
                 <Maximize2 className="mb-2 text-[#d4af37]" size={24} />
@@ -243,7 +243,7 @@ export default function Portfolio({ page, galleries = [], mediaFiles = [] }: Pro
 
             {/* Prev */}
             <button
-              className="absolute left-4 top-1/2 z-50 flex h-10 w-10 -translate-y-1/2 items-center justify-center border border-white/25 bg-black/45 text-white transition-all hover:border-[#d4af37]/60 hover:bg-black/70 hover:text-[#d4af37]"
+              className="absolute left-4 top-1/2 z-50 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/35 bg-black/55 text-white/90 shadow-[0_10px_30px_rgba(0,0,0,0.24)] transition-all hover:border-[#d4af37] hover:bg-[#d4af37] hover:text-black"
               onClick={(e) => {
                 e.stopPropagation();
                 setSelectedIndex((i) =>
@@ -257,7 +257,7 @@ export default function Portfolio({ page, galleries = [], mediaFiles = [] }: Pro
 
             {/* Next */}
             <button
-              className="absolute right-4 top-1/2 z-50 flex h-10 w-10 -translate-y-1/2 items-center justify-center border border-white/25 bg-black/45 text-white transition-all hover:border-[#d4af37]/60 hover:bg-black/70 hover:text-[#d4af37]"
+              className="absolute right-4 top-1/2 z-50 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/35 bg-black/55 text-white/90 shadow-[0_10px_30px_rgba(0,0,0,0.24)] transition-all hover:border-[#d4af37] hover:bg-[#d4af37] hover:text-black"
               onClick={(e) => {
                 e.stopPropagation();
                 setSelectedIndex((i) => (i === null ? null : (i + 1) % filteredItems.length));

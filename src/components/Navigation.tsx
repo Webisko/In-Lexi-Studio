@@ -225,14 +225,15 @@ export const Navigation: React.FC<NavigationProps> = ({
 
   const navCtaStyle = useMemo(
     () => ({
-      backgroundColor: `rgba(252, 252, 252, ${ctaFillProgress})`,
-      borderColor: `rgba(252, 252, 252, ${0.34 + ctaFillProgress * 0.66})`,
-      color: ctaFillProgress > 0.58 ? '#936328' : '#fcfcfc',
+      backgroundColor: `rgba(252, 252, 252, ${ctaFillProgress * 0.16})`,
+      borderColor: `rgba(252, 252, 252, ${0.22 + ctaFillProgress * 0.22})`,
+      color: '#fcfcfc',
       boxShadow:
         ctaFillProgress > 0.16
-          ? `0 16px 34px rgba(0, 0, 0, ${0.16 + ctaFillProgress * 0.12})`
+          ? `0 16px 34px rgba(0, 0, 0, ${0.14 + ctaFillProgress * 0.08})`
           : 'none',
-      backdropFilter: ctaFillProgress < 0.98 ? 'blur(10px)' : 'none',
+      backdropFilter: ctaFillProgress > 0.16 ? 'blur(14px)' : 'none',
+      WebkitBackdropFilter: ctaFillProgress > 0.16 ? 'blur(14px)' : 'none',
     }),
     [ctaFillProgress],
   );

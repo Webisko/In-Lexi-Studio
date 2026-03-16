@@ -78,6 +78,8 @@ export const Footer: React.FC<FooterProps> = ({
   const baseUrl = import.meta.env.BASE_URL || '/';
   const resolvedPrivacyUrl =
     remoteSettings?.privacy_url || privacyUrl || `${baseUrl}privacy-policy`;
+  const emailHref = resolvedEmail ? `mailto:${resolvedEmail}` : '';
+  const phoneHref = resolvedPhone ? `tel:${resolvedPhone.replace(/[^+\d]/g, '')}` : '';
   const buildLink = (slug: string) => `${baseUrl}${slug}`;
   const offerLinks = [
     { label: 'Wedding', href: buildLink('wedding-photography') },
@@ -147,12 +149,20 @@ export const Footer: React.FC<FooterProps> = ({
             </h4>
             <ul className="space-y-4 font-sans text-sm uppercase tracking-widest text-gray-300">
               {resolvedEmail ? (
-                <li className="transition-colors hover:text-white">{resolvedEmail}</li>
+                <li>
+                  <a href={emailHref} className="transition-colors hover:text-white">
+                    {resolvedEmail}
+                  </a>
+                </li>
               ) : (
                 <li className="text-gray-500">Email not set</li>
               )}
               {resolvedPhone ? (
-                <li className="transition-colors hover:text-white">{resolvedPhone}</li>
+                <li>
+                  <a href={phoneHref} className="transition-colors hover:text-white">
+                    {resolvedPhone}
+                  </a>
+                </li>
               ) : (
                 <li className="text-gray-500">Phone not set</li>
               )}

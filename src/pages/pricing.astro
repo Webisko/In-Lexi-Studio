@@ -7,6 +7,9 @@ const page = await getPage('pricing');
 const phone = settings?.phone || '07966516199';
 const email = settings?.email || 'info@inlexistudio.com';
 const website = 'inlexistudio.com';
+const phoneHref = `tel:${phone.replace(/[^+\d]/g, '')}`;
+const emailHref = `mailto:${email}`;
+const websiteHref = `https://${website}`;
 const contactUrl = `${import.meta.env.BASE_URL || '/'}contact`;
 
 const packages = [
@@ -242,15 +245,26 @@ const addons = [
         <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3 text-white/80">
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-gold">Phone</p>
-            <p class="mt-1 body-copy">{phone}</p>
+            <a href={phoneHref} class="mt-1 inline-block body-copy transition-colors hover:text-white">
+              {phone}
+            </a>
           </div>
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-gold">Email</p>
-            <p class="mt-1 body-copy">{email}</p>
+            <a href={emailHref} class="mt-1 inline-block body-copy transition-colors hover:text-white">
+              {email}
+            </a>
           </div>
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-gold">Website</p>
-            <p class="mt-1 body-copy">{website}</p>
+            <a
+              href={websiteHref}
+              target="_blank"
+              rel="noreferrer"
+              class="mt-1 inline-block body-copy transition-colors hover:text-white"
+            >
+              {website}
+            </a>
           </div>
         </div>
 
