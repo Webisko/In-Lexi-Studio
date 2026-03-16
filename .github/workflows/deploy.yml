@@ -14,7 +14,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install Dependencies
         run: npm ci
@@ -26,20 +26,25 @@ jobs:
         run: npm run build
 
       - name: Install SSH Key
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_KEY }}
+        shell: bash
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
 
       - name: Adding Known Hosts
-        run: ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+        shell: bash
+        run: |
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
 
       - name: Deploy Frontend (public_html)
         run: |
-          rsync -avz -e "ssh -p ${{ secrets.SSH_PORT }}" --delete ./dist/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:domains/inlexistudio.com/public_html/
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} -o StrictHostKeyChecking=yes" --delete ./dist/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:domains/inlexistudio.com/public_html/
 
       - name: Deploy Backend (cms-app)
         run: |
-          rsync -avz -e "ssh -p ${{ secrets.SSH_PORT }}" \
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} -o StrictHostKeyChecking=yes" \
           --exclude 'node_modules' \
           --exclude '.env' \
           --exclude 'dist' \
@@ -49,12 +54,12 @@ jobs:
 
       - name: Deploy CMS Admin (admin.inlexistudio.com)
         run: |
-          rsync -avz -e "ssh -p ${{ secrets.SSH_PORT }}" --delete \
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} -o StrictHostKeyChecking=yes" --delete \
           ./admin/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:domains/admin.inlexistudio.com/public_html/
 
       - name: Normalize Public Permissions
         run: |
-          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+          ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} -o StrictHostKeyChecking=yes ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
             find domains/inlexistudio.com/public_html -type d -exec chmod 755 {} \; &&
             find domains/inlexistudio.com/public_html -type f -exec chmod 644 {} \; &&
             find domains/admin.inlexistudio.com/public_html -type d -exec chmod 755 {} \; &&
@@ -63,7 +68,7 @@ jobs:
 
       - name: Configure Passenger & Restart
         run: |
-          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+          ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} -o StrictHostKeyChecking=yes ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
             cd domains/inlexistudio.com/cms-app &&
             
             # Create/Overwrite Passenger .htaccess
