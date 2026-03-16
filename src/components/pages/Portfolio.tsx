@@ -210,7 +210,7 @@ export default function Portfolio({ page, galleries = [], mediaFiles = [] }: Pro
                 loading="lazy"
                 decoding="async"
                 data-lightbox="off"
-                className="h-auto w-full grayscale-0 transition-all duration-500 lg:grayscale lg:group-hover:scale-105 lg:group-hover:grayscale-0"
+                className="portfolio-grid-image h-auto w-full transition-all duration-500"
               />
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-4 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
                 <Maximize2 className="mb-2 text-[#d4af37]" size={24} />
