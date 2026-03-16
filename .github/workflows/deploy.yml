@@ -52,6 +52,15 @@ jobs:
           rsync -avz -e "ssh -p ${{ secrets.SSH_PORT }}" --delete \
           ./admin/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:domains/admin.inlexistudio.com/public_html/
 
+      - name: Normalize Public Permissions
+        run: |
+          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+            find domains/inlexistudio.com/public_html -type d -exec chmod 755 {} \; &&
+            find domains/inlexistudio.com/public_html -type f -exec chmod 644 {} \; &&
+            find domains/admin.inlexistudio.com/public_html -type d -exec chmod 755 {} \; &&
+            find domains/admin.inlexistudio.com/public_html -type f -exec chmod 644 {} \;
+          "
+
       - name: Configure Passenger & Restart
         run: |
           ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
@@ -68,5 +77,7 @@ jobs:
             source /home/${{ secrets.SSH_USER }}/nodevenv/domains/inlexistudio.com/cms-app/22/bin/activate &&
             npm install --production &&
             npx prisma generate &&
+            find . -type d -exec chmod 755 {} \; &&
+            find . -type f -exec chmod 644 {} \; &&
             touch app.js
           "

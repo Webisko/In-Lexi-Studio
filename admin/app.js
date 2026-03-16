@@ -1561,6 +1561,13 @@ async function loadPages() {
 
 function renderPagesView(pages, showSeedBtn, container) {
   const query = pagesFilterQuery.trim().toLowerCase();
+  const canDeletePage = (page) => {
+    const normalizedSlug = String(page?.slug || '')
+      .trim()
+      .replace(/^\/+|\/+$/g, '')
+      .toLowerCase();
+    return !(page?.is_home || normalizedSlug === '' || normalizedSlug === 'home');
+  };
   const hasLandingPageTag = (page) => {
     const normalizedSlug = String(page.slug || '')
       .trim()
@@ -1609,6 +1616,7 @@ function renderPagesView(pages, showSeedBtn, container) {
                 <td class="px-6 py-4 text-right space-x-3">
                   <button type="button" onclick="editPage(${p.id})" class="text-gold hover:text-black dark:hover:text-white transition-colors font-medium">Edytuj</button>
                   <button type="button" onclick="window.open('${FRONTEND_BASE_URL}${p.is_home || p.slug === '/' ? '/' : '/' + (p.slug || '').replace(/^\/+/, '') + '/'}', '_blank')" class="text-gray-500 hover:text-gold dark:text-gray-400 dark:hover:text-gold transition-colors font-medium">Podgląd</button>
+                  ${canDeletePage(p) ? `<button type="button" onclick="deletePage(${p.id}, '${escapeHtml(p.title || p.slug || 'tej strony')}')" class="text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors font-medium">Usuń</button>` : ''}
                 </td>
               </tr>
             `,
@@ -1649,6 +1657,7 @@ function renderPagesView(pages, showSeedBtn, container) {
               <div class="grid grid-cols-2 gap-2">
                 <button type="button" onclick="editPage(${p.id})" class="py-2 border border-gray-300 dark:border-white/10 rounded text-gray-600 dark:text-gray-300 hover:bg-gold hover:text-black hover:border-gold transition-colors font-medium">Edytuj</button>
                 <button type="button" onclick="window.open('${FRONTEND_BASE_URL}${p.is_home || p.slug === '/' ? '/' : '/' + (p.slug || '').replace(/^\/+/, '') + '/'}', '_blank')" class="py-2 border border-gray-300 dark:border-white/10 rounded text-gray-600 dark:text-gray-300 hover:bg-gold hover:text-black hover:border-gold transition-colors font-medium">Podgląd</button>
+                ${canDeletePage(p) ? `<button type="button" onclick="deletePage(${p.id}, '${escapeHtml(p.title || p.slug || 'tej strony')}')" class="col-span-2 w-full py-2 border border-red-500/40 rounded text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors font-medium">Usuń</button>` : ''}
               </div>
             </div>
           </div>
@@ -3506,6 +3515,29 @@ window.editPage = async (id) => {
     }
   });
 };
+
+async function deletePage(id, label) {
+  if (!confirm(`Czy na pewno chcesz usunąć stronę ${label}?`)) return;
+
+  try {
+    const res = await fetch(`${ADMIN_API_URL}/pages/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => null);
+      const errText = errJson ? '' : await res.text().catch(() => '');
+      throw new Error(errJson?.error || errText || `Blad usuwania (${res.status})`);
+    }
+
+    closeModal();
+    loadPages();
+  } catch (err) {
+    console.error('Blad usuwania strony', err);
+    alert(`Nie udalo sie usunac strony: ${err.message || 'blad usuwania'}`);
+  }
+}
 
 // 2. Galleries (Sesje)
 const CATEGORY_MAP = {

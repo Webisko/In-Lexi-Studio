@@ -44,6 +44,7 @@ export async function getStaticPaths() {
     '',
     '/',
     'home',
+    'home-legacy',
     'contact',
     'pricing',
     'privacy-policy',
@@ -53,7 +54,13 @@ export async function getStaticPaths() {
   const sourcePages = Array.isArray(pages) && pages.length ? pages : fallbackDynamicPages;
   console.log('Re-generating paths with data from API:', sourcePages.length, 'pages found.');
   return sourcePages
-    .filter((p) => p.slug && !reservedStaticSlugs.has(String(p.slug).trim().toLowerCase()))
+    .filter((p) => {
+      const normalizedSlug = String(p.slug || '').trim().toLowerCase();
+      const normalizedTitle = String(p.title || '').trim().toLowerCase();
+      if (!normalizedSlug || reservedStaticSlugs.has(normalizedSlug)) return false;
+      if (normalizedTitle.includes('home') && normalizedTitle.includes('legacy')) return false;
+      return true;
+    })
     .map((page) => ({
       params: { slug: page.slug },
       props: { page },

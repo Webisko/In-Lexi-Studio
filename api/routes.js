@@ -1502,6 +1502,15 @@ const normalizePageResponse = (page, settings = null) => {
   };
 };
 
+const isProtectedHomePage = (page) => {
+  const normalizedSlug = String(page?.slug || '')
+    .trim()
+    .replace(/^\/+|\/+$/g, '')
+    .toLowerCase();
+
+  return Boolean(page?.is_home) || normalizedSlug === '' || normalizedSlug === 'home';
+};
+
 const normalizePagePayload = (data) => {
   if (!data) return;
 
@@ -1563,6 +1572,29 @@ router.put('/admin/pages/:id', authenticateToken, async (req, res) => {
     const pageId = Number(id);
 
     normalizePagePayload(data);
+router.delete('/admin/pages/:id', authenticateToken, async (req, res) => {
+  try {
+    const pageId = Number(req.params.id);
+    if (!Number.isFinite(pageId)) {
+      return res.status(400).json({ error: 'Invalid page id' });
+    }
+
+    const page = await prisma.page.findUnique({ where: { id: pageId } });
+    if (!page) {
+      return res.status(404).json({ error: 'Page not found' });
+    }
+
+    if (isProtectedHomePage(page)) {
+      return res.status(400).json({ error: 'Nie mozna usunac aktywnej strony glownej.' });
+    }
+
+    await prisma.page.delete({ where: { id: pageId } });
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Page delete failed:', e);
+    res.status(500).json({ error: e.message || 'Page delete failed' });
+  }
+});
 
     if (data.is_home) {
       data.slug = '/';
