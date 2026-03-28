@@ -10,7 +10,7 @@ export const WelcomeSection: React.FC = () => {
   ] as const;
 
   return (
-    <section className="px-4 py-24 text-white md:px-12 md:py-32">
+    <section className="overflow-x-hidden px-4 py-24 text-white md:px-12 md:py-32">
       <div className="mx-auto w-full max-w-[1440px]">
         <div className="grid grid-cols-1 items-center gap-14 md:grid-cols-2 md:gap-20">
           {/* Left: Title block */}
@@ -31,13 +31,13 @@ export const WelcomeSection: React.FC = () => {
                     </span>
                     <a
                       href={buildLink(item.slug)}
-                      className="absolute left-full top-1/2 ml-4 flex -translate-y-1/2 items-center"
+                      className="absolute left-1/2 top-full mt-3 flex -translate-x-1/2 items-center md:left-full md:top-1/2 md:ml-4 md:mt-0 md:-translate-y-1/2 md:translate-x-0"
                     >
                       <span className="hotspot-wrap" aria-hidden="true">
                         <span className="hotspot-pulse" aria-hidden="true" />
                         <span className="hotspot" aria-hidden="true" />
                       </span>
-                      <span className="ml-4 inline-flex -translate-x-3 items-center rounded-full bg-white px-6 py-2 font-sans text-sm uppercase tracking-[0.25em] text-[#936328] opacity-0 transition-all duration-300 hover:bg-gold hover:text-white group-hover:translate-x-0 group-hover:opacity-100 md:text-base">
+                      <span className="ml-4 hidden items-center rounded-full bg-white px-6 py-2 font-sans text-sm uppercase tracking-[0.25em] text-[#936328] hover:bg-gold hover:text-white md:inline-flex md:-translate-x-3 md:text-base md:opacity-0 md:transition-all md:duration-300 md:group-hover:translate-x-0 md:group-hover:opacity-100">
                         {item.label}
                       </span>
                     </a>

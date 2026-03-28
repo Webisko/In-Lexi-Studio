@@ -20,12 +20,19 @@
     --btn-white: #fcfcfc;
   }
 
+  html {
+    overflow-x: hidden;
+    width: 100%;
+  }
+
   body {
     background-color: #080808;
     color: #fcfcfc;
     font-family: 'Montserrat', sans-serif;
     overflow-x: hidden;
+    max-width: 100%;
     position: relative;
+    width: 100%;
   }
 }
 
