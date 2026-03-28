@@ -341,10 +341,7 @@ function WeddingHighlightsSlider({ images, title }: { images: string[]; title: s
   }));
 
   return (
-    <section
-      className="mb-28"
-      style={{ marginLeft: 'calc(-50vw + 50%)', marginRight: 'calc(-50vw + 50%)' }}
-    >
+    <section className="mb-28">
       <motion.div
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
@@ -669,9 +666,9 @@ export default function WeddingPhotography({ page, testimonials = [] }: Props) {
       >
         {page.hero_image && (
           <motion.img
-            initial={{ scale: 1.1 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 10, ease: 'easeOut' }}
+            initial={{ opacity: 0.72 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1.1, ease: 'easeOut' }}
             src={getImageUrl(page.hero_image)}
             srcSet={getImageSrcSet(page.hero_image) || undefined}
             sizes={getImageSrcSet(page.hero_image) ? getImageSizes('hero') : undefined}

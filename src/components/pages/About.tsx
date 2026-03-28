@@ -70,9 +70,9 @@ export default function About({ page }: Props) {
       >
         {page.hero_image && (
           <motion.img
-            initial={{ scale: 1.1 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 10, ease: 'easeOut' }}
+            initial={{ opacity: 0.72 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1.1, ease: 'easeOut' }}
             src={getImageUrl(page.hero_image)}
             srcSet={getImageSrcSet(page.hero_image) || undefined}
             sizes={getImageSrcSet(page.hero_image) ? getImageSizes('hero') : undefined}
@@ -80,7 +80,7 @@ export default function About({ page }: Props) {
             decoding="async"
             fetchPriority="high"
             alt={page.title}
-            className="absolute inset-0 h-full w-full object-cover object-center"
+            className="absolute inset-0 h-full w-full object-cover object-center will-change-transform"
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#080808]/10 to-[#080808]/35" />
@@ -130,7 +130,7 @@ export default function About({ page }: Props) {
       {/* 2. ORIGIN — editorial 2-col with offset portrait pair */}
       <section className="section-pad bg-[#0a0a0a]">
         <div className="mx-auto max-w-[1440px] px-6 md:px-12">
-          <div className="grid grid-cols-1 items-start gap-16 md:grid-cols-[1fr_420px] md:gap-24">
+          <div className="grid grid-cols-1 items-start gap-16 lg:grid-cols-[1fr_420px] lg:gap-24">
             <motion.div
               initial="hidden"
               whileInView="visible"
@@ -143,7 +143,7 @@ export default function About({ page }: Props) {
               </p>
               <h2 className="mb-8 font-display text-3xl leading-tight text-white md:text-4xl">
                 From North Africa
-                <br className="hidden md:block" /> to the Heart of Scotland
+                <br className="hidden lg:block" /> to the Heart of Scotland
               </h2>
               <div className="space-y-5 text-[1.05rem] leading-relaxed text-gray-400">
                 <p>
@@ -166,9 +166,9 @@ export default function About({ page }: Props) {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
-              className="relative hidden md:block"
+              className="relative hidden lg:block"
             >
-              <div className="absolute inset-0 translate-x-5 translate-y-5 border border-[#d4af37]/25" />
+              <div className="absolute inset-0 border border-[#d4af37]/25 lg:translate-x-5 lg:translate-y-5" />
               <img
                 src={UPLOADS.portrait4}
                 alt="Alex — photographer portrait"
@@ -184,7 +184,7 @@ export default function About({ page }: Props) {
               whileInView="visible"
               viewport={{ once: true }}
               variants={fadeIn}
-              className="overflow-hidden md:hidden"
+              className="overflow-hidden lg:hidden"
             >
               <img
                 src={UPLOADS.portrait4}
@@ -204,7 +204,7 @@ export default function About({ page }: Props) {
         whileInView="visible"
         viewport={{ once: true }}
         variants={stagger}
-        className="grid grid-cols-3"
+        className="grid grid-cols-1 sm:grid-cols-3"
       >
         {aboutOriginImages.map((src, i) => (
           <motion.div key={i} variants={fadeInUp} className="overflow-hidden">
@@ -282,7 +282,7 @@ export default function About({ page }: Props) {
             whileInView="visible"
             viewport={{ once: true }}
             variants={stagger}
-            className="grid grid-cols-3 gap-1 md:gap-2"
+            className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-1 md:gap-2"
           >
             {(
               aboutStoryImages.map((src, index) => ({
@@ -312,7 +312,9 @@ export default function About({ page }: Props) {
       {/* 6. LIVING FULLY — chapter with border-t-2 cards + ILS watermark */}
       <section className="section-pad-lg relative overflow-hidden">
         <div className="pointer-events-none absolute right-0 top-0 select-none p-12 opacity-[0.03]">
-          <span className="font-display text-[18rem] leading-none text-white">ILS</span>
+          <span className="font-display text-[15rem] leading-none text-white sm:text-[18rem]">
+            ILS
+          </span>
         </div>
 
         <div className="relative z-10 mx-auto max-w-[1440px] px-6 md:px-12">
@@ -387,13 +389,13 @@ export default function About({ page }: Props) {
         <div className="mx-auto max-w-[1440px] px-6 md:px-12">
           <div className="grid grid-cols-1 items-center gap-16 md:grid-cols-2 md:gap-24">
             <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
-              className="relative"
+              className="relative overflow-hidden md:overflow-visible"
             >
-              <div className="absolute inset-0 -translate-x-5 -translate-y-5 border border-[#d4af37]/25" />
+              <div className="absolute inset-0 border border-[#d4af37]/25 md:-translate-x-5 md:-translate-y-5" />
               <img
                 src={UPLOADS.portrait1}
                 alt="Passion for photography"
@@ -459,7 +461,7 @@ export default function About({ page }: Props) {
         whileInView="visible"
         viewport={{ once: true }}
         variants={stagger}
-        className="grid grid-cols-3"
+        className="grid grid-cols-1 sm:grid-cols-3"
       >
         {aboutWorkImages.map((src, i) => (
           <motion.div key={i} variants={fadeInUp} className="overflow-hidden">
@@ -513,13 +515,13 @@ export default function About({ page }: Props) {
             </motion.div>
 
             <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
-              className="relative"
+              className="relative overflow-hidden md:overflow-visible"
             >
-              <div className="absolute inset-0 translate-x-5 translate-y-5 border border-[#d4af37]/25" />
+              <div className="absolute inset-0 border border-[#d4af37]/25 md:translate-x-5 md:translate-y-5" />
               <img
                 src={UPLOADS.mePortrait1}
                 alt="Photographer off duty"

@@ -47,6 +47,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     megaMenuBgUrl;
   const resolvedInstagramUrl = remoteSettings?.instagram || instagramUrl || '';
   const logoUrl = remoteSettings?.logo_path ? getImageUrl(remoteSettings.logo_path) : '';
+  const homeHref = normalizedBaseUrl;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -241,11 +242,11 @@ export const Navigation: React.FC<NavigationProps> = ({
   return (
     <>
       <nav
-        className={`fixed left-0 right-0 top-0 z-50 px-8 py-6 transition-all duration-500 ${isScrolled ? 'bg-[#1f2c24]/45 py-4 backdrop-blur-md' : 'bg-transparent'} ${isNavVisible || isMenuOpen ? 'translate-y-0' : '-translate-y-full'}`}
+        className={`fixed left-0 right-0 top-0 z-50 px-4 py-4 transition-all duration-500 sm:px-6 md:px-8 md:py-6 ${isScrolled ? 'bg-[#1f2c24]/45 backdrop-blur-md md:py-4' : 'bg-transparent'} ${isNavVisible || isMenuOpen ? 'translate-y-0' : '-translate-y-full'}`}
       >
-        <div className="flex w-full items-center justify-between">
+        <div className="grid w-full grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 md:flex md:items-center md:justify-between">
           {/* Left: Custom Menu Icon */}
-          <div className="flex w-1/3 justify-start">
+          <div className="flex justify-start md:w-1/3">
             <button
               type="button"
               onClick={openMenu}
@@ -262,22 +263,26 @@ export const Navigation: React.FC<NavigationProps> = ({
 
           {/* Center: IN LEXI STUDIO */}
           <div
-            className={`flex w-1/3 justify-center transition-opacity duration-150 ${
+            className={`flex min-w-0 justify-center transition-opacity duration-150 md:w-1/3 ${
               navTitleOpacity < 0.05 ? 'pointer-events-none' : ''
             }`}
             style={{ opacity: navTitleOpacity }}
           >
             <a
-              href="/"
-              className="font-display text-lg tracking-widest text-white transition-colors hover:text-gold md:text-xl"
+              href={homeHref}
+              className="block max-w-full truncate text-center font-display text-sm tracking-[0.18em] text-white transition-colors hover:text-gold sm:text-base md:text-lg md:tracking-widest"
             >
               IN LEXI STUDIO
             </a>
           </div>
 
           {/* Right: GET IN TOUCH */}
-          <div className="flex w-1/3 justify-end">
-            <a href={resolvedCtaUrl} className="btn-primary" style={navCtaStyle}>
+          <div className="flex justify-end md:w-1/3">
+            <a
+              href={resolvedCtaUrl}
+              className="btn-primary sm:!px-4.5 !px-3.5 !py-2.5 !text-[0.68rem] !tracking-[0.18em] sm:!text-[0.72rem] md:!px-9 md:!py-3 md:!text-[0.8rem] md:!tracking-[0.25em]"
+              style={navCtaStyle}
+            >
               {resolvedCtaText}
             </a>
           </div>
