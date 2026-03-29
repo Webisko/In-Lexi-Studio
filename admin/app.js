@@ -736,6 +736,9 @@ const dom = {
   megaMenuClose: document.getElementById('mega-menu-close'),
   megaMenuBackdrop: document.getElementById('mega-menu-backdrop'),
   megaMenuList: document.getElementById('mega-menu-list'),
+  sidebar: document.getElementById('sidebar'),
+  sidebarBackdrop: document.getElementById('sidebar-backdrop'),
+  mobileMenuBtn: document.getElementById('mobile-menu-btn'),
 };
 
 // --- Initialization ---
@@ -769,6 +772,24 @@ dom.closeModalBtn.addEventListener('click', closeModal);
 dom.closeMediaBtn.addEventListener('click', () => {
   closeMediaPicker(null);
 });
+
+if (dom.mobileMenuBtn && dom.sidebar && dom.sidebarBackdrop) {
+  const toggleSidebar = () => {
+    const isHidden = dom.sidebar.classList.contains('-translate-x-full');
+    if (isHidden) {
+      dom.sidebar.classList.remove('-translate-x-full');
+      dom.sidebarBackdrop.classList.remove('hidden', 'opacity-0');
+      dom.sidebarBackdrop.classList.add('opacity-100');
+    } else {
+      dom.sidebar.classList.add('-translate-x-full');
+      dom.sidebarBackdrop.classList.remove('opacity-100');
+      dom.sidebarBackdrop.classList.add('opacity-0');
+      setTimeout(() => dom.sidebarBackdrop.classList.add('hidden'), 300);
+    }
+  };
+  dom.mobileMenuBtn.addEventListener('click', toggleSidebar);
+  dom.sidebarBackdrop.addEventListener('click', toggleSidebar);
+}
 
 dom.themeToggle.addEventListener('click', () => {
   // If currently dark, switch to light
@@ -905,6 +926,15 @@ dom.navBtns.forEach((btn) => {
     );
     btn.classList.remove('text-gray-400');
     btn.querySelector('svg')?.classList.add('text-gold');
+    
+    if (dom.sidebar && !dom.sidebar.classList.contains('-translate-x-full') && window.innerWidth < 768) {
+      dom.sidebar.classList.add('-translate-x-full');
+      if (dom.sidebarBackdrop) {
+        dom.sidebarBackdrop.classList.remove('opacity-100');
+        dom.sidebarBackdrop.classList.add('opacity-0');
+        setTimeout(() => dom.sidebarBackdrop.classList.add('hidden'), 300);
+      }
+    }
   });
 });
 
@@ -1589,6 +1619,7 @@ function renderPagesView(pages, showSeedBtn, container) {
 
   const renderList = () => `
     <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-lg overflow-hidden shadow-sm">
+      <div class="overflow-x-auto w-full rounded border border-gray-200 dark:border-white/10">
       <table class="w-full text-left">
         <thead class="bg-gray-50 dark:bg-white/5 text-gray-400 text-xs uppercase tracking-wider">
           <tr>
@@ -1624,6 +1655,7 @@ function renderPagesView(pages, showSeedBtn, container) {
             .join('')}
         </tbody>
       </table>
+      </div>
     </div>
   `;
 
@@ -3596,7 +3628,7 @@ function renderGalleries(galleries) {
                   g.name || 'Bez nazwy'
                 }</h3>
                 <p class="text-xs text-gray-500 uppercase tracking-widest mb-4">${g.items ? g.items.length : 0} zdjęć</p>
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <button type="button" onclick="editGallery(${g.id})" class="w-full py-2 border border-gray-300 dark:border-white/10 rounded text-gray-600 dark:text-gray-300 hover:bg-gold hover:text-black hover:border-gold transition-colors font-medium">Edytuj</button>
                   <button type="button" onclick="deleteGallery(${g.id})" class="w-full py-2 border border-red-500/40 rounded text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors font-medium">Usuń</button>
                 </div>
@@ -3610,6 +3642,7 @@ function renderGalleries(galleries) {
 
   const renderList = () => `
     <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-lg overflow-hidden shadow-sm">
+      <div class="overflow-x-auto w-full rounded border border-gray-200 dark:border-white/10">
       <table class="w-full text-left">
         <thead class="bg-gray-50 dark:bg-white/5 text-gray-400 text-xs uppercase tracking-wider">
           <tr>
@@ -3651,6 +3684,7 @@ function renderGalleries(galleries) {
             .join('')}
         </tbody>
       </table>
+      </div>
     </div>
   `;
 
@@ -3999,6 +4033,7 @@ async function loadTestimonials() {
 
   const renderList = () => `
     <div class="bg-white dark:bg-dark-secondary border border-gray-200 dark:border-white/5 rounded-lg overflow-hidden shadow-sm">
+      <div class="overflow-x-auto w-full rounded border border-gray-200 dark:border-white/10">
       <table class="w-full text-left">
         <thead class="bg-gray-50 dark:bg-white/5 text-gray-400 text-xs uppercase tracking-wider">
           <tr>
@@ -4049,6 +4084,7 @@ async function loadTestimonials() {
             .join('')}
         </tbody>
       </table>
+      </div>
     </div>
   `;
 
@@ -4077,7 +4113,7 @@ async function loadTestimonials() {
               </div>
             </div>
             <p class="mt-4 text-xs text-gray-500 line-clamp-4">${t.content || ''}</p>
-            <div class="mt-4 grid grid-cols-2 gap-2">
+            <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button type="button" onclick="editTestimonial(${t.id})" class="w-full py-2 border border-gray-300 dark:border-white/10 rounded text-gray-600 dark:text-gray-300 hover:bg-gold hover:text-black hover:border-gold transition-colors font-medium">Edytuj</button>
               <button type="button" onclick="deleteTestimonial(${t.id})" class="w-full py-2 border border-red-500/40 rounded text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors font-medium">Usuń</button>
             </div>
@@ -4405,7 +4441,7 @@ async function loadMediaLibraryTab() {
           <div class="overflow-hidden rounded-xl border border-gray-200 bg-black dark:border-white/10">
             <img src="${resolveUploadsUrl(file.url)}" alt="${file.name}" class="h-full w-full object-contain" onerror="console.error('Media details failed', this.src)">
           </div>
-          <div class="grid grid-cols-2 gap-3 text-sm text-gray-600 dark:text-gray-300">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-600 dark:text-gray-300">
             <div class="rounded border border-gray-200 p-3 dark:border-white/10">
               <p class="text-xs uppercase tracking-widest text-gray-500">Tag</p>
               <p class="mt-1 font-medium">${TAG_LABEL_MAP[file.tag] || 'Inne'}</p>
@@ -4522,7 +4558,7 @@ async function loadMediaLibraryTab() {
 
     const renderGrid = () => {
       return `
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           ${filteredFiles
             .map((file) => {
               const count = file.usageCount || 0;
@@ -4844,6 +4880,7 @@ async function loadSettings() {
                       </div>
                     </div>
                     <div class="rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden">
+                      <div class="overflow-x-auto w-full rounded border border-gray-200 dark:border-white/10">
                       <table class="w-full text-left text-sm">
                         <thead class="bg-gray-50 dark:bg-white/5 text-xs uppercase tracking-widest text-gray-500">
                           <tr>
@@ -4871,6 +4908,7 @@ async function loadSettings() {
                             .join('')}
                         </tbody>
                       </table>
+      </div>
                     </div>
                     <p id="users-reset-status" class="hidden rounded border border-gray-200 px-3 py-2 text-xs text-gray-600 dark:border-white/10 dark:text-gray-300"></p>
                   </div>
@@ -4939,7 +4977,7 @@ async function loadSettings() {
 
                   <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
                     <h4 class="text-gold font-display font-medium">CTA i stopka</h4>
-                    <div class="grid grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Tekst CTA</label>
                         <input type="text" id="s_cta_text" value="${s.cta_text || ''}" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
