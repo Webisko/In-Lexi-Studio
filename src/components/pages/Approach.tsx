@@ -60,7 +60,7 @@ export default function Approach({ page }: Props) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="mb-4 bg-gradient-to-r from-[#d4af37] via-[#f3eacb] to-[#c5a059] bg-clip-text font-display text-5xl text-transparent drop-shadow-lg md:text-7xl"
+            className="display-page-title mb-4 bg-gradient-to-r from-[#d4af37] via-[#f3eacb] to-[#c5a059] bg-clip-text font-display text-transparent drop-shadow-lg"
           >
             {page.title}
           </motion.h1>
@@ -68,7 +68,7 @@ export default function Approach({ page }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.8 }}
-            className="mx-auto max-w-2xl text-xl font-light tracking-wide text-gray-300 md:text-2xl"
+            className="display-subtitle mx-auto max-w-2xl font-light tracking-wide text-gray-300"
           >
             Documentary. Editorial. Honest.
           </motion.p>
@@ -78,9 +78,7 @@ export default function Approach({ page }: Props) {
           <div className="relative h-12 w-[1px] overflow-hidden bg-white/20">
             <div className="landing-scroll-line absolute left-0 top-0 h-1/2 w-full bg-white" />
           </div>
-          <p className="font-display text-[10px] uppercase tracking-[0.3em] text-white/80">
-            Scroll
-          </p>
+          <p className="scroll-indicator-text font-display uppercase text-white/80">Scroll</p>
         </div>
       </div>
 
@@ -95,7 +93,7 @@ export default function Approach({ page }: Props) {
             className="mx-auto max-w-3xl"
           >
             <Quote className="mx-auto mb-6 block h-8 w-8 text-[#d4af37]/40" />
-            <h2 className="mb-6 font-display text-2xl italic leading-relaxed text-white md:text-4xl">
+            <h2 className="display-quote mb-6 font-display italic text-white">
               I believe the best photos aren't staged. They are felt. My approach is simple: be
               present, be subtle, and let the magic happen.
             </h2>
@@ -286,10 +284,8 @@ export default function Approach({ page }: Props) {
               viewport={{ once: true }}
               variants={fadeInUp}
             >
-              <p className="mb-3 text-sm uppercase tracking-[0.3em] text-[#d4af37]">
-                Every Celebration
-              </p>
-              <h2 className="mb-8 font-display text-3xl leading-tight text-white md:text-4xl">
+              <p className="eyebrow-text mb-3 uppercase text-[#d4af37]">Every Celebration</p>
+              <h2 className="display-section-title mb-8 font-display text-white">
                 Your story,
                 <br className="hidden md:block" /> told with heart
               </h2>
@@ -308,7 +304,7 @@ export default function Approach({ page }: Props) {
                   variants={fadeInUp}
                   className="mt-8 border-l-2 border-[#d4af37] py-2 pl-8"
                 >
-                  <p className="font-serif text-xl italic leading-relaxed text-white md:text-2xl">
+                  <p className="display-lead font-serif italic text-white">
                     These aren&apos;t just photos &mdash; they&apos;re the memories your family will
                     cherish for generations to come.
                   </p>
@@ -332,7 +328,7 @@ export default function Approach({ page }: Props) {
             <div className="absolute left-0 top-0 h-20 w-20 border-l border-t border-[#d4af37]/30" />
             <div className="absolute bottom-0 right-0 h-20 w-20 border-b border-r border-[#d4af37]/30" />
 
-            <h3 className="mb-6 font-display text-2xl text-white md:text-3xl">
+            <h3 className="display-card-title mb-6 font-display text-white">
               &ldquo;Your story deserves to be told with authenticity and grace.&rdquo;
             </h3>
             <a href="/contact" className="btn-secondary">

@@ -466,8 +466,8 @@ function SessionTypesTabs({ sessionTypes }: { sessionTypes: WeddingSessionType[]
         viewport={{ once: true }}
         className="mb-16 text-center"
       >
-        <p className="mb-3 text-sm uppercase tracking-[0.3em] text-[#d4af37]">What We Offer</p>
-        <h2 className="font-display text-3xl text-white md:text-5xl">
+        <p className="eyebrow-text mb-3 uppercase text-[#d4af37]">What We Offer</p>
+        <h2 className="display-section-title font-display text-white">
           Wedding Photography Session Types
         </h2>
         <div className="mx-auto mt-6 h-[1px] w-16 bg-[#d4af37]/50" />
@@ -485,7 +485,7 @@ function SessionTypesTabs({ sessionTypes }: { sessionTypes: WeddingSessionType[]
                 : 'border-white/10 text-gray-400 hover:border-white/30 hover:text-white'
             }`}
           >
-            {String(i + 1).padStart(2, '0')}
+            {s.title}
           </button>
         ))}
       </div>
@@ -523,11 +523,11 @@ function SessionTypesTabs({ sessionTypes }: { sessionTypes: WeddingSessionType[]
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
             >
-              <p className="mb-1 font-display text-[0.65rem] tracking-[0.25em] text-[#d4af37]/70">
+              <p className="eyebrow-text mb-1 font-display text-[#d4af37]/70">
                 {String(active + 1).padStart(2, '0')} /{' '}
                 {String(sessionTypes.length).padStart(2, '0')}
               </p>
-              <h3 className="mb-3 font-display text-2xl text-white md:text-3xl">{session.title}</h3>
+              <h3 className="display-card-title mb-3 font-display text-white">{session.title}</h3>
               <p className="body-copy max-w-2xl leading-relaxed text-gray-300">
                 {session.description}
               </p>
@@ -690,10 +690,10 @@ export default function WeddingPhotography({ page, testimonials = [] }: Props) {
             variants={scaleUp}
             className="max-w-4xl"
           >
-            <h1 className="mb-6 bg-gradient-to-r from-[#d4af37] via-[#f3eacb] to-[#c5a059] bg-clip-text font-display text-5xl text-transparent drop-shadow-lg md:text-7xl lg:text-8xl">
+            <h1 className="display-hero mb-6 bg-gradient-to-r from-[#d4af37] via-[#f3eacb] to-[#c5a059] bg-clip-text font-display text-transparent drop-shadow-lg">
               {page.title}
             </h1>
-            <p className="mx-auto max-w-2xl text-lg font-light tracking-wide text-gray-200 md:text-2xl">
+            <p className="display-subtitle mx-auto max-w-2xl font-light tracking-wide text-gray-200">
               {weddingSubtitle}
             </p>
           </motion.div>
@@ -703,9 +703,7 @@ export default function WeddingPhotography({ page, testimonials = [] }: Props) {
           <div className="relative h-12 w-[1px] overflow-hidden bg-white/20">
             <div className="landing-scroll-line absolute left-0 top-0 h-1/2 w-full bg-white" />
           </div>
-          <p className="font-display text-[10px] uppercase tracking-[0.3em] text-white/80">
-            Scroll
-          </p>
+          <p className="scroll-indicator-text font-display uppercase text-white/80">Scroll</p>
         </div>
       </div>
 
@@ -719,7 +717,7 @@ export default function WeddingPhotography({ page, testimonials = [] }: Props) {
             variants={fadeInUp}
             className="mx-auto max-w-3xl"
           >
-            <h2 className="mb-8 font-display text-3xl text-white md:text-4xl">
+            <h2 className="display-section-title mb-8 font-display text-white">
               Capturing the Soul of Your Celebration
             </h2>
             <p className="body-copy leading-relaxed text-gray-300">
@@ -743,8 +741,8 @@ export default function WeddingPhotography({ page, testimonials = [] }: Props) {
             viewport={{ once: true }}
             className="mb-16 text-center"
           >
-            <p className="mb-3 text-sm uppercase tracking-[0.3em] text-[#d4af37]">The Experience</p>
-            <h3 className="font-display text-3xl text-white md:text-5xl">
+            <p className="eyebrow-text mb-3 uppercase text-[#d4af37]">The Experience</p>
+            <h3 className="display-section-title font-display text-white">
               Before, During &amp; After
             </h3>
             <div className="mx-auto mt-6 h-[1px] w-16 bg-[#d4af37]/50" />
@@ -765,7 +763,9 @@ export default function WeddingPhotography({ page, testimonials = [] }: Props) {
               <div className="mb-6 text-[#d4af37]">
                 <Users size={28} strokeWidth={1.5} />
               </div>
-              <h4 className="mb-4 font-display text-2xl text-white">Before Your Wedding</h4>
+              <h4 className="display-card-title mb-4 font-display text-white">
+                Before Your Wedding
+              </h4>
               <ul className="body-copy space-y-4 leading-relaxed text-gray-400">
                 <li>
                   <strong className="text-[#c5a059]">Discovery Call:</strong> Let's get to know each
@@ -860,10 +860,8 @@ export default function WeddingPhotography({ page, testimonials = [] }: Props) {
               viewport={{ once: true }}
               variants={fadeInUp}
             >
-              <p className="mb-3 text-sm uppercase tracking-[0.3em] text-[#d4af37]">
-                Why Choose Me
-              </p>
-              <h2 className="mb-10 font-display text-3xl leading-tight text-white md:text-4xl">
+              <p className="eyebrow-text mb-3 uppercase text-[#d4af37]">Why Choose Me</p>
+              <h2 className="display-section-title mb-10 font-display text-white">
                 My Commitment to
                 <br className="hidden md:block" /> Your Wedding Day
               </h2>
@@ -913,8 +911,8 @@ export default function WeddingPhotography({ page, testimonials = [] }: Props) {
             viewport={{ once: true }}
             className="mb-16 text-center"
           >
-            <p className="mb-3 text-sm uppercase tracking-[0.3em] text-[#d4af37]">Coverage Area</p>
-            <h2 className="font-display text-3xl text-white md:text-5xl">Available Locations</h2>
+            <p className="eyebrow-text mb-3 uppercase text-[#d4af37]">Coverage Area</p>
+            <h2 className="display-section-title font-display text-white">Available Locations</h2>
             <div className="mx-auto mt-6 h-[1px] w-16 bg-[#d4af37]/50" />
           </motion.div>
 

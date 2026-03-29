@@ -127,14 +127,12 @@ export const PageContent: React.FC<PageContentProps> = ({
                 <div className="relative h-12 w-[1px] overflow-hidden bg-white/20">
                   <div className="landing-scroll-line absolute left-0 top-0 h-1/2 w-full bg-white" />
                 </div>
-                <p className="font-display text-[10px] uppercase tracking-[0.3em] text-white/80">
-                  Scroll
-                </p>
+                <p className="scroll-indicator-text font-display uppercase text-white/80">Scroll</p>
               </div>
             </>
           )}
           <div className="absolute inset-0 flex items-end justify-center px-4 pb-28 text-center md:pb-32">
-            <h1 className="bg-gradient-to-r from-[#d4af37] via-[#f3eacb] to-[#c5a059] bg-clip-text font-display text-5xl text-transparent drop-shadow-lg md:text-7xl">
+            <h1 className="display-page-title bg-gradient-to-r from-[#d4af37] via-[#f3eacb] to-[#c5a059] bg-clip-text font-display text-transparent drop-shadow-lg">
               {page.title}
             </h1>
           </div>
@@ -156,7 +154,9 @@ export const PageContent: React.FC<PageContentProps> = ({
           <>
             <div className="prose prose-gold lg:prose-xl dark:prose-invert container mx-auto max-w-4xl px-4 py-16">
               {!page.hero_image && (
-                <h1 className="mb-8 text-center font-display text-4xl">{page.title}</h1>
+                <h1 className="display-section-title mb-8 text-center font-display">
+                  {page.title}
+                </h1>
               )}
               <article
                 className="wysiwyg-content"

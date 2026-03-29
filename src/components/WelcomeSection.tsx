@@ -20,7 +20,7 @@ export const WelcomeSection: React.FC = () => {
               <span className="mt-4 block font-serif text-[clamp(1.1rem,1.6vw,1.6rem)] italic tracking-normal text-white/80">
                 to
               </span>
-              <div className="mt-6 flex flex-col items-center gap-6 text-[clamp(3.5rem,6vw,6rem)] leading-[0.9] tracking-[0.1em]">
+              <div className="mt-6 flex flex-col items-center gap-10 md:gap-6 text-[clamp(3.5rem,6vw,6rem)] leading-[0.9] tracking-[0.1em]">
                 {hotspotLinks.map((item) => (
                   <div
                     key={item.word}
@@ -31,7 +31,7 @@ export const WelcomeSection: React.FC = () => {
                     </span>
                     <a
                       href={buildLink(item.slug)}
-                      className="absolute left-1/2 top-full mt-3 flex -translate-x-1/2 items-center md:left-full md:top-1/2 md:ml-4 md:mt-0 md:-translate-y-1/2 md:translate-x-0"
+                      className="absolute left-full top-1/2 ml-3 flex -translate-y-1/2 items-center md:ml-4"
                     >
                       <span className="hotspot-wrap" aria-hidden="true">
                         <span className="hotspot-pulse" aria-hidden="true" />

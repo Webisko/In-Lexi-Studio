@@ -87,14 +87,12 @@ const addons = [
   <main class="bg-dark-bg text-white">
     <section class="mx-auto w-full max-w-[1440px] px-6 py-20 md:px-12 md:py-28">
       <div class="mb-14 border-b border-gold/30 pb-10 text-center">
-        <h1 class="font-display text-5xl tracking-wide md:text-7xl">Pricing</h1>
-        <p class="mt-4 font-serif text-xl italic text-gold md:text-2xl">
-          More than Wedding Photographs
-        </p>
+        <h1 class="display-hero font-display tracking-wide">Pricing</h1>
+        <p class="display-lead mt-4 font-serif italic text-gold">More than Wedding Photographs</p>
       </div>
 
       <div class="mb-12 rounded-sm border border-white/10 bg-white/[0.03] p-8 md:p-10 text-center">
-        <h2 class="font-display text-3xl md:text-4xl">Enjoy Peace of Mind</h2>
+        <h2 class="display-section-title font-display">Enjoy Peace of Mind</h2>
         <p class="mt-4 body-copy uppercase tracking-[0.1em] text-white/90">
           Knowing that you are in good hands.
         </p>
@@ -103,7 +101,7 @@ const addons = [
           assure you that by booking me to document your wedding day, your memories will be created
           in the most beautiful and fun way.
         </p>
-        <p class="mt-5 font-serif text-lg italic text-gold md:text-xl">
+        <p class="display-lead mt-5 font-serif italic text-gold">
           I believe that my passion, my creativity and my experience is allowing me to deliver
           amazing photographs and an awesome experience to my couples.
         </p>
@@ -111,7 +109,7 @@ const addons = [
 
       <div class="grid grid-cols-1 gap-8 md:grid-cols-2">
         <article class="rounded-sm border border-white/10 bg-white/[0.03] p-8">
-          <h3 class="font-display text-2xl text-gold">Your Story</h3>
+          <h3 class="display-card-title font-display text-gold">Your Story</h3>
           <p class="mt-4 body-copy text-white/80">
             I&apos;m always inspired by personal stories, and there is nothing more beautiful than
             two souls deciding to be together for the rest of their lives. Wedding day is just a
@@ -125,7 +123,7 @@ const addons = [
         </article>
 
         <article class="rounded-sm border border-white/10 bg-white/[0.03] p-8">
-          <h3 class="font-display text-2xl text-gold">Trust</h3>
+          <h3 class="display-card-title font-display text-gold">Trust</h3>
           <p class="mt-4 body-copy text-white/80">
             Wedding photographer is not just a guy with a camera to take photos during the most
             important day of your life. He is a person that will be near you most of that day. He is
@@ -136,8 +134,10 @@ const addons = [
       </div>
 
       <div class="mt-10 rounded-sm border border-gold/40 bg-gold/10 p-8 text-center">
-        <h3 class="font-display text-3xl md:text-5xl">How Much Would You Pay For Your Memories?</h3>
-        <p class="mt-4 font-serif text-xl italic text-gold">Reserve your date today!</p>
+        <h3 class="display-section-title font-display">
+          How Much Would You Pay For Your Memories?
+        </h3>
+        <p class="display-lead mt-4 font-serif italic text-gold">Reserve your date today!</p>
       </div>
     </section>
 
@@ -156,11 +156,11 @@ const addons = [
               <p class="mt-2 body-copy text-white/70">{pkg.perfectFor}</p>
 
               <div class="mt-5 flex flex-wrap items-end gap-4 border-b border-white/10 pb-6">
-                <h4 class="font-display text-3xl text-gold md:text-4xl">{pkg.hours}</h4>
-                <p class="font-display text-4xl md:text-5xl">{pkg.price}</p>
+                <h4 class="display-metric font-display text-gold">{pkg.hours}</h4>
+                <p class="display-price font-display">{pkg.price}</p>
               </div>
 
-              <h5 class="mt-6 font-display text-2xl">What&apos;s Included</h5>
+              <h5 class="display-card-title mt-6 font-display">What&apos;s Included</h5>
               <ul class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
                 {pkg.features.map(([title, description]) => (
                   <li class="rounded-sm border border-white/10 bg-black/20 p-4">
@@ -177,7 +177,7 @@ const addons = [
 
     <section class="mx-auto w-full max-w-[1440px] px-6 pb-20 md:px-12 md:pb-28">
       <article class="rounded-sm border border-white/10 bg-white/[0.03] p-8 md:p-10">
-        <h3 class="font-display text-3xl text-gold md:text-4xl">Optional Add-Ons</h3>
+        <h3 class="display-section-title font-display text-gold">Optional Add-Ons</h3>
         <p class="mt-3 body-copy text-white/75">
           Enhance your wedding photography experience with these popular additions.
         </p>
@@ -204,7 +204,7 @@ const addons = [
       <article
         class="mt-8 rounded-sm border border-white/10 bg-white/[0.03] p-8 md:p-10 text-center"
       >
-        <h3 class="font-display text-3xl text-gold md:text-4xl">Wedding Albums</h3>
+        <h3 class="display-section-title font-display text-gold">Wedding Albums</h3>
         <p class="mt-4 body-copy text-white/80">
           I truly care about the excitement that goes with putting your album together. I completely
           understand the amount of time that goes into finalising the book. That&apos;s why I offer
@@ -215,22 +215,22 @@ const addons = [
           it the way you want it to look. It will save you time and you will actually enjoy putting
           your album together.
         </p>
-        <p class="mt-4 font-serif text-lg italic text-gold">
+        <p class="display-lead mt-4 font-serif italic text-gold">
           A wedding album is your tangible keepsake - a beautifully crafted book that tells your
           love story through carefully selected photographs.
         </p>
       </article>
 
       <article class="mt-8 rounded-sm border border-gold/40 bg-gold/10 p-8 text-center">
-        <h3 class="font-display text-4xl leading-tight md:text-5xl">Have Peace Of Mind</h3>
-        <p class="mt-4 font-serif text-xl italic text-gold">
+        <h3 class="display-section-title font-display leading-tight">Have Peace Of Mind</h3>
+        <p class="display-lead mt-4 font-serif italic text-gold">
           Where moments become memories, knowing that your memories will be documented in the most
           beautiful and fun way.
         </p>
       </article>
 
       <article class="mt-8 rounded-sm border border-white/10 bg-white/[0.03] p-8 text-center">
-        <h3 class="font-display text-3xl text-gold md:text-4xl">Thank You!</h3>
+        <h3 class="display-section-title font-display text-gold">Thank You!</h3>
         <p class="mt-4 body-copy text-white/80">
           Thank you for considering me to document your wedding. I hope I have given you a clear
           view of how it is like to have me during your wedding, but also my alternative, relaxed,
@@ -239,19 +239,25 @@ const addons = [
       </article>
 
       <article class="mt-8 rounded-sm border border-white/10 bg-white/[0.03] p-8 text-center">
-        <h3 class="font-display text-3xl md:text-4xl">
+        <h3 class="display-section-title font-display">
           Let&apos;s Create Your Perfect Wedding Story
         </h3>
         <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3 text-white/80">
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-gold">Phone</p>
-            <a href={phoneHref} class="mt-1 inline-block body-copy transition-colors hover:text-white">
+            <a
+              href={phoneHref}
+              class="mt-1 inline-block body-copy transition-colors hover:text-white"
+            >
               {phone}
             </a>
           </div>
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-gold">Email</p>
-            <a href={emailHref} class="mt-1 inline-block body-copy transition-colors hover:text-white">
+            <a
+              href={emailHref}
+              class="mt-1 inline-block body-copy transition-colors hover:text-white"
+            >
               {email}
             </a>
           </div>

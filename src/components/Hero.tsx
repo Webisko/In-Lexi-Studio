@@ -92,24 +92,24 @@ export const Hero: React.FC<HeroProps> = ({ data, settings }) => {
               transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
             />
           </div>
-          <p className="font-display text-[10px] uppercase tracking-[0.3em] text-white/80">
-            Scroll
-          </p>
+          <p className="scroll-indicator-text font-display uppercase text-white/80">Scroll</p>
         </motion.div>
       </div>
 
       {/* Bottom Section (100vh-120vh) - Navigation Links */}
       <div className="relative z-10 flex min-h-[18svh] w-full items-center justify-center px-4 pb-8 md:h-[20vh] md:min-h-0 md:px-0 md:pb-0">
         <motion.div
-          className="flex flex-col items-center gap-5 text-center md:flex-row md:gap-24"
+          className="flex w-full max-w-[240px] flex-col items-center gap-5 text-center md:w-auto md:max-w-none md:flex-row md:gap-24"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.8 }}
         >
-          {['WEDDING', 'PORTRAIT', 'PRODUCT'].map((item) => {
+          {['WEDDING', 'PORTRAIT', 'PRODUCT'].map((item, index) => {
             const category = item.toLowerCase() as GalleryCategory;
             const isActive = activeCategory === category;
+            
+            const alignmentClass = index === 0 ? 'self-start md:self-auto' : index === 1 ? 'self-center md:self-auto' : 'self-end md:self-auto';
 
             return (
               <a
@@ -117,7 +117,7 @@ export const Hero: React.FC<HeroProps> = ({ data, settings }) => {
                 href="#"
                 onClick={(e) => handleCategoryClick(e, category)}
                 onMouseEnter={() => setCategory(category)}
-                className={`group pointer-events-auto relative cursor-pointer font-display text-xl uppercase tracking-[0.18em] transition-all duration-300 sm:text-2xl md:text-3xl ${
+                className={`hero-category-link group pointer-events-auto relative cursor-pointer font-display uppercase transition-all duration-300 ${alignmentClass} ${
                   isActive ? '-translate-y-1 text-gold' : 'translate-y-0 text-white hover:text-gold'
                 }`}
               >

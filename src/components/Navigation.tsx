@@ -270,7 +270,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           >
             <a
               href={homeHref}
-              className="block max-w-full truncate text-center font-display text-sm tracking-[0.18em] text-white transition-colors hover:text-gold sm:text-base md:text-lg md:tracking-widest"
+              className="nav-brand-text block max-w-full truncate text-center font-display text-white transition-colors hover:text-gold"
             >
               IN LEXI STUDIO
             </a>
@@ -314,7 +314,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             <button
               type="button"
               onClick={closeMenu}
-              className="absolute left-8 top-6 z-20 rounded-full border border-white/30 px-4 py-2 text-xs uppercase tracking-widest text-white transition-colors hover:bg-white/10"
+              className="menu-meta-text absolute left-8 top-6 z-20 rounded-full border border-white/30 px-4 py-2 uppercase text-white transition-colors hover:bg-white/10"
             >
               Close
             </button>
@@ -353,11 +353,11 @@ export const Navigation: React.FC<NavigationProps> = ({
                         onClick={closeMenu}
                         className="group flex items-center gap-6 border-b border-white/10 py-4 text-white/60 transition hover:text-white"
                       >
-                        <span className="text-xs font-semibold uppercase tracking-[0.35em] text-gold">
+                        <span className="eyebrow-text font-semibold uppercase text-gold">
                           {indexLabel}
                         </span>
                         <div className="flex-1">
-                          <h3 className="font-display text-3xl leading-tight text-white/70 transition group-hover:text-white md:text-4xl">
+                          <h3 className="menu-overlay-title font-display text-white/70 transition group-hover:text-white">
                             {title}
                           </h3>
                         </div>
@@ -367,7 +367,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               </div>
 
               <div className="mt-10 flex flex-col gap-6 border-t border-white/10 pt-6 md:flex-row md:items-center md:justify-between">
-                <div className="flex flex-wrap items-center gap-4 text-xs uppercase tracking-[0.35em] text-white/50">
+                <div className="menu-meta-text flex flex-wrap items-center gap-4 uppercase text-white/50">
                   <span>Follow me</span>
                   {resolvedInstagramUrl ? (
                     <a

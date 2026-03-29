@@ -142,7 +142,7 @@ export default function Portfolio({ page, galleries = [], mediaFiles = [] }: Pro
           <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-b from-transparent via-[#080808]/30 to-[#080808]" />
 
           <div className="absolute inset-0 flex items-end justify-center px-4 pb-28 text-center md:pb-32">
-            <h1 className="bg-gradient-to-r from-[#d4af37] via-[#f3eacb] to-[#c5a059] bg-clip-text font-display text-5xl text-transparent drop-shadow-lg md:text-7xl">
+            <h1 className="display-page-title bg-gradient-to-r from-[#d4af37] via-[#f3eacb] to-[#c5a059] bg-clip-text font-display text-transparent drop-shadow-lg">
               {page.title || 'Portfolio'}
             </h1>
           </div>
@@ -151,9 +151,7 @@ export default function Portfolio({ page, galleries = [], mediaFiles = [] }: Pro
             <div className="relative h-12 w-[1px] overflow-hidden bg-white/20">
               <div className="landing-scroll-line absolute left-0 top-0 h-1/2 w-full bg-white" />
             </div>
-            <p className="font-display text-[10px] uppercase tracking-[0.3em] text-white/80">
-              Scroll
-            </p>
+            <p className="scroll-indicator-text font-display uppercase text-white/80">Scroll</p>
           </div>
         </div>
       )}
@@ -167,7 +165,7 @@ export default function Portfolio({ page, galleries = [], mediaFiles = [] }: Pro
           className="mx-auto max-w-3xl"
         >
           <Quote className="mx-auto mb-6 block h-8 w-8 text-[#d4af37]/40" />
-          <p className="font-serif text-xl italic leading-relaxed text-white/80 md:text-2xl">
+          <p className="display-lead font-serif italic text-white/80">
             &ldquo;Every frame tells a story, and every story is a piece of art.&rdquo;
           </p>
           <div className="mx-auto mt-8 h-[1px] w-16 bg-[#d4af37]/50" />

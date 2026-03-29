@@ -49,16 +49,17 @@ export const Testimonials: React.FC<TestimonialsProps> = ({ data }) => {
 
       <div className="relative z-10 mx-auto w-full max-w-[1440px] px-6 md:px-12">
         <div className="flex flex-col items-center gap-12 md:flex-row md:items-start md:gap-24">
-          <div className="relative h-[400px] w-full md:h-[600px] md:w-1/2">
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={current.id}
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.99 }}
-                transition={{ duration: 0.45, ease: 'easeOut' }}
-                className="relative h-full w-full"
-              >
+          <div className="relative w-full md:w-1/2">
+            <div className="relative h-[400px] w-full md:h-[600px]">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={current.id}
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.99 }}
+                  transition={{ duration: 0.45, ease: 'easeOut' }}
+                  className="relative h-full w-full"
+                >
                 <img
                   src={currentImage}
                   srcSet={currentSrcSet || undefined}
@@ -71,6 +72,7 @@ export const Testimonials: React.FC<TestimonialsProps> = ({ data }) => {
                 <div className="pointer-events-none absolute inset-0 -translate-x-4 -translate-y-4 border border-gold/30 md:-translate-x-8 md:-translate-y-8" />
               </motion.div>
             </AnimatePresence>
+            </div>
 
             <div className="mt-8 flex justify-center gap-6 md:hidden">
               <button

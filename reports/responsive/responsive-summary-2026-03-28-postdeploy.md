@@ -41,18 +41,18 @@
 
 ## Result Matrix
 
-| Page | 360x800 | 390x844 | 430x932 | 768x1024 | 834x1194 |
-| --- | --- | --- | --- | --- | --- |
-| `/` | PASS | PASS | PASS | PASS | PASS |
-| `/wedding-photography/` | PASS | PASS | PASS | PASS | PASS |
-| `/portrait-photography/` | PASS | PASS | PASS | PASS | PASS |
-| `/product-photography/` | PASS | PASS | PASS | PASS | PASS |
-| `/about/` | PASS | PASS | PASS | PASS | PASS |
-| `/approach/` | PASS | PASS | PASS | PASS | PASS |
-| `/portfolio/` | PASS | PASS | PASS | PASS | PASS |
-| `/contact/` | PASS | PASS | PASS | PASS | PASS |
-| `/pricing/` | PASS | PASS | PASS | PASS | PASS |
-| `/privacy-policy/` | PASS | PASS | PASS | PASS | PASS |
+| Page                     | 360x800 | 390x844 | 430x932 | 768x1024 | 834x1194 |
+| ------------------------ | ------- | ------- | ------- | -------- | -------- |
+| `/`                      | PASS    | PASS    | PASS    | PASS     | PASS     |
+| `/wedding-photography/`  | PASS    | PASS    | PASS    | PASS     | PASS     |
+| `/portrait-photography/` | PASS    | PASS    | PASS    | PASS     | PASS     |
+| `/product-photography/`  | PASS    | PASS    | PASS    | PASS     | PASS     |
+| `/about/`                | PASS    | PASS    | PASS    | PASS     | PASS     |
+| `/approach/`             | PASS    | PASS    | PASS    | PASS     | PASS     |
+| `/portfolio/`            | PASS    | PASS    | PASS    | PASS     | PASS     |
+| `/contact/`              | PASS    | PASS    | PASS    | PASS     | PASS     |
+| `/pricing/`              | PASS    | PASS    | PASS    | PASS     | PASS     |
+| `/privacy-policy/`       | PASS    | PASS    | PASS    | PASS     | PASS     |
 
 ## Risk
 

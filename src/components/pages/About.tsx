@@ -91,7 +91,7 @@ export default function About({ page }: Props) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="bg-gradient-to-r from-[#d4af37] via-[#f3eacb] to-[#c5a059] bg-clip-text font-display text-5xl text-transparent drop-shadow-lg md:text-7xl"
+            className="display-page-title bg-gradient-to-r from-[#d4af37] via-[#f3eacb] to-[#c5a059] bg-clip-text font-display text-transparent drop-shadow-lg"
           >
             {page.title}
           </motion.h1>
@@ -101,9 +101,7 @@ export default function About({ page }: Props) {
           <div className="relative h-12 w-[1px] overflow-hidden bg-white/20">
             <div className="landing-scroll-line absolute left-0 top-0 h-1/2 w-full bg-white" />
           </div>
-          <p className="font-display text-[10px] uppercase tracking-[0.3em] text-white/80">
-            Scroll
-          </p>
+          <p className="scroll-indicator-text font-display uppercase text-white/80">Scroll</p>
         </div>
       </div>
 
@@ -116,10 +114,8 @@ export default function About({ page }: Props) {
           variants={fadeInUp}
           className="mx-auto max-w-3xl px-6 text-center"
         >
-          <p className="mb-6 text-sm uppercase tracking-[0.3em] text-[#d4af37]">
-            Let me introduce myself
-          </p>
-          <p className="font-serif text-2xl italic leading-relaxed text-white/90 md:text-3xl">
+          <p className="eyebrow-text mb-6 uppercase text-[#d4af37]">Let me introduce myself</p>
+          <p className="display-quote font-serif italic text-white/90">
             &ldquo;Empathy and curiosity have been my compass since childhood &mdash; they guide
             every frame I take.&rdquo;
           </p>
@@ -141,7 +137,7 @@ export default function About({ page }: Props) {
               <p className="mb-4 font-display text-[6rem] leading-none text-white/[0.04] md:text-[9rem]">
                 01
               </p>
-              <h2 className="mb-8 font-display text-3xl leading-tight text-white md:text-4xl">
+              <h2 className="display-section-title mb-8 font-display text-white">
                 From North Africa
                 <br className="hidden lg:block" /> to the Heart of Scotland
               </h2>
@@ -325,10 +321,10 @@ export default function About({ page }: Props) {
             variants={fadeInUp}
             className="mb-16"
           >
-            <p className="mb-3 text-sm uppercase tracking-[0.3em] text-[#d4af37]">
+            <p className="eyebrow-text mb-3 uppercase text-[#d4af37]">
               Where Passion Meets Purpose
             </p>
-            <h2 className="font-display text-3xl text-white md:text-5xl">Living Fully</h2>
+            <h2 className="display-section-title font-display text-white">Living Fully</h2>
           </motion.div>
 
           <motion.div
@@ -414,10 +410,8 @@ export default function About({ page }: Props) {
               <p className="mb-2 font-display text-[5rem] leading-none text-white/[0.04] md:text-[7rem]">
                 02
               </p>
-              <p className="mb-3 text-sm uppercase tracking-[0.3em] text-[#d4af37]">
-                Passion &amp; Purpose
-              </p>
-              <h2 className="mb-8 font-display text-3xl leading-tight text-white md:text-4xl">
+              <p className="eyebrow-text mb-3 uppercase text-[#d4af37]">Passion &amp; Purpose</p>
+              <h2 className="display-section-title mb-8 font-display text-white">
                 What excites me most about my work?
               </h2>
               <div className="space-y-5 text-[1.05rem] leading-relaxed text-gray-400">
@@ -440,7 +434,7 @@ export default function About({ page }: Props) {
                   variants={fadeInUp}
                   className="border-l-2 border-[#d4af37] py-2 pl-8"
                 >
-                  <p className="font-serif text-xl italic leading-relaxed text-white md:text-2xl">
+                  <p className="display-lead font-serif italic text-white">
                     For me, success goes beyond professional achievements &mdash; it&apos;s about
                     living with genuine purpose and staying present in each moment.
                   </p>
@@ -489,7 +483,7 @@ export default function About({ page }: Props) {
               <p className="mb-2 font-display text-[5rem] leading-none text-white/[0.04] md:text-[7rem]">
                 03
               </p>
-              <h2 className="mb-8 font-display text-3xl leading-tight text-white md:text-4xl">
+              <h2 className="display-section-title mb-8 font-display text-white">
                 When I&apos;m not shooting
               </h2>
               <div className="space-y-5 text-[1.05rem] leading-relaxed text-gray-400">
@@ -544,7 +538,7 @@ export default function About({ page }: Props) {
           className="mx-auto max-w-2xl px-6 text-center"
         >
           <Quote className="mx-auto mb-8 block h-8 w-8 text-[#d4af37]/40" />
-          <h2 className="mb-4 font-serif text-2xl italic leading-relaxed text-white/90 md:text-3xl">
+          <h2 className="display-quote mb-4 font-serif italic text-white/90">
             I&apos;m always excited to connect with others who share this curiosity about exploring
             life more mindfully.
           </h2>

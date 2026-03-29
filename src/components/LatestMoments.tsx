@@ -193,10 +193,10 @@ export const LatestMoments: React.FC<LatestMomentsProps> = ({ items, backgroundI
   return (
     <>
       <section ref={sectionRef} id="latest-moments" className="relative w-full overflow-hidden">
-        <div className="relative z-10 grid h-[65vh] min-h-[520px] w-full grid-cols-1 grid-rows-7 md:grid-cols-4 md:grid-rows-2">
+        <div className="relative z-10 flex flex-col w-full md:grid md:h-[65vh] md:min-h-[520px] md:grid-cols-4 md:grid-rows-2">
           {/* Title cell - merged/spans 2 rows on desktop */}
           <div
-            className="relative flex items-start justify-center bg-gradient-to-br from-black/60 to-black/40 p-10 text-center md:row-span-2 md:p-14"
+            className="relative flex h-[180px] items-start justify-center bg-gradient-to-br from-black/60 to-black/40 p-10 text-center md:h-auto md:row-span-2 md:p-14"
             style={titleCellStyle}
           >
             <h2 className="text-center font-display text-[clamp(2rem,3.5vw,3.5rem)] leading-[0.95] tracking-wide text-white">
@@ -218,7 +218,7 @@ export const LatestMoments: React.FC<LatestMomentsProps> = ({ items, backgroundI
               <button
                 key={moment.id}
                 type="button"
-                className="group relative cursor-pointer overflow-hidden text-left"
+                className="group relative cursor-pointer overflow-hidden text-left h-[180px] md:h-auto"
                 onClick={() => setSelectedSessionId(moment.id)}
               >
                 <div className="absolute inset-0 z-10 bg-black/25 transition-colors duration-500 group-hover:bg-black/10" />
