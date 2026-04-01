@@ -210,12 +210,15 @@
     <!-- Dashboard -->
     <div id="dashboard" class="hidden h-screen overflow-hidden">
       <!-- Mobile Sidebar Backdrop -->
-      <div id="sidebar-backdrop" class="fixed inset-0 z-20 hidden bg-black/50 backdrop-blur-sm transition-opacity opacity-0 md:hidden"></div>
+      <div
+        id="sidebar-backdrop"
+        class="fixed inset-0 z-20 hidden bg-black/50 opacity-0 backdrop-blur-sm transition-opacity md:hidden"
+      ></div>
 
       <!-- Sidebar -->
       <aside
         id="sidebar"
-        class="dark:bg-dark-secondary absolute z-30 flex h-full w-72 flex-col border-r border-gray-200 bg-white transition-transform duration-300 -translate-x-full dark:border-white/5 md:relative md:translate-x-0"
+        class="dark:bg-dark-secondary absolute z-30 flex h-full w-72 -translate-x-full flex-col border-r border-gray-200 bg-white transition-transform duration-300 md:relative md:translate-x-0 dark:border-white/5"
       >
         <div
           class="flex h-20 shrink-0 items-center justify-center border-b border-gray-200 dark:border-white/5"
@@ -389,7 +392,7 @@
           </button>
         </nav>
 
-        <div class="border-t border-gray-200 p-4 shrink-0 dark:border-white/5">
+        <div class="shrink-0 border-t border-gray-200 p-4 dark:border-white/5">
           <a
             href="https://inlexistudio.com"
             target="_blank"
@@ -461,10 +464,25 @@
         class="relative flex flex-1 flex-col overflow-hidden bg-gray-50 transition-colors dark:bg-dark-bg"
       >
         <!-- Mobile Header -->
-        <header class="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-5 py-4 shadow-sm dark:border-white/5 dark:bg-dark-secondary md:hidden z-10">
-          <h1 class="font-display text-lg font-bold tracking-widest text-gold uppercase">In Lexi Studio</h1>
-          <button id="mobile-menu-btn" aria-label="Menu" class="rounded p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gold dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gold">
-            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        <header
+          class="dark:bg-dark-secondary z-10 flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-5 py-4 shadow-sm md:hidden dark:border-white/5"
+        >
+          <h1 class="font-display text-lg font-bold uppercase tracking-widest text-gold">
+            In Lexi Studio
+          </h1>
+          <button
+            id="mobile-menu-btn"
+            aria-label="Menu"
+            class="rounded p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gold dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gold"
+          >
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 6h16M4 12h16M4 18h16"
+              ></path>
+            </svg>
           </button>
         </header>
 
@@ -663,6 +681,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=2026-03-15-2"></script>
+    <script src="app.js?v=2026-04-01-approach-images"></script>
   </body>
 </html>
