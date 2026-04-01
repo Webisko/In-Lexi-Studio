@@ -533,6 +533,7 @@ const ensureSeoImage = async (sourceUrl) => {
 // Get all pages (slugs) - Required for Static Site Generation
 router.get('/pages', async (req, res) => {
   try {
+    disableResponseCache(res);
     const settings = await prisma.settings.findUnique({ where: { id: 1 } });
     const pages = await prisma.page.findMany({
       orderBy: [{ sort_order: 'asc' }, { updated_at: 'desc' }],
@@ -546,6 +547,7 @@ router.get('/pages', async (req, res) => {
 // Get home page
 router.get('/pages/home', async (req, res) => {
   try {
+    disableResponseCache(res);
     const settings = await prisma.settings.findUnique({ where: { id: 1 } });
     let page = await prisma.page.findFirst({ where: { is_home: true } });
     if (!page) page = await prisma.page.findFirst({ where: { slug: '/' } });
@@ -561,6 +563,7 @@ router.get('/pages/home', async (req, res) => {
 router.get('/pages/:slug', async (req, res) => {
   const { slug } = req.params;
   try {
+    disableResponseCache(res);
     const settings = await prisma.settings.findUnique({ where: { id: 1 } });
     const page = await prisma.page.findUnique({ where: { slug } });
     if (!page) return res.status(404).json({ error: 'Page not found' });
@@ -1307,6 +1310,13 @@ const normalizeStringArray = (value) =>
 const normalizeNumberArray = (value) =>
   (parseJsonArray(value) || []).map((item) => Number(item)).filter((item) => Number.isFinite(item));
 
+const disableResponseCache = (res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.set('Surrogate-Control', 'no-store');
+};
+
 const PAGE_MUTABLE_FIELDS = new Set([
   'slug',
   'title',
@@ -1567,6 +1577,7 @@ const normalizePagePayload = (data) => {
 };
 
 router.get('/admin/pages', authenticateToken, async (req, res) => {
+  disableResponseCache(res);
   const settings = await prisma.settings.findUnique({ where: { id: 1 } });
   const pages = await prisma.page.findMany({
     orderBy: [{ sort_order: 'asc' }, { updated_at: 'desc' }],

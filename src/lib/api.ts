@@ -122,13 +122,16 @@ const inflightRequests = new Map<string, Promise<unknown>>();
 async function fetchApi<T>(endpoint: string, options: FetchOptions = {}): Promise<T | null> {
   const url = `${API_URL}${endpoint}`;
   const shouldShareRequest = typeof window !== 'undefined';
+  const requestUrl = shouldShareRequest
+    ? `${url}${url.includes('?') ? '&' : '?'}_cms=${Date.now()}`
+    : url;
 
   if (shouldShareRequest && inflightRequests.has(url)) {
     return (await inflightRequests.get(url)) as T | null;
   }
 
   const request = (async () => {
-    const res = await fetch(url);
+    const res = await fetch(requestUrl, shouldShareRequest ? { cache: 'no-store' } : undefined);
     if (!res.ok) {
       const message = `API Error ${endpoint}: ${res.status}`;
       if (options.required) {

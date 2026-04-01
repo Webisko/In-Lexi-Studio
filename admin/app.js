@@ -1,5 +1,19 @@
-const CMS_APP_VERSION = '2026-04-01-approach-images';
+const CMS_APP_VERSION = '2026-04-01-approach-save-fix';
 console.info(`CMS app version: ${CMS_APP_VERSION}`);
+
+function buildFreshUrl(url) {
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}_cms=${encodeURIComponent(`${CMS_APP_VERSION}-${Date.now()}`)}`;
+}
+
+function fetchCms(url, options = {}) {
+  const method = String(options.method || 'GET').toUpperCase();
+  const targetUrl = method === 'GET' ? buildFreshUrl(url) : url;
+  return fetch(targetUrl, {
+    cache: 'no-store',
+    ...options,
+  });
+}
 
 function normalizeBaseUrl(url) {
   if (!url) return '';
@@ -851,7 +865,7 @@ const loadMegaMenuPages = async () => {
   dom.megaMenuList.innerHTML =
     '<div class="col-span-full flex items-center justify-center py-12 text-sm text-white/70">Ladowanie stron...</div>';
   try {
-    const res = await fetch(`${ADMIN_API_URL}/pages`, {
+    const res = await fetchCms(`${ADMIN_API_URL}/pages`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) throw new Error('Failed to load pages');
@@ -1778,7 +1792,7 @@ function renderPagesView(pages, showSeedBtn, container) {
 
 window.seedHomePage = async () => {
   try {
-    await fetch(`${ADMIN_API_URL}/pages`, {
+    await fetchCms(`${ADMIN_API_URL}/pages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -1948,17 +1962,17 @@ window.editPage = async (id) => {
       .replace(/'/g, '&#39;');
 
   const [pages, galleries, testimonials, globalSettings, mediaFiles] = await Promise.all([
-    fetch(`${ADMIN_API_URL}/pages`, {
+    fetchCms(`${ADMIN_API_URL}/pages`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then((res) => res.json()),
-    fetch(`${ADMIN_API_URL}/galleries`, {
+    fetchCms(`${ADMIN_API_URL}/galleries`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then((res) => res.json()),
-    fetch(`${ADMIN_API_URL}/testimonials`, {
+    fetchCms(`${ADMIN_API_URL}/testimonials`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then((res) => res.json()),
-    fetch(`${API_URL}/settings`).then((res) => res.json()),
-    fetch(`${ADMIN_API_URL}/files`, {
+    fetchCms(`${API_URL}/settings`).then((res) => res.json()),
+    fetchCms(`${ADMIN_API_URL}/files`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then((res) => res.json()),
   ]);
@@ -3587,7 +3601,7 @@ window.editPage = async (id) => {
     }
 
     try {
-      const res = await fetch(`${ADMIN_API_URL}/pages/${id}`, {
+      const res = await fetchCms(`${ADMIN_API_URL}/pages/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -3598,7 +3612,7 @@ window.editPage = async (id) => {
         throw new Error(errJson?.error || errText || `Blad zapisu (${res.status})`);
       }
       closeModal();
-      loadPages();
+      await loadPages();
     } catch (err) {
       console.error('Blad zapisu strony', err);
       alert(`Nie udalo sie zapisac zmian: ${err.message || 'blad zapisu'}`);
