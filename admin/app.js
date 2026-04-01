@@ -4430,7 +4430,7 @@ async function loadMediaLibraryTab() {
 
   let files = [];
   try {
-    const res = await fetch(`${ADMIN_API_URL}/media/usage`, {
+    const res = await fetchCms(`${ADMIN_API_URL}/media/usage`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
@@ -4475,6 +4475,25 @@ async function loadMediaLibraryTab() {
     product: 'Produktowe',
     utility: 'Użytkowe',
     other: 'Inne',
+  };
+
+  const renderMediaTagOptions = (selectedTag) => `
+    <option value="wedding" ${selectedTag === 'wedding' ? 'selected' : ''}>Ślubne</option>
+    <option value="portrait" ${selectedTag === 'portrait' ? 'selected' : ''}>Portretowe</option>
+    <option value="product" ${selectedTag === 'product' ? 'selected' : ''}>Produktowe</option>
+    <option value="utility" ${selectedTag === 'utility' ? 'selected' : ''}>Użytkowe</option>
+    <option value="other" ${selectedTag === 'other' || !selectedTag ? 'selected' : ''}>Inne</option>
+  `;
+
+  const updateMediaTag = async (file, tag) => {
+    if (!file?.name) return;
+    const response = await fetchCms(`${ADMIN_API_URL}/media/${encodeURIComponent(file.name)}/tag`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ tag }),
+    });
+    if (!response.ok) throw new Error('Nie udało się zmienić tagu medium.');
+    file.tag = tag;
   };
 
   const renderUsageSection = (title, items = []) => {
@@ -4539,6 +4558,12 @@ async function loadMediaLibraryTab() {
             <p class="mt-1 text-xs text-gray-500">${file.url}</p>
           </div>
           <div class="rounded border border-gray-200 p-4 dark:border-white/10">
+            <p class="text-xs font-bold uppercase tracking-widest text-gray-500">Kategoria</p>
+            <select id="media-tag-select-modal" class="mt-3 w-full rounded border border-gray-200 bg-white/90 px-3 py-2 text-sm text-gray-700 dark:border-white/10 dark:bg-black/40 dark:text-gray-100">
+              ${renderMediaTagOptions(file.tag)}
+            </select>
+          </div>
+          <div class="rounded border border-gray-200 p-4 dark:border-white/10">
             <p class="text-xs font-bold uppercase tracking-widest text-gray-500">SEO obrazu</p>
             <div class="mt-3 space-y-3">
               <label class="block text-xs uppercase tracking-widest text-gray-500">
@@ -4572,30 +4597,33 @@ async function loadMediaLibraryTab() {
 
     const titleInput = document.getElementById('media-meta-title');
     const altInput = document.getElementById('media-meta-alt');
+    const tagInput = document.getElementById('media-tag-select-modal');
     const status = document.getElementById('media-meta-status');
 
     setModalPrimaryAction(async () => {
-      if (!titleInput || !altInput) return;
+      if (!titleInput || !altInput || !tagInput) return;
       const titleText = titleInput.value.trim();
       const altText = altInput.value.trim();
+      const tag = tagInput.value || 'other';
       if (dom.modalPrimaryAction) dom.modalPrimaryAction.setAttribute('disabled', 'disabled');
       if (status) status.textContent = 'Zapisywanie...';
 
       try {
-        const response = await fetch(
-          `${ADMIN_API_URL}/media/${encodeURIComponent(file.name)}/meta`,
-          {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ title_text: titleText, alt_text: altText }),
-          },
-        );
+        await updateMediaTag(file, tag);
+
+        const response = await fetchCms(`${ADMIN_API_URL}/media/${encodeURIComponent(file.name)}/meta`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ title_text: titleText, alt_text: altText }),
+        });
 
         if (!response.ok) throw new Error('Nie udało się zapisać metadanych.');
 
+        file.tag = tag;
         file.title_text = titleText || null;
         file.alt_text = altText || null;
         if (status) status.textContent = 'Zapisano.';
+        renderMediaLibrary();
       } catch (error) {
         if (status) status.textContent = 'Błąd zapisu.';
       } finally {
@@ -4645,11 +4673,7 @@ async function loadMediaLibraryTab() {
                       <p class="truncate">${file.name}</p>
                       <p class="mt-1 text-gold">Użycia: ${count}</p>
                       <select data-media-tag-select-grid="${file.name}" class="mt-1 w-full rounded border border-white/20 bg-black/60 px-1 py-1 text-[10px] uppercase tracking-widest text-white cursor-pointer">
-                        <option value="wedding" ${file.tag === 'wedding' ? 'selected' : ''}>Ślubne</option>
-                        <option value="portrait" ${file.tag === 'portrait' ? 'selected' : ''}>Portretowe</option>
-                        <option value="product" ${file.tag === 'product' ? 'selected' : ''}>Produktowe</option>
-                        <option value="utility" ${file.tag === 'utility' ? 'selected' : ''}>Użytkowe</option>
-                        <option value="other" ${file.tag === 'other' || !file.tag ? 'selected' : ''}>Inne</option>
+                        ${renderMediaTagOptions(file.tag)}
                       </select>
                       <div class="mt-2 flex gap-2">
                         <button data-media-preview="${file.name}" class="rounded-full border border-white/30 px-2 py-1 text-[10px] uppercase tracking-widest text-white hover:bg-white/10">Szczegóły</button>
@@ -4681,11 +4705,7 @@ async function loadMediaLibraryTab() {
                       <p class="text-sm font-medium text-gray-900 dark:text-white">${file.name}</p>
                       <div class="flex items-center gap-2 text-xs text-gray-500">
                         <select data-media-tag-select="${file.name}" class="rounded border border-gray-200 bg-white/80 px-2 py-1 text-[10px] uppercase tracking-widest text-gray-600 dark:border-white/10 dark:bg-black/40 dark:text-gray-200">
-                          <option value="wedding" ${file.tag === 'wedding' ? 'selected' : ''}>Ślubne</option>
-                          <option value="portrait" ${file.tag === 'portrait' ? 'selected' : ''}>Portretowe</option>
-                          <option value="product" ${file.tag === 'product' ? 'selected' : ''}>Produktowe</option>
-                          <option value="utility" ${file.tag === 'utility' ? 'selected' : ''}>Użytkowe</option>
-                          <option value="other" ${file.tag === 'other' || !file.tag ? 'selected' : ''}>Inne</option>
+                          ${renderMediaTagOptions(file.tag)}
                         </select>
                         <span>Użycia: ${file.usageCount || 0}</span>
                         <button data-media-preview="${file.name}" class="rounded-full border border-gray-200 px-2 py-1 text-[10px] uppercase tracking-widest text-gray-500 hover:text-gold dark:border-white/10">Szczegóły</button>
@@ -4820,19 +4840,22 @@ async function loadMediaLibraryTab() {
         }
       });
     });
+    const allTagSelects = [...tagSelects, ...Array.from(container.querySelectorAll('[data-media-tag-select-grid]'))];
+    allTagSelects.forEach((selectEl) => {
+      ['click', 'mousedown', 'mouseup', 'pointerdown', 'touchstart'].forEach((eventName) => {
+        selectEl.addEventListener(eventName, (event) => {
+          event.stopPropagation();
+        });
+      });
+    });
     tagSelects.forEach((selectEl) => {
       selectEl.addEventListener('change', async (event) => {
         event.stopPropagation();
         const fileName = event.target.getAttribute('data-media-tag-select');
         const tag = event.target.value || 'other';
         if (!fileName) return;
-        await fetch(`${ADMIN_API_URL}/media/${encodeURIComponent(fileName)}/tag`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ tag }),
-        });
         const file = files.find((item) => item.name === fileName);
-        if (file) file.tag = tag;
+        if (file) await updateMediaTag(file, tag);
         renderMediaLibrary();
       });
     });
@@ -4843,13 +4866,8 @@ async function loadMediaLibraryTab() {
         const fileName = event.target.getAttribute('data-media-tag-select-grid');
         const tag = event.target.value || 'other';
         if (!fileName) return;
-        await fetch(`${ADMIN_API_URL}/media/${encodeURIComponent(fileName)}/tag`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ tag }),
-        });
         const file = files.find((item) => item.name === fileName);
-        if (file) file.tag = tag;
+        if (file) await updateMediaTag(file, tag);
         renderMediaLibrary();
       });
     });

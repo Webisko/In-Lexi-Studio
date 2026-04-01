@@ -614,6 +614,7 @@ router.get('/testimonials', async (req, res) => {
 
 router.get('/media', async (req, res) => {
   try {
+    disableResponseCache(res);
     const mediaAssets = await prisma.mediaAsset.findMany();
     const mediaAssetByUrl = new Map(mediaAssets.map((item) => [item.file_url, item]));
     const files = fs
@@ -1038,6 +1039,7 @@ router.post('/admin/upload', authenticateToken, upload.single('image'), async (r
 
 router.get('/admin/files', authenticateToken, async (req, res) => {
   try {
+    disableResponseCache(res);
     const files = fs.readdirSync(uploadDir);
     const mediaAssets = await prisma.mediaAsset.findMany();
     const mediaAssetByUrl = new Map(mediaAssets.map((item) => [item.file_url, item]));
@@ -1156,6 +1158,7 @@ router.put('/admin/media/:name/tag', authenticateToken, async (req, res) => {
 
 router.get('/admin/media/usage', authenticateToken, async (req, res) => {
   try {
+    disableResponseCache(res);
     const mediaAssets = await prisma.mediaAsset.findMany();
     const mediaAssetByUrl = new Map(mediaAssets.map((item) => [item.file_url, item]));
     const files = fs

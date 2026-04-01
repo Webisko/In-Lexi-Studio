@@ -17,6 +17,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: 'Other',
 };
 
+const CATEGORY_ORDER = ['Wedding', 'Portrait', 'Product', 'Other'];
+
 export default function Portfolio({ page, galleries = [], mediaFiles = [] }: Props) {
   const [filter, setFilter] = useState('All');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -98,8 +100,10 @@ export default function Portfolio({ page, galleries = [], mediaFiles = [] }: Pro
   ]);
 
   const categories = useMemo(() => {
-    const unique = Array.from(new Set(portfolioItems.map((item) => item.category)));
-    return ['All', ...unique];
+    const unique = new Set(portfolioItems.map((item) => item.category));
+    const ordered = CATEGORY_ORDER.filter((category) => unique.has(category));
+    const remaining = Array.from(unique).filter((category) => !CATEGORY_ORDER.includes(category));
+    return ['All', ...ordered, ...remaining];
   }, [portfolioItems]);
 
   const filteredItems =
