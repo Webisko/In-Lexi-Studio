@@ -21,10 +21,17 @@ const getLayoutForWidth = (width: number): SliderLayout => {
 
 interface GallerySliderProps {
   data: Record<string, GalleryItem[]>;
+  categoryOverride?: string;
+  showCta?: boolean;
 }
 
-export const GallerySlider: React.FC<GallerySliderProps> = ({ data }) => {
-  const category = useStore(currentCategory);
+export const GallerySlider: React.FC<GallerySliderProps> = ({
+  data,
+  categoryOverride,
+  showCta = true,
+}) => {
+  const storeCategory = useStore(currentCategory);
+  const category = categoryOverride || storeCategory;
 
   // Map API items to component expected format {id, src, alt}
   const originalImages = (data[category] || []).map((item) => ({
@@ -235,15 +242,17 @@ export const GallerySlider: React.FC<GallerySliderProps> = ({ data }) => {
           </motion.div>
 
           {/* Dynamic CTA Button Overlay */}
-          <div className="pointer-events-auto absolute bottom-16 left-1/2 z-20 -translate-x-1/2 transform">
-            <a
-              href={`${import.meta.env.BASE_URL}${category === 'wedding' ? 'wedding-photography' : category === 'portrait' ? 'portrait-photography' : category === 'product' ? 'product-photography' : category}`}
-              className="btn-primary shadow-xl"
-            >
-              <span className="font-display">More about</span>
-              <span className="font-display font-semibold">{category}</span>
-            </a>
-          </div>
+          {showCta && (
+            <div className="pointer-events-auto absolute bottom-16 left-1/2 z-20 -translate-x-1/2 transform">
+              <a
+                href={`${import.meta.env.BASE_URL}${category === 'wedding' ? 'wedding-photography' : category === 'portrait' ? 'portrait-photography' : category === 'product' ? 'product-photography' : category}`}
+                className="btn-primary shadow-xl"
+              >
+                <span className="font-display">More about</span>
+                <span className="font-display font-semibold">{category}</span>
+              </a>
+            </div>
+          )}
 
           {/* Counter */}
           <div className="absolute bottom-5 left-6 z-10 font-display text-xs tracking-[0.2em] text-white/70">

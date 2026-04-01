@@ -5,6 +5,7 @@ import type { Page, Testimonial } from '../../lib/api';
 import { getImageSizes, getImageSrcSet, getImageUrl } from '../../lib/api';
 import { FAQSection } from '../FAQSection';
 import { FormSuccessPanel } from '../FormSuccessPanel';
+import { GallerySlider } from '../GallerySlider';
 import { Lightbox } from '../Lightbox';
 import { ServiceCrossLinks } from '../ServiceCrossLinks';
 import { Testimonials } from '../Testimonials';
@@ -587,6 +588,15 @@ export default function WeddingPhotography({ page, testimonials = [] }: Props) {
   const [isSubmittingWeddingForm, setIsSubmittingWeddingForm] = React.useState(false);
   const [isWeddingFormSuccess, setIsWeddingFormSuccess] = React.useState(false);
   const sliderImages = page.wedding_slider_images || [];
+  const weddingSliderItems = React.useMemo(
+    () =>
+      sliderImages.map((imagePath, index) => ({
+        id: index + 1,
+        image_path: imagePath,
+        alt: `${page.title || 'Wedding'} highlight ${index + 1}`,
+      })),
+    [page.title, sliderImages],
+  );
   const collectionImageOne =
     sliderImages[0] ||
     'https://images.unsplash.com/photo-1511285560982-1351cdeb9821?q=80&w=1000&auto=format&fit=crop';
@@ -728,10 +738,28 @@ export default function WeddingPhotography({ page, testimonials = [] }: Props) {
             </p>
           </motion.div>
         </section>
+      </div>
 
-        {sliderImages.length > 0 && (
-          <WeddingHighlightsSlider images={sliderImages} title={page.title || 'Wedding'} />
-        )}
+      {weddingSliderItems.length > 0 && (
+        <section className="mb-28">
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="mb-10 px-4 text-center"
+          >
+            <p className="text-sm uppercase tracking-[0.3em] text-[#d4af37]">Wedding Highlights</p>
+          </motion.div>
+
+          <GallerySlider
+            data={{ wedding: weddingSliderItems }}
+            categoryOverride="wedding"
+            showCta={false}
+          />
+        </section>
+      )}
+
+      <div className="mx-auto w-full max-w-[1440px] px-6 md:px-10">
 
         {/* The Process: Before / During / After */}
         <section className="mb-32">
