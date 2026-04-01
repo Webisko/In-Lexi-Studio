@@ -926,8 +926,12 @@ dom.navBtns.forEach((btn) => {
     );
     btn.classList.remove('text-gray-400');
     btn.querySelector('svg')?.classList.add('text-gold');
-    
-    if (dom.sidebar && !dom.sidebar.classList.contains('-translate-x-full') && window.innerWidth < 768) {
+
+    if (
+      dom.sidebar &&
+      !dom.sidebar.classList.contains('-translate-x-full') &&
+      window.innerWidth < 768
+    ) {
       dom.sidebar.classList.add('-translate-x-full');
       if (dom.sidebarBackdrop) {
         dom.sidebarBackdrop.classList.remove('opacity-100');
@@ -1815,6 +1819,8 @@ window.editPage = async (id) => {
     about_story_images: [],
     about_story_captions: [],
     about_work_images: [],
+    approach_gallery_images: [],
+    approach_feature_image: '',
     meta_title: '',
     meta_description: '',
     seo_image: '',
@@ -1966,6 +1972,7 @@ window.editPage = async (id) => {
   const isPortraitPage = normalizedSlug === 'portrait-photography';
   const isProductPage = normalizedSlug === 'product-photography';
   const isAboutPage = normalizedSlug === 'about';
+  const isApproachPage = normalizedSlug === 'approach';
   const isLandingFaqPage = isHomePage || isWeddingPage || isPortraitPage || isProductPage;
   const isPortfolioPage = normalizedSlug === 'portfolio';
   page.is_home = isHomePage;
@@ -1984,6 +1991,8 @@ window.editPage = async (id) => {
   page.about_story_images = parseImageList(page.about_story_images);
   page.about_story_captions = parseImageList(page.about_story_captions);
   page.about_work_images = parseImageList(page.about_work_images);
+  page.approach_gallery_images = parseImageList(page.approach_gallery_images);
+  page.approach_feature_image = String(page.approach_feature_image || '').trim();
   page.faq_items = parseFaqItems(page.faq_items);
 
   if (isAboutPage) {
@@ -2010,6 +2019,19 @@ window.editPage = async (id) => {
         '/uploads/ils-206.webp',
         '/uploads/ils-212.webp',
       ];
+    }
+  }
+
+  if (isApproachPage) {
+    if (!page.approach_gallery_images.length) {
+      page.approach_gallery_images = [
+        '/uploads/ils-185.webp',
+        '/uploads/ils-212.webp',
+        '/uploads/ils-206.webp',
+      ];
+    }
+    if (!page.approach_feature_image) {
+      page.approach_feature_image = '/uploads/ils-206.webp';
     }
   }
 
@@ -2426,6 +2448,21 @@ window.editPage = async (id) => {
                 </div>
               </div>
 
+              <div id="approach-details-section" class="space-y-4">
+                <div class="space-y-4" data-details-item data-details-title="Sekcja z trzema zdjęciami">
+                  ${renderImageListSection('approach_gallery_images', 'Trzy zdjęcia', { showLabel: false })}
+                </div>
+
+                <div class="space-y-4" data-details-item data-details-title="Your story, told with heart">
+                  ${renderImagePicker({
+                    inputId: 'approach_feature_image',
+                    label: 'Zdjęcie sekcji',
+                    value: page.approach_feature_image || '',
+                    sizeClass: 'h-72',
+                  })}
+                </div>
+              </div>
+
               <div id="faq-details-section" class="space-y-4" data-details-item data-details-title="FAQ">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                   <div>
@@ -2599,7 +2636,13 @@ window.editPage = async (id) => {
     });
   };
 
-  ['hero_image', 'seo_image', 'home_moments_image', 'home_latest_moments_bg'].forEach((inputId) => {
+  [
+    'hero_image',
+    'seo_image',
+    'home_moments_image',
+    'home_latest_moments_bg',
+    'approach_feature_image',
+  ].forEach((inputId) => {
     bindImageUpload(inputId);
   });
 
@@ -2611,6 +2654,7 @@ window.editPage = async (id) => {
     about_origin_images: [...(page.about_origin_images || [])],
     about_story_images: [...(page.about_story_images || [])],
     about_work_images: [...(page.about_work_images || [])],
+    approach_gallery_images: [...(page.approach_gallery_images || [])],
   };
   let weddingSessionTypes = (page.wedding_session_types || []).map((item) => ({ ...item }));
 
@@ -3325,17 +3369,19 @@ window.editPage = async (id) => {
     const weddingDetailsSection = document.getElementById('wedding-details-section');
     const portfolioDetailsSection = document.getElementById('portfolio-details-section');
     const aboutDetailsSection = document.getElementById('about-details-section');
+    const approachDetailsSection = document.getElementById('approach-details-section');
     const faqDetailsSection = document.getElementById('faq-details-section');
     if (contentSection)
       contentSection.classList.toggle(
         'hidden',
-        isHomePage || isWeddingPage || isPortfolioPage || isAboutPage,
+        isHomePage || isWeddingPage || isPortfolioPage || isAboutPage || isApproachPage,
       );
     if (homeDetailsSection) homeDetailsSection.classList.toggle('hidden', !isHomePage);
     if (weddingDetailsSection) weddingDetailsSection.classList.toggle('hidden', !isWeddingPage);
     if (portfolioDetailsSection)
       portfolioDetailsSection.classList.toggle('hidden', !isPortfolioPage);
     if (aboutDetailsSection) aboutDetailsSection.classList.toggle('hidden', !isAboutPage);
+    if (approachDetailsSection) approachDetailsSection.classList.toggle('hidden', !isApproachPage);
     if (faqDetailsSection) faqDetailsSection.classList.toggle('hidden', !isLandingFaqPage);
   };
 
@@ -3470,6 +3516,13 @@ window.editPage = async (id) => {
       }
     }
 
+    if (isApproachPage) {
+      if (imageLists.approach_gallery_images.length !== 3) {
+        alert('W sekcji z trzema zdjęciami wybierz dokładnie 3 zdjęcia.');
+        return;
+      }
+    }
+
     const data = {
       title: document.getElementById('title').value,
       content: document.getElementById('content')?.value || '',
@@ -3504,6 +3557,11 @@ window.editPage = async (id) => {
       data.about_story_captions = [0, 1, 2].map(
         (index) => document.getElementById(`about_story_caption_${index}`)?.value?.trim() || '',
       );
+    }
+
+    if (isApproachPage) {
+      data.approach_gallery_images = imageLists.approach_gallery_images;
+      data.approach_feature_image = document.getElementById('approach_feature_image')?.value || '';
     }
 
     if (isLandingFaqPage) {

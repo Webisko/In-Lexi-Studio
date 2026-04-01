@@ -8,11 +8,13 @@ interface Props {
   page: Page;
 }
 
-const UPLOADS = {
-  story1: getImageUrl('/uploads/ils-185.webp'),
-  story2: getImageUrl('/uploads/ils-212.webp'),
-  story3: getImageUrl('/uploads/ils-206.webp'),
-};
+const FALLBACK_GALLERY_IMAGES = [
+  '/uploads/ils-185.webp',
+  '/uploads/ils-212.webp',
+  '/uploads/ils-206.webp',
+];
+
+const FALLBACK_FEATURE_IMAGE = '/uploads/ils-206.webp';
 
 const staggerContainer = {
   hidden: { opacity: 0 },
@@ -30,6 +32,12 @@ const fadeInUp = {
 };
 
 export default function Approach({ page }: Props) {
+  const galleryImages =
+    Array.isArray(page.approach_gallery_images) && page.approach_gallery_images.length === 3
+      ? page.approach_gallery_images
+      : FALLBACK_GALLERY_IMAGES;
+  const featureImage = page.approach_feature_image || galleryImages[2] || FALLBACK_FEATURE_IMAGE;
+
   return (
     <div className="min-h-screen bg-[#080808] font-sans text-[#fcfcfc]">
       {/* Hero Section */}
@@ -179,17 +187,24 @@ export default function Approach({ page }: Props) {
         variants={staggerContainer}
         className="grid grid-cols-3"
       >
-        {[UPLOADS.story1, UPLOADS.story2, UPLOADS.story3].map((src, i) => (
-          <motion.div key={i} variants={fadeInUp} className="overflow-hidden">
-            <img
-              src={src}
-              alt={'In Lexi Studio — approach ' + (i + 1)}
-              loading="lazy"
-              decoding="async"
-              className="h-[40vh] w-full object-cover transition-transform duration-700 hover:scale-105 md:h-[55vh]"
-            />
-          </motion.div>
-        ))}
+        {galleryImages.map((imagePath, i) => {
+          const imageUrl = getImageUrl(imagePath);
+          const imageSrcSet = getImageSrcSet(imagePath);
+
+          return (
+            <motion.div key={i} variants={fadeInUp} className="overflow-hidden">
+              <img
+                src={imageUrl}
+                srcSet={imageSrcSet || undefined}
+                sizes={imageSrcSet ? getImageSizes('card') : undefined}
+                alt={'In Lexi Studio — approach ' + (i + 1)}
+                loading="lazy"
+                decoding="async"
+                className="h-[40vh] w-full object-cover transition-transform duration-700 hover:scale-105 md:h-[55vh]"
+              />
+            </motion.div>
+          );
+        })}
       </motion.div>
 
       {/* NARRATIVE — centered editorial text + blockquote */}
@@ -270,7 +285,9 @@ export default function Approach({ page }: Props) {
             >
               <div className="absolute inset-0 -translate-x-5 -translate-y-5 border border-[#d4af37]/25" />
               <img
-                src={UPLOADS.story3}
+                src={getImageUrl(featureImage)}
+                srcSet={getImageSrcSet(featureImage) || undefined}
+                sizes={getImageSrcSet(featureImage) ? getImageSizes('card') : undefined}
                 alt="In Lexi Studio — preserving your legacy"
                 loading="lazy"
                 decoding="async"

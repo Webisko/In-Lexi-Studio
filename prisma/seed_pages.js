@@ -45,6 +45,12 @@ const PAGES = [
       'My passion/goal is creating beautiful, heartfelt photographs that become treasured pieces of your family’s story.',
     hero_image:
       'https://images.unsplash.com/photo-1502738828373-49d1d8dd1f6e?q=80&w=1000&auto=format&fit=crop',
+    approach_gallery_images: JSON.stringify([
+      '/uploads/ils-185.webp',
+      '/uploads/ils-212.webp',
+      '/uploads/ils-206.webp',
+    ]),
+    approach_feature_image: '/uploads/ils-206.webp',
     content: `
       <h3>My Approach to Photography</h3>
       <h4>HOW - WHAT - WHY - I DO?</h4>

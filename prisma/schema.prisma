@@ -52,6 +52,8 @@ model Page {
   about_story_images String?
   about_story_captions String?
   about_work_images String?
+  approach_gallery_images String?
+  approach_feature_image String?
   meta_title       String?
   meta_description String?
   seo_image        String?

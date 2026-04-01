@@ -63,6 +63,8 @@ export interface Page {
   about_story_images?: string[] | null;
   about_story_captions?: string[] | null;
   about_work_images?: string[] | null;
+  approach_gallery_images?: string[] | null;
+  approach_feature_image?: string | null;
   meta_title?: string;
   meta_description?: string;
   seo_image?: string;

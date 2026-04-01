@@ -1333,6 +1333,8 @@ const PAGE_MUTABLE_FIELDS = new Set([
   'about_story_images',
   'about_story_captions',
   'about_work_images',
+  'approach_gallery_images',
+  'approach_feature_image',
   'meta_title',
   'meta_description',
   'seo_image',
@@ -1498,6 +1500,8 @@ const normalizePageResponse = (page, settings = null) => {
     about_story_images: parseJsonArray(page.about_story_images),
     about_story_captions: parseJsonArray(page.about_story_captions),
     about_work_images: parseJsonArray(page.about_work_images),
+    approach_gallery_images: parseJsonArray(page.approach_gallery_images),
+    approach_feature_image: page.approach_feature_image || null,
     faq_items: normalizeFaqItems(page.faq_items, page),
   };
 };
@@ -1555,6 +1559,10 @@ const normalizePagePayload = (data) => {
   data.about_story_images = stringifyJsonArray(normalizeStringArray(data.about_story_images));
   data.about_story_captions = stringifyJsonArray(normalizeStringArray(data.about_story_captions));
   data.about_work_images = stringifyJsonArray(normalizeStringArray(data.about_work_images));
+  data.approach_gallery_images = stringifyJsonArray(
+    normalizeStringArray(data.approach_gallery_images),
+  );
+  data.approach_feature_image = data.approach_feature_image || null;
   data.faq_items = stringifyJsonArray(data.faq_items);
 };
 
@@ -1572,29 +1580,6 @@ router.put('/admin/pages/:id', authenticateToken, async (req, res) => {
     const pageId = Number(id);
 
     normalizePagePayload(data);
-router.delete('/admin/pages/:id', authenticateToken, async (req, res) => {
-  try {
-    const pageId = Number(req.params.id);
-    if (!Number.isFinite(pageId)) {
-      return res.status(400).json({ error: 'Invalid page id' });
-    }
-
-    const page = await prisma.page.findUnique({ where: { id: pageId } });
-    if (!page) {
-      return res.status(404).json({ error: 'Page not found' });
-    }
-
-    if (isProtectedHomePage(page)) {
-      return res.status(400).json({ error: 'Nie mozna usunac aktywnej strony glownej.' });
-    }
-
-    await prisma.page.delete({ where: { id: pageId } });
-    res.json({ success: true });
-  } catch (e) {
-    console.error('Page delete failed:', e);
-    res.status(500).json({ error: e.message || 'Page delete failed' });
-  }
-});
 
     if (data.is_home) {
       data.slug = '/';
@@ -1633,6 +1618,29 @@ router.delete('/admin/pages/:id', authenticateToken, async (req, res) => {
   } catch (e) {
     console.error('Page update failed:', e);
     res.status(500).json({ error: e.message || 'Page update failed' });
+  }
+});
+router.delete('/admin/pages/:id', authenticateToken, async (req, res) => {
+  try {
+    const pageId = Number(req.params.id);
+    if (!Number.isFinite(pageId)) {
+      return res.status(400).json({ error: 'Invalid page id' });
+    }
+
+    const page = await prisma.page.findUnique({ where: { id: pageId } });
+    if (!page) {
+      return res.status(404).json({ error: 'Page not found' });
+    }
+
+    if (isProtectedHomePage(page)) {
+      return res.status(400).json({ error: 'Nie mozna usunac aktywnej strony glownej.' });
+    }
+
+    await prisma.page.delete({ where: { id: pageId } });
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Page delete failed:', e);
+    res.status(500).json({ error: e.message || 'Page delete failed' });
   }
 });
 router.post('/admin/pages', authenticateToken, async (req, res) => {
