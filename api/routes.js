@@ -345,7 +345,6 @@ const autoTagImagesFromPage = async (data) => {
     { field: 'home_gallery_wedding_images', tag: 'wedding' },
     { field: 'home_gallery_portrait_images', tag: 'portrait' },
     { field: 'home_gallery_product_images', tag: 'product' },
-    { field: 'portfolio_gallery_ids', tag: 'product' },
   ];
   for (const { field, tag } of tagMap) {
     let urls = [];
