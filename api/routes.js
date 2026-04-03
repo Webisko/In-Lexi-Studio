@@ -294,9 +294,13 @@ const clearEmailChangeTokens = async (userId) => {
   await prisma.emailChangeToken.deleteMany({ where: { user_id: userId } });
 };
 
-const normalizeBaseUrl = (value) => String(value || '').trim().replace(/\/+$/, '');
+const normalizeBaseUrl = (value) =>
+  String(value || '')
+    .trim()
+    .replace(/\/+$/, '');
 
-const isLocalOrigin = (value) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(String(value));
+const isLocalOrigin = (value) =>
+  /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(String(value));
 
 const resolveRequestOrigin = (req) => {
   const forwardedProtoHeader = String(req.headers['x-forwarded-proto'] || '')
