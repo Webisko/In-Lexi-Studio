@@ -133,6 +133,8 @@ const getImageSrcSet = (path, widths = [160, 480, 960]) => {
 let token = localStorage.getItem('token');
 let currentUser = null;
 let resetToken = null;
+let emailChangeToken = null;
+let accountProfileFlash = null;
 let mediaViewMode = 'grid';
 let mediaFilterQuery = '';
 let mediaTagFilter = '';
@@ -162,10 +164,188 @@ const escapeHtml = (value) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
+let activeCustomSelect = null;
+let customSelectPortal = null;
+let customSelectObserver = null;
+
+const createChevronIcon = () => `
+  <svg class="h-4 w-4" fill="none" viewBox="0 0 20 20" stroke="currentColor" aria-hidden="true">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 8l4 4 4-4" />
+  </svg>
+`;
+
+const closeCustomSelect = () => {
+  if (!activeCustomSelect) return;
+  activeCustomSelect.wrapper.classList.remove('is-open');
+  activeCustomSelect.trigger.classList.remove('is-open');
+  activeCustomSelect.trigger.setAttribute('aria-expanded', 'false');
+  if (customSelectPortal) {
+    customSelectPortal.classList.add('hidden');
+    customSelectPortal.innerHTML = '';
+  }
+  activeCustomSelect = null;
+};
+
+const ensureCustomSelectPortal = () => {
+  if (customSelectPortal) return customSelectPortal;
+  customSelectPortal = document.createElement('div');
+  customSelectPortal.className = 'custom-select-portal hidden';
+  customSelectPortal.id = 'custom-select-portal';
+  document.body.appendChild(customSelectPortal);
+  return customSelectPortal;
+};
+
+const updateCustomSelectValue = (select) => {
+  const wrapper = select.closest('.custom-select');
+  if (!wrapper) return;
+  const valueNode = wrapper.querySelector('.custom-select__value');
+  if (!valueNode) return;
+  const selectedOption = select.options[select.selectedIndex];
+  valueNode.textContent = selectedOption?.textContent?.trim() || '';
+};
+
+const positionCustomSelectPortal = (trigger) => {
+  if (!customSelectPortal || !trigger) return;
+  const triggerRect = trigger.getBoundingClientRect();
+  customSelectPortal.style.left = `${window.scrollX + triggerRect.left}px`;
+  customSelectPortal.style.top = `${window.scrollY + triggerRect.bottom + 6}px`;
+  customSelectPortal.style.width = `${triggerRect.width}px`;
+
+  const portalRect = customSelectPortal.getBoundingClientRect();
+  const viewportBottom = window.scrollY + window.innerHeight;
+  if (window.scrollY + triggerRect.bottom + 6 + portalRect.height > viewportBottom) {
+    customSelectPortal.style.top = `${Math.max(window.scrollY + triggerRect.top - portalRect.height - 6, window.scrollY + 8)}px`;
+  }
+};
+
+const renderCustomSelectOptions = (select, trigger) => {
+  const portal = ensureCustomSelectPortal();
+  const computed = window.getComputedStyle(trigger);
+  portal.style.fontFamily = computed.fontFamily;
+  portal.style.fontSize = computed.fontSize;
+  portal.style.fontWeight = computed.fontWeight;
+  portal.style.letterSpacing = computed.letterSpacing;
+  portal.style.textTransform = computed.textTransform;
+  portal.innerHTML = '';
+
+  Array.from(select.options).forEach((option) => {
+    const optionButton = document.createElement('button');
+    optionButton.type = 'button';
+    optionButton.className = `custom-select__option${option.selected ? ' is-selected' : ''}${option.disabled ? ' is-disabled' : ''}`;
+    optionButton.textContent = option.textContent || '';
+    optionButton.disabled = option.disabled;
+    optionButton.dataset.value = option.value;
+    optionButton.addEventListener('click', () => {
+      if (option.disabled) return;
+      select.value = option.value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      select.dispatchEvent(new Event('input', { bubbles: true }));
+      updateCustomSelectValue(select);
+      closeCustomSelect();
+    });
+    portal.appendChild(optionButton);
+  });
+
+  portal.classList.remove('hidden');
+  positionCustomSelectPortal(trigger);
+};
+
+const openCustomSelect = (wrapper, select, trigger) => {
+  if (activeCustomSelect?.select === select) {
+    closeCustomSelect();
+    return;
+  }
+
+  closeCustomSelect();
+  activeCustomSelect = { wrapper, select, trigger };
+  wrapper.classList.add('is-open');
+  trigger.classList.add('is-open');
+  trigger.setAttribute('aria-expanded', 'true');
+  renderCustomSelectOptions(select, trigger);
+};
+
+const initializeCustomSelect = (select) => {
+  if (!select || select.dataset.customSelectInitialized === 'true') return;
+  if (select.multiple || Number(select.size) > 1) return;
+  const originalClassName = select.className;
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'custom-select';
+  select.parentNode.insertBefore(wrapper, select);
+  wrapper.appendChild(select);
+
+  select.dataset.customSelectInitialized = 'true';
+  select.classList.add('custom-select__native');
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = `${originalClassName} custom-select__trigger`;
+  trigger.setAttribute('aria-haspopup', 'listbox');
+  trigger.setAttribute('aria-expanded', 'false');
+  trigger.disabled = select.disabled;
+  trigger.innerHTML = `<span class="custom-select__value"></span><span class="custom-select__icon">${createChevronIcon()}</span>`;
+  wrapper.appendChild(trigger);
+
+  updateCustomSelectValue(select);
+
+  trigger.addEventListener('click', (event) => {
+    event.preventDefault();
+    if (select.disabled) return;
+    openCustomSelect(wrapper, select, trigger);
+  });
+
+  trigger.addEventListener('keydown', (event) => {
+    if (!['Enter', ' ', 'ArrowDown'].includes(event.key)) return;
+    event.preventDefault();
+    if (select.disabled) return;
+    openCustomSelect(wrapper, select, trigger);
+  });
+
+  select.addEventListener('change', () => {
+    updateCustomSelectValue(select);
+    if (activeCustomSelect?.select === select) {
+      renderCustomSelectOptions(select, trigger);
+    }
+  });
+};
+
+const initializeCustomSelects = (root = document) => {
+  if (!root) return;
+  if (root.matches?.('select')) {
+    initializeCustomSelect(root);
+    return;
+  }
+  root.querySelectorAll?.('select').forEach(initializeCustomSelect);
+};
+
+const startCustomSelectObserver = () => {
+  if (customSelectObserver || !document.body) return;
+  customSelectObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType !== Node.ELEMENT_NODE) return;
+        initializeCustomSelects(node);
+      });
+
+      if (activeCustomSelect?.select && !activeCustomSelect.select.isConnected) {
+        closeCustomSelect();
+      }
+    });
+  });
+
+  customSelectObserver.observe(document.body, { childList: true, subtree: true });
+};
+
 const CONTENT_SEARCH_INPUT_CLASS =
   'w-64 max-w-full rounded-full border border-gray-200 dark:border-white/10 bg-white dark:bg-black/30 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 placeholder-gray-400 focus:border-gold focus:outline-none';
 const CONTENT_ACTION_BUTTON_CLASS =
   'inline-flex items-center gap-2 rounded bg-gold px-4 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-gold-hover shadow-lg shadow-gold/20';
+
+const getCurrentUserDisplayName = () => {
+  const explicitName = String(currentUser?.name || '').trim();
+  if (explicitName) return explicitName;
+  return currentUser?.role === 'ADMIN' ? 'Filip' : 'Alex';
+};
 
 const getToggleButtonClass = (active) => getTagPillClass(active);
 
@@ -689,6 +869,45 @@ const getResetTokenFromUrl = () => {
   return params.get('reset');
 };
 
+const getEmailChangeTokenFromUrl = () => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('email_change');
+};
+
+async function handleEmailChangeConfirmation(tokenValue) {
+  try {
+    const res = await fetch(`${ADMIN_API_URL}/confirm-email-change`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: tokenValue }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    token = null;
+    currentUser = null;
+    emailChangeToken = null;
+    localStorage.removeItem('token');
+    showLogin();
+
+    if (!res.ok) {
+      throw new Error(data.error || 'Nie udalo sie potwierdzic zmiany adresu e-mail.');
+    }
+
+    setStatusMessage(
+      dom.loginMessage,
+      'Adres e-mail zostal potwierdzony. Zaloguj sie nowym adresem.',
+      'success',
+    );
+  } catch (error) {
+    showLogin();
+    setStatusMessage(
+      dom.loginError,
+      error.message || 'Nie udalo sie potwierdzic zmiany adresu e-mail.',
+      'error',
+    );
+  }
+}
+
 const syncAdminBranding = async () => {
   const faviconEl = document.getElementById('admin-favicon');
   const loginScreen = document.getElementById('login-screen');
@@ -760,7 +979,12 @@ const dom = {
 
 // --- Initialization ---
 resetToken = getResetTokenFromUrl();
-if (token) {
+emailChangeToken = getEmailChangeTokenFromUrl();
+initializeCustomSelects(document.body);
+startCustomSelectObserver();
+if (emailChangeToken) {
+  handleEmailChangeConfirmation(emailChangeToken);
+} else if (token) {
   verifyToken();
 } else if (resetToken) {
   showReset(resetToken);
@@ -777,6 +1001,34 @@ if (savedTheme === 'light') {
 }
 
 syncAdminBranding();
+
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('.custom-select') && !event.target.closest('.custom-select-portal')) {
+    closeCustomSelect();
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    closeCustomSelect();
+  }
+});
+
+window.addEventListener('resize', () => {
+  if (activeCustomSelect) {
+    positionCustomSelectPortal(activeCustomSelect.trigger);
+  }
+});
+
+window.addEventListener(
+  'scroll',
+  () => {
+    if (activeCustomSelect) {
+      positionCustomSelectPortal(activeCustomSelect.trigger);
+    }
+  },
+  true,
+);
 
 // --- Event Listeners ---
 dom.loginForm.addEventListener('submit', handleLogin);
@@ -1152,6 +1404,42 @@ async function handleAuthenticatedPasswordChange(e) {
   }
 }
 
+async function handleAccountProfileSave(e) {
+  e.preventDefault();
+  const name = document.getElementById('account-name')?.value || '';
+  const email = document.getElementById('account-email')?.value || '';
+  const submitButton = document.getElementById('account-profile-submit');
+  const message = document.getElementById('account-profile-status');
+
+  if (!name.trim()) {
+    setStatusMessage(message, 'Podaj imie.', 'error');
+    return;
+  }
+
+  submitButton?.setAttribute('disabled', 'disabled');
+
+  try {
+    const res = await fetchCms(`${ADMIN_API_URL}/account/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name, email }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(data.error || 'Nie udalo sie zapisac profilu.');
+    }
+
+    currentUser = data?.user || currentUser;
+    accountProfileFlash = { tone: 'success', message: data.message || 'Zapisano profil.' };
+    loadAccount();
+  } catch (error) {
+    setStatusMessage(message, error.message || 'Nie udalo sie zapisac profilu.', 'error');
+  } finally {
+    submitButton?.removeAttribute('disabled');
+  }
+}
+
 async function handleLogin(e) {
   e.preventDefault();
   const email = document.getElementById('email').value;
@@ -1253,9 +1541,8 @@ async function verifyToken() {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
-      // Parse Role
-      const payload = parseJwt(token);
-      currentUser = { ...payload }; // { id, email, role }
+      const data = await res.json().catch(() => ({}));
+      currentUser = data?.user || parseJwt(token);
 
       // Tab visibility based on role
       const settingsTab = document.querySelector('[data-tab="settings"]');
@@ -1289,13 +1576,17 @@ function showLogin() {
   dom.resetMessage?.classList.add('hidden');
 
   resetToken = null;
+  emailChangeToken = null;
   const params = new URLSearchParams(window.location.search);
   if (params.has('reset')) {
     params.delete('reset');
-    const newQuery = params.toString();
-    const newUrl = newQuery ? `${window.location.pathname}?${newQuery}` : window.location.pathname;
-    window.history.replaceState(null, '', newUrl);
   }
+  if (params.has('email_change')) {
+    params.delete('email_change');
+  }
+  const newQuery = params.toString();
+  const newUrl = newQuery ? `${window.location.pathname}?${newQuery}` : window.location.pathname;
+  window.history.replaceState(null, '', newUrl);
 }
 
 function showForgot() {
@@ -1403,7 +1694,7 @@ async function loadDashboard() {
   const maxGalleryCards = window.innerWidth < 768 ? 4 : 6;
   const recentGalleries = galleries.slice(0, maxGalleryCards);
 
-  const greetingName = currentUser?.role === 'ADMIN' ? 'Filip' : 'Alex';
+  const greetingName = getCurrentUserDisplayName();
 
   container.innerHTML = `
       <div class="mb-8">
@@ -4873,55 +5164,102 @@ async function loadMediaLibraryTab() {
 function loadAccount() {
   const container = document.getElementById('tab-account');
   if (!container) return;
+  const pendingEmail = String(currentUser?.pendingEmail || '').trim();
+  const currentName = String(currentUser?.name || '').trim();
 
   container.innerHTML = `
     <h2 class="mb-6 text-3xl font-display font-medium text-gray-900 dark:text-white">Moje konto</h2>
     <div class="rounded-xl border border-gray-200 bg-white p-8 shadow-sm dark:border-white/5 dark:bg-dark-secondary">
-      <div class="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,20rem)_1fr]">
+      <div class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,22rem)_1fr]">
         <div class="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-white/10 dark:bg-black/20">
           <p class="text-xs font-bold uppercase tracking-wider text-gray-500">Aktualnie zalogowany użytkownik</p>
+          <div>
+            <p class="text-xs uppercase tracking-wider text-gray-500">Imię</p>
+            <p class="mt-1 text-base font-medium text-gray-900 dark:text-white">${escapeHtml(currentName || 'Brak')}</p>
+          </div>
           <div>
             <p class="text-xs uppercase tracking-wider text-gray-500">E-mail</p>
             <p class="mt-1 text-base font-medium text-gray-900 dark:text-white">${escapeHtml(currentUser?.email || '')}</p>
           </div>
+          ${pendingEmail ? `<div class="rounded-lg border border-gold/30 bg-gold/10 px-4 py-3 text-sm text-gray-700 dark:text-gray-200"><p class="font-medium text-gold">Oczekująca zmiana e-maila</p><p class="mt-1">Po kliknięciu linku potwierdzającego adres zmieni się na <strong>${escapeHtml(pendingEmail)}</strong>.</p></div>` : ''}
           <div>
             <p class="text-xs uppercase tracking-wider text-gray-500">Rola</p>
             <p class="mt-1 text-base font-medium text-gray-900 dark:text-white">${escapeHtml(currentUser?.role || '')}</p>
           </div>
         </div>
 
-        <div class="space-y-4 rounded-xl border border-gray-200 p-5 dark:border-white/10">
-          <div>
-            <h3 class="text-gold font-display text-xl font-medium">Zmiana hasła</h3>
-            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              Zmienisz hasło bez wylogowywania i bez używania opcji „Zapomniałem hasła”.
-            </p>
+        <div class="space-y-6">
+          <div class="space-y-4 rounded-xl border border-gray-200 p-5 dark:border-white/10">
+            <div>
+              <h3 class="text-gold font-display text-xl font-medium">Dane profilu</h3>
+              <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                Możesz zmienić imię od razu. Zmiana adresu e-mail wymaga kliknięcia linku potwierdzającego wysłanego na nowy adres.
+              </p>
+            </div>
+
+            <form id="account-profile-form" class="space-y-4">
+              <div>
+                <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Imię</label>
+                <input type="text" id="account-name" value="${escapeHtml(currentName)}" class="mt-1 w-full rounded border border-gray-300 bg-gray-50 p-2 outline-none text-gray-900 focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white" autocomplete="given-name" required>
+              </div>
+              <div>
+                <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Aktualny e-mail</label>
+                <input type="email" value="${escapeHtml(currentUser?.email || '')}" class="mt-1 w-full rounded border border-gray-300 bg-gray-100 p-2 outline-none text-gray-500 dark:border-white/10 dark:bg-black/30 dark:text-gray-400" disabled>
+              </div>
+              <div>
+                <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Nowy adres e-mail</label>
+                <input type="email" id="account-email" value="${escapeHtml(pendingEmail)}" placeholder="nowy@email.com" class="mt-1 w-full rounded border border-gray-300 bg-gray-50 p-2 outline-none text-gray-900 focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white" autocomplete="email">
+                <p class="mt-2 text-xs text-gray-500">Po zapisie wyślemy link potwierdzający na nowy adres. Zmiana nastąpi dopiero po kliknięciu w ten link.</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-3">
+                <button type="submit" id="account-profile-submit" class="rounded bg-gold px-5 py-2.5 font-bold text-black transition-colors hover:bg-gold-hover">Zapisz profil</button>
+                <p id="account-profile-status" class="hidden rounded border border-gray-200 px-3 py-2 text-sm dark:border-white/10"></p>
+              </div>
+            </form>
           </div>
 
-          <form id="account-password-form" class="space-y-4">
+          <div class="space-y-4 rounded-xl border border-gray-200 p-5 dark:border-white/10">
             <div>
-              <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Aktualne hasło</label>
-              <input type="password" id="account-current-password" class="mt-1 w-full rounded border border-gray-300 bg-gray-50 p-2 outline-none text-gray-900 focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white" autocomplete="current-password" required>
+              <h3 class="text-gold font-display text-xl font-medium">Zmiana hasła</h3>
+              <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                Zmienisz hasło bez wylogowywania i bez używania opcji „Zapomniałem hasła”.
+              </p>
             </div>
-            <div>
-              <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Nowe hasło</label>
-              <input type="password" id="account-new-password" class="mt-1 w-full rounded border border-gray-300 bg-gray-50 p-2 outline-none text-gray-900 focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white" autocomplete="new-password" required>
-              <p class="mt-2 text-xs text-gray-500">Min. 10 znaków, wielka i mała litera, cyfra oraz znak specjalny.</p>
-            </div>
-            <div>
-              <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Powtórz nowe hasło</label>
-              <input type="password" id="account-confirm-password" class="mt-1 w-full rounded border border-gray-300 bg-gray-50 p-2 outline-none text-gray-900 focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white" autocomplete="new-password" required>
-            </div>
-            <div class="flex flex-wrap items-center gap-3">
-              <button type="submit" id="account-password-submit" class="rounded bg-gold px-5 py-2.5 font-bold text-black transition-colors hover:bg-gold-hover">Zmień hasło</button>
-              <p id="account-password-status" class="hidden rounded border border-gray-200 px-3 py-2 text-sm dark:border-white/10"></p>
-            </div>
-          </form>
+
+            <form id="account-password-form" class="space-y-4">
+              <div>
+                <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Aktualne hasło</label>
+                <input type="password" id="account-current-password" class="mt-1 w-full rounded border border-gray-300 bg-gray-50 p-2 outline-none text-gray-900 focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white" autocomplete="current-password" required>
+              </div>
+              <div>
+                <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Nowe hasło</label>
+                <input type="password" id="account-new-password" class="mt-1 w-full rounded border border-gray-300 bg-gray-50 p-2 outline-none text-gray-900 focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white" autocomplete="new-password" required>
+                <p class="mt-2 text-xs text-gray-500">Min. 10 znaków, wielka i mała litera, cyfra oraz znak specjalny.</p>
+              </div>
+              <div>
+                <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Powtórz nowe hasło</label>
+                <input type="password" id="account-confirm-password" class="mt-1 w-full rounded border border-gray-300 bg-gray-50 p-2 outline-none text-gray-900 focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white" autocomplete="new-password" required>
+              </div>
+              <div class="flex flex-wrap items-center gap-3">
+                <button type="submit" id="account-password-submit" class="rounded bg-gold px-5 py-2.5 font-bold text-black transition-colors hover:bg-gold-hover">Zmień hasło</button>
+                <p id="account-password-status" class="hidden rounded border border-gray-200 px-3 py-2 text-sm dark:border-white/10"></p>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>
   `;
 
+  if (accountProfileFlash) {
+    const profileStatus = document.getElementById('account-profile-status');
+    setStatusMessage(profileStatus, accountProfileFlash.message, accountProfileFlash.tone);
+    accountProfileFlash = null;
+  }
+
+  document
+    .getElementById('account-profile-form')
+    ?.addEventListener('submit', handleAccountProfileSave);
   document
     .getElementById('account-password-form')
     ?.addEventListener('submit', handleAuthenticatedPasswordChange);
@@ -5025,7 +5363,7 @@ async function loadSettings() {
     ? `
                   <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
                     <h4 class="text-gold font-display font-medium">Zarządzanie użytkownikami</h4>
-                    <div id="user-create-panel" class="grid grid-cols-1 gap-4 rounded-lg border border-gray-200 p-4 dark:border-white/10 md:items-end md:grid-cols-[minmax(14rem,18rem)_10rem_auto]">
+                    <div id="user-create-panel" class="grid grid-cols-1 gap-4 rounded-lg border border-gray-200 p-4 dark:border-white/10 md:items-end md:grid-cols-[minmax(0,1fr)_11rem] xl:grid-cols-[minmax(0,1fr)_11rem_auto]">
                       <label class="space-y-2 text-xs font-bold uppercase tracking-wider text-gray-500">
                         Email nowego użytkownika
                         <input type="email" id="new-user-email" class="w-full rounded border border-gray-300 bg-gray-50 p-2 text-sm normal-case tracking-normal text-gray-900 outline-none focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white" placeholder="email@domena.pl">
@@ -5037,8 +5375,8 @@ async function loadSettings() {
                           <option value="ADMIN">Admin</option>
                         </select>
                       </label>
-                      <div class="flex items-end md:justify-end">
-                        <button type="button" id="create-user-btn" class="${CONTENT_ACTION_BUTTON_CLASS} w-full justify-center whitespace-nowrap md:w-auto md:min-w-[13rem]">${PLUS_ICON_HTML}<span class="whitespace-nowrap">Dodaj użytkownika</span></button>
+                      <div class="flex items-end md:col-span-2 md:justify-stretch xl:col-span-1 xl:justify-end">
+                        <button type="button" id="create-user-btn" class="${CONTENT_ACTION_BUTTON_CLASS} w-full justify-center whitespace-nowrap xl:w-auto xl:min-w-[13rem]">${PLUS_ICON_HTML}<span class="whitespace-nowrap">Dodaj użytkownika</span></button>
                       </div>
                     </div>
                     <div class="rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden">

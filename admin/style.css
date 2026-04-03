@@ -28,3 +28,107 @@ body {
 .dark ::-webkit-scrollbar-track {
   background: #0a0a0a;
 }
+
+.custom-select {
+  position: relative;
+}
+
+.custom-select__native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.custom-select__trigger {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  background-image: none !important;
+  padding-right: 2.35rem !important;
+  text-align: left;
+}
+
+.custom-select__trigger:focus-visible {
+  outline: 2px solid #d4af37;
+  outline-offset: 2px;
+}
+
+.custom-select__trigger.is-open {
+  border-color: #d4af37;
+}
+
+.custom-select__value {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-select__icon {
+  position: absolute;
+  right: 0.85rem;
+  top: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #d4af37;
+  transition: transform 0.2s ease;
+  transform: translateY(-50%);
+}
+
+.custom-select__trigger.is-open .custom-select__icon {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.custom-select-portal {
+  position: absolute;
+  z-index: 120;
+  max-height: 18rem;
+  overflow-y: auto;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 0.75rem;
+  background: #0a0a0a;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
+}
+
+.custom-select-portal.hidden {
+  display: none;
+}
+
+.custom-select__option {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: #0a0a0a;
+  color: #f5f5f5;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.custom-select__option:hover,
+.custom-select__option:focus-visible,
+.custom-select__option.is-selected {
+  background: #d4af37;
+  color: #000;
+  outline: none;
+}
+
+.custom-select__option.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.custom-select__option.is-disabled:hover,
+.custom-select__option.is-disabled:focus-visible {
+  background: #0a0a0a;
+  color: #f5f5f5;
+}

@@ -21,6 +21,10 @@ const VARIANT_SIZES = [1920, 1440, 960, 480, 160];
 const SEO_SIZE = { width: 1200, height: 630 };
 const RESET_TOKEN_TTL_MINUTES = Number(process.env.RESET_TOKEN_TTL_MINUTES || 60);
 const RESET_BASE_URL = process.env.RESET_BASE_URL || 'https://admin.inlexistudio.com';
+const EMAIL_CHANGE_TOKEN_TTL_MINUTES = Number(
+  process.env.EMAIL_CHANGE_TOKEN_TTL_MINUTES || 60 * 24,
+);
+const EMAIL_CHANGE_BASE_URL = process.env.EMAIL_CHANGE_BASE_URL || RESET_BASE_URL;
 const UMAMI_API_URL = process.env.UMAMI_API_URL || 'https://api.umami.is/v1';
 const UMAMI_API_KEY = process.env.UMAMI_API_KEY;
 const MEDIA_TAG_VALUES = ['wedding', 'portrait', 'product', 'utility', 'other'];
@@ -67,6 +71,30 @@ const sendResetEmail = async (email, resetLink) => {
       <p>Aby ustawic nowe haslo, otworz link:</p>
       <p><a href="${resetLink}">${resetLink}</a></p>
       <p>Link wygasa po ${RESET_TOKEN_TTL_MINUTES} minutach.</p>
+    `,
+  });
+};
+
+const sendEmailChangeConfirmationEmail = async (currentEmail, newEmail, confirmationLink) => {
+  const mailer = resolveResetMailer();
+  if (!mailer) {
+    console.log(`[Email change] ${currentEmail} -> ${newEmail} -> ${confirmationLink}`);
+    return;
+  }
+
+  const from = process.env.SMTP_FROM || 'In Lexi Studio <no-reply@inlexistudio.com>';
+  await mailer.sendMail({
+    from,
+    to: newEmail,
+    subject: 'Potwierdz zmiane adresu e-mail w CMS',
+    text: `Aby potwierdzic zmiane adresu e-mail z ${currentEmail} na ${newEmail}, otworz link: ${confirmationLink}`,
+    html: `
+      <p>Otrzymales prosbe o zmiane adresu e-mail w CMS In Lexi Studio.</p>
+      <p>Aktualny adres: <strong>${escapeHtml(currentEmail)}</strong></p>
+      <p>Nowy adres: <strong>${escapeHtml(newEmail)}</strong></p>
+      <p>Aby potwierdzic zmiane, kliknij link:</p>
+      <p><a href="${confirmationLink}">${confirmationLink}</a></p>
+      <p>Link wygasa po ${EMAIL_CHANGE_TOKEN_TTL_MINUTES} minutach.</p>
     `,
   });
 };
@@ -262,6 +290,10 @@ const clearPasswordResetTokens = async (userId) => {
   }
 };
 
+const clearEmailChangeTokens = async (userId) => {
+  await prisma.emailChangeToken.deleteMany({ where: { user_id: userId } });
+};
+
 const generateTemporaryPassword = () => crypto.randomBytes(24).toString('base64url');
 
 const issuePasswordResetForUser = async (user) => {
@@ -283,6 +315,61 @@ const issuePasswordResetForUser = async (user) => {
   });
 
   await sendResetEmail(user.email, resetLink);
+};
+
+const issueEmailChangeForUser = async (user, newEmail) => {
+  if (!user || !newEmail) return;
+
+  await clearEmailChangeTokens(user.id);
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const expiresAt = new Date(Date.now() + EMAIL_CHANGE_TOKEN_TTL_MINUTES * 60 * 1000);
+  const confirmationLink = `${EMAIL_CHANGE_BASE_URL}/?email_change=${token}`;
+
+  await prisma.emailChangeToken.create({
+    data: {
+      user_id: user.id,
+      new_email: newEmail,
+      token_hash: tokenHash,
+      expires_at: expiresAt,
+    },
+  });
+
+  await sendEmailChangeConfirmationEmail(user.email, newEmail, confirmationLink);
+};
+
+const normalizeUserName = (value) => String(value || '').trim();
+
+const getPendingEmailChange = async (userId) => {
+  const numericUserId = Number(userId);
+  if (!Number.isFinite(numericUserId)) return null;
+
+  return prisma.emailChangeToken.findFirst({
+    where: {
+      user_id: numericUserId,
+      used_at: null,
+      expires_at: { gt: new Date() },
+    },
+    orderBy: { created_at: 'desc' },
+  });
+};
+
+const getAuthenticatedUserPayload = async (userId) => {
+  const numericUserId = Number(userId);
+  if (!Number.isFinite(numericUserId)) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { id: numericUserId },
+    select: { id: true, name: true, email: true, role: true },
+  });
+  if (!user) return null;
+
+  const pendingEmailChange = await getPendingEmailChange(numericUserId);
+  return {
+    ...user,
+    pendingEmail: pendingEmailChange?.new_email || null,
+  };
 };
 
 const buildUmamiUrl = (endpoint, params = {}) => {
@@ -923,8 +1010,121 @@ router.post('/admin/change-password', authenticateToken, async (req, res) => {
   }
 });
 
-router.get('/admin/verify', authenticateToken, (req, res) => {
-  res.json({ valid: true, user: req.user });
+router.put('/admin/account/profile', authenticateToken, async (req, res) => {
+  try {
+    const userId = Number(req.user?.id);
+    if (!Number.isFinite(userId)) {
+      return res.status(401).json({ error: 'Invalid user session' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const name = normalizeUserName(req.body?.name);
+    const requestedEmail = String(req.body?.email || '')
+      .trim()
+      .toLowerCase();
+
+    if (!name) {
+      return res.status(400).json({ error: 'Podaj imie.' });
+    }
+
+    const updates = {};
+    if (name !== String(user.name || '')) {
+      updates.name = name;
+    }
+
+    let emailChangeRequested = false;
+    const pendingEmailChange = await getPendingEmailChange(userId);
+    if (requestedEmail && requestedEmail !== user.email) {
+      if (!isValidEmail(requestedEmail)) {
+        return res.status(400).json({ error: 'Podaj poprawny adres e-mail.' });
+      }
+
+      const existingUser = await prisma.user.findUnique({ where: { email: requestedEmail } });
+      if (existingUser && existingUser.id !== userId) {
+        return res.status(409).json({ error: 'Użytkownik z tym adresem e-mail już istnieje.' });
+      }
+
+      if (pendingEmailChange?.new_email !== requestedEmail) {
+        await issueEmailChangeForUser(user, requestedEmail);
+        emailChangeRequested = true;
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await prisma.user.update({ where: { id: userId }, data: updates });
+    }
+
+    const profile = await getAuthenticatedUserPayload(userId);
+    res.json({
+      ok: true,
+      emailChangeRequested,
+      user: profile,
+      message: emailChangeRequested
+        ? 'Zapisano profil. Wysłaliśmy link potwierdzający na nowy adres e-mail.'
+        : 'Zapisano profil.',
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+router.post('/admin/confirm-email-change', async (req, res) => {
+  const rawToken = String(req.body?.token || '');
+  if (!rawToken) return res.status(400).json({ error: 'Token is required' });
+
+  try {
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const emailChangeToken = await prisma.emailChangeToken.findFirst({
+      where: {
+        token_hash: tokenHash,
+        used_at: null,
+        expires_at: { gt: new Date() },
+      },
+    });
+
+    if (!emailChangeToken) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+
+    const conflictingUser = await prisma.user.findUnique({
+      where: { email: emailChangeToken.new_email },
+    });
+    if (conflictingUser && conflictingUser.id !== emailChangeToken.user_id) {
+      return res.status(409).json({ error: 'Ten adres e-mail jest już zajęty.' });
+    }
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: emailChangeToken.user_id },
+        data: { email: emailChangeToken.new_email },
+      }),
+      prisma.emailChangeToken.update({
+        where: { id: emailChangeToken.id },
+        data: { used_at: new Date() },
+      }),
+      prisma.emailChangeToken.deleteMany({
+        where: { user_id: emailChangeToken.user_id, id: { not: emailChangeToken.id } },
+      }),
+    ]);
+
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to confirm email change' });
+  }
+});
+
+router.get('/admin/verify', authenticateToken, async (req, res) => {
+  try {
+    const user = await getAuthenticatedUserPayload(req.user?.id);
+    if (!user) {
+      return res.status(401).json({ valid: false, error: 'User not found' });
+    }
+    res.json({ valid: true, user });
+  } catch (error) {
+    res.status(500).json({ valid: false, error: 'Failed to verify user' });
+  }
 });
 
 router.get('/admin/users', authenticateToken, async (req, res) => {
@@ -933,7 +1133,7 @@ router.get('/admin/users', authenticateToken, async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       orderBy: [{ role: 'asc' }, { email: 'asc' }],
-      select: { id: true, email: true, role: true },
+      select: { id: true, name: true, email: true, role: true },
     });
     res.json(users);
   } catch (error) {
@@ -965,10 +1165,11 @@ router.post('/admin/users', authenticateToken, async (req, res) => {
     const user = await prisma.user.create({
       data: {
         email,
+        name: null,
         role,
         password: passwordHash,
       },
-      select: { id: true, email: true, role: true },
+      select: { id: true, name: true, email: true, role: true },
     });
 
     await issuePasswordResetForUser(user);
