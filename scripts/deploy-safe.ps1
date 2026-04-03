@@ -33,7 +33,7 @@ Write-Host 'Uploading source files...' -ForegroundColor Cyan
 
 scp -i $KeyPath -P $SshPort .\app.js "$remoteHost`:$remoteCmsRoot/app.js"
 scp -i $KeyPath -P $SshPort -r .\api .\prisma .\admin .\src .\public "$remoteHost`:$remoteCmsRoot/"
-scp -i $KeyPath -P $SshPort .\package.json .\package-lock.json .\astro.config.mjs .\tailwind.config.mjs .\tsconfig.json .\prettier.config.mjs "$remoteHost`:$remoteCmsRoot/"
+scp -i $KeyPath -P $SshPort .\package.json .\package-lock.json .\astro.config.mjs .\tailwind.config.mjs .\tailwind.admin.config.mjs .\tsconfig.json .\prettier.config.mjs "$remoteHost`:$remoteCmsRoot/"
 
 Write-Host 'Building and publishing on remote host...' -ForegroundColor Cyan
 
