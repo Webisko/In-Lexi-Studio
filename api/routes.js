@@ -1466,6 +1466,55 @@ router.put('/admin/media/:name/tag', authenticateToken, async (req, res) => {
 router.get('/admin/media/usage', authenticateToken, async (req, res) => {
   try {
     disableResponseCache(res);
+    const pageMediaUsageFields = [
+      { field: 'hero_image', label: 'Hero' },
+      { field: 'seo_image', label: 'SEO' },
+      { field: 'home_hero_logo', label: 'Logo hero' },
+      { field: 'home_gallery_wedding_images', label: 'Home: galeria ślubna' },
+      { field: 'home_gallery_portrait_images', label: 'Home: galeria portretowa' },
+      { field: 'home_gallery_product_images', label: 'Home: galeria produktowa' },
+      { field: 'home_moments_image', label: 'Home: sekcja About feature' },
+      { field: 'home_latest_moments_bg', label: 'Home: tło Latest Moments' },
+      { field: 'wedding_slider_images', label: 'Wedding: slider' },
+      { field: 'portfolio_gallery_ids', label: 'Portfolio: ręczny wybór' },
+      { field: 'about_origin_images', label: 'About: sekcja origin' },
+      { field: 'about_story_images', label: 'About: sekcja story' },
+      { field: 'about_work_images', label: 'About: sekcja work' },
+      { field: 'approach_gallery_images', label: 'Approach: galeria' },
+      { field: 'approach_feature_image', label: 'Approach: feature image' },
+    ];
+    const hasReference = (value, file) => {
+      if (!value) return false;
+
+      const fileName = String(file?.name || '').trim();
+      const fileUrl = String(file?.url || '').trim();
+
+      if (!fileName && !fileUrl) return false;
+
+      if (typeof value === 'string') {
+        return (fileUrl && value.includes(fileUrl)) || (fileName && value.includes(fileName));
+      }
+
+      if (Array.isArray(value)) {
+        return value.some((item) => hasReference(item, file));
+      }
+
+      if (typeof value === 'object') {
+        return Object.values(value).some((item) => hasReference(item, file));
+      }
+
+      return false;
+    };
+    const getPageTitle = (page) => {
+      const normalizedSlug = String(page?.slug || '')
+        .trim()
+        .replace(/^\/+|\/+$/g, '');
+
+      if (page?.title) return page.title;
+      if (page?.meta_title) return page.meta_title;
+      if (!normalizedSlug) return 'Home';
+      return normalizedSlug;
+    };
     const mediaAssets = await prisma.mediaAsset.findMany();
     const mediaAssetByUrl = new Map(mediaAssets.map((item) => [item.file_url, item]));
     const files = fs
@@ -1523,31 +1572,28 @@ router.get('/admin/media/usage', authenticateToken, async (req, res) => {
 
     const usageFiles = files.map((file) => {
       const usage = { pages: [], galleries: [], testimonials: [], settings: [] };
-      const filename = file.name;
 
       pages.forEach((page) => {
         const locations = [];
-        PAGE_MEDIA_USAGE_FIELDS.forEach(({ field, label }) => {
-          if (hasMediaReference(page[field], file)) {
+        pageMediaUsageFields.forEach(({ field, label }) => {
+          if (hasReference(page[field], file)) {
             locations.push(label);
           }
         });
-        if (hasMediaReference(page.content, file)) locations.push('Treść');
+        if (hasReference(page.content, file)) locations.push('Treść');
         const uniqueLocations = Array.from(new Set(locations));
         if (uniqueLocations.length) {
           usage.pages.push({
             id: page.id,
             slug: page.slug,
-            title: normalizeSlugLabel(page.slug, page.title || page.meta_title),
+            title: getPageTitle(page),
             locations: uniqueLocations,
           });
         }
       });
 
       galleries.forEach((gallery) => {
-        const hasMatch = (gallery.items || []).some(
-          (item) => hasMediaReference(item.image_path, file),
-        );
+        const hasMatch = (gallery.items || []).some((item) => hasReference(item.image_path, file));
         if (hasMatch) {
           usage.galleries.push({
             id: gallery.id,
@@ -1558,7 +1604,7 @@ router.get('/admin/media/usage', authenticateToken, async (req, res) => {
       });
 
       testimonials.forEach((testimonial) => {
-        if (hasMediaReference(testimonial.avatar_image, file)) {
+        if (hasReference(testimonial.avatar_image, file)) {
           usage.testimonials.push({
             id: testimonial.id,
             author: testimonial.author,
@@ -1567,19 +1613,19 @@ router.get('/admin/media/usage', authenticateToken, async (req, res) => {
       });
 
       if (settings) {
-        if (hasMediaReference(settings.og_image, file)) {
+        if (hasReference(settings.og_image, file)) {
           usage.settings.push('OG Image');
         }
-        if (hasMediaReference(settings.favicon, file)) {
+        if (hasReference(settings.favicon, file)) {
           usage.settings.push('Favicon');
         }
-        if (hasMediaReference(settings.logo_path, file)) {
+        if (hasReference(settings.logo_path, file)) {
           usage.settings.push('Logo');
         }
-        if (hasMediaReference(settings.logo_secondary_path, file)) {
+        if (hasReference(settings.logo_secondary_path, file)) {
           usage.settings.push('Logo dodatkowe');
         }
-        if (hasMediaReference(settings.mega_menu_image, file)) {
+        if (hasReference(settings.mega_menu_image, file)) {
           usage.settings.push('Mega menu');
         }
       }
