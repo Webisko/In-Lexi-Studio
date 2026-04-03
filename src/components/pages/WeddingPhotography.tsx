@@ -760,7 +760,6 @@ export default function WeddingPhotography({ page, testimonials = [] }: Props) {
       )}
 
       <div className="mx-auto w-full max-w-[1440px] px-6 md:px-10">
-
         {/* The Process: Before / During / After */}
         <section className="mb-32">
           <motion.div

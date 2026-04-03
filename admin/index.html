@@ -65,10 +65,7 @@
     class="min-h-screen bg-dark-bg font-sans text-off-white antialiased selection:bg-gold selection:text-black"
   >
     <!-- Login Screen -->
-    <div
-      id="login-screen"
-      class="flex min-h-screen items-center justify-center bg-[url('https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center"
-    >
+    <div id="login-screen" class="flex min-h-screen items-center justify-center bg-cover bg-center">
       <div class="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
       <div
         class="bg-dark-secondary/90 relative w-full max-w-md rounded-xl border border-white/5 p-10 shadow-2xl backdrop-blur-xl"
@@ -223,9 +220,10 @@
         <div
           class="flex h-20 shrink-0 items-center justify-center border-b border-gray-200 dark:border-white/5"
         >
-          <button
-            id="mega-menu-toggle"
-            type="button"
+          <a
+            href="https://inlexistudio.com/"
+            target="_blank"
+            rel="noopener noreferrer"
             class="group flex h-full w-full items-center justify-center gap-3 px-4 transition-colors hover:bg-gray-100 dark:hover:bg-white/5"
           >
             <div class="text-center">
@@ -233,7 +231,7 @@
                 In Lexi Studio
               </h1>
             </div>
-          </button>
+          </a>
         </div>
 
         <nav class="flex-1 space-y-1 overflow-y-auto p-4">
@@ -346,6 +344,25 @@
           <p class="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
             System
           </p>
+          <button
+            class="nav-btn group flex w-full items-center rounded-md px-4 py-3 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/5 dark:hover:text-white"
+            data-tab="account"
+          >
+            <svg
+              class="mr-3 h-5 w-5 text-gray-500 group-hover:text-gold"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5.121 17.804A9.97 9.97 0 0112 15c2.57 0 4.914.97 6.879 2.565M15 11a3 3 0 11-6 0 3 3 0 016 0zm6 1a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            Moje konto
+          </button>
           <button
             class="nav-btn group flex w-full items-center rounded-md px-4 py-3 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/5 dark:hover:text-white"
             data-tab="settings"
@@ -492,41 +509,12 @@
           <div id="tab-galleries" class="tab-content mx-auto hidden max-w-6xl"></div>
           <div id="tab-testimonials" class="tab-content mx-auto hidden max-w-6xl"></div>
           <div id="tab-media" class="tab-content mx-auto hidden max-w-6xl"></div>
+          <div id="tab-account" class="tab-content mx-auto hidden max-w-6xl"></div>
           <div id="tab-settings" class="tab-content mx-auto hidden max-w-6xl"></div>
           <div id="tab-analytics" class="tab-content mx-auto hidden max-w-6xl"></div>
         </div>
       </main>
     </div>
-
-    <div id="mega-menu" class="fixed inset-0 z-[70] hidden">
-      <div class="mega-menu-bg absolute inset-0"></div>
-      <div
-        class="pointer-events-none absolute -right-24 -top-24 h-[60vh] w-[60vh] rounded-full border border-white/40 bg-white/10"
-      ></div>
-      <button
-        id="mega-menu-backdrop"
-        type="button"
-        class="absolute inset-0 h-full w-full cursor-pointer"
-        aria-label="Zamknij mega menu"
-      ></button>
-      <div class="relative z-10 flex h-full w-full flex-col px-8 py-10 md:px-14">
-        <div class="flex flex-wrap items-center justify-between gap-6">
-          <div>
-            <p class="text-xs uppercase tracking-[0.4em] text-white/60">Mega Menu</p>
-            <h2 class="font-display text-4xl text-white md:text-5xl">Wybierz stronę</h2>
-          </div>
-          <button
-            id="mega-menu-close"
-            type="button"
-            class="rounded-full border border-white/30 px-4 py-2 text-xs uppercase tracking-widest text-white transition-colors hover:bg-white/10"
-          >
-            Zamknij
-          </button>
-        </div>
-        <div id="mega-menu-list" class="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3"></div>
-      </div>
-    </div>
-
     <!-- Modal Template -->
     <div
       id="modal"
@@ -681,6 +669,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=2026-04-01-approach-save-fix"></script>
+    <script src="app.js?v=2026-04-03-account-login-bg"></script>
   </body>
 </html>

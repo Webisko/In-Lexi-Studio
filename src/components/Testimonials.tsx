@@ -60,18 +60,18 @@ export const Testimonials: React.FC<TestimonialsProps> = ({ data }) => {
                   transition={{ duration: 0.45, ease: 'easeOut' }}
                   className="relative h-full w-full"
                 >
-                <img
-                  src={currentImage}
-                  srcSet={currentSrcSet || undefined}
-                  sizes={currentSizes}
-                  loading="lazy"
-                  decoding="async"
-                  alt={current.author}
-                  className="h-full w-full object-cover shadow-2xl"
-                />
-                <div className="pointer-events-none absolute inset-0 -translate-x-4 -translate-y-4 border border-gold/30 md:-translate-x-8 md:-translate-y-8" />
-              </motion.div>
-            </AnimatePresence>
+                  <img
+                    src={currentImage}
+                    srcSet={currentSrcSet || undefined}
+                    sizes={currentSizes}
+                    loading="lazy"
+                    decoding="async"
+                    alt={current.author}
+                    className="h-full w-full object-cover shadow-2xl"
+                  />
+                  <div className="pointer-events-none absolute inset-0 -translate-x-4 -translate-y-4 border border-gold/30 md:-translate-x-8 md:-translate-y-8" />
+                </motion.div>
+              </AnimatePresence>
             </div>
 
             <div className="mt-8 flex justify-center gap-6 md:hidden">
@@ -107,20 +107,20 @@ export const Testimonials: React.FC<TestimonialsProps> = ({ data }) => {
                 <button
                   type="button"
                   onClick={prevSlide}
-                  className="text-white/72 group flex items-center gap-2 font-sans text-xs uppercase tracking-[0.24em] transition-colors hover:text-white"
+                  className="text-white/72 group flex items-center gap-2 font-sans text-xs uppercase leading-none tracking-[0.24em] transition-colors hover:text-white"
                 >
-                  <span className="rounded-full border border-white/30 bg-white/5 p-3 text-white/90 transition-colors group-hover:border-gold group-hover:bg-gold group-hover:text-black">
+                  <span className="inline-flex items-center justify-center rounded-full border border-white/30 bg-white/5 p-3 leading-none text-white/90 transition-colors group-hover:border-gold group-hover:bg-gold group-hover:text-black">
                     <ChevronLeft size={16} />
                   </span>
-                  Prev
+                  <span className="leading-none">Prev</span>
                 </button>
                 <button
                   type="button"
                   onClick={nextSlide}
-                  className="text-white/72 group flex items-center gap-2 font-sans text-xs uppercase tracking-[0.24em] transition-colors hover:text-white"
+                  className="text-white/72 group flex items-center gap-2 font-sans text-xs uppercase leading-none tracking-[0.24em] transition-colors hover:text-white"
                 >
-                  Next
-                  <span className="rounded-full border border-white/30 bg-white/5 p-3 text-white/90 transition-colors group-hover:border-gold group-hover:bg-gold group-hover:text-black">
+                  <span className="leading-none">Next</span>
+                  <span className="inline-flex items-center justify-center rounded-full border border-white/30 bg-white/5 p-3 leading-none text-white/90 transition-colors group-hover:border-gold group-hover:bg-gold group-hover:text-black">
                     <ChevronRight size={16} />
                   </span>
                 </button>

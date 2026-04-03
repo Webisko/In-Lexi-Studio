@@ -242,12 +242,32 @@ const normalizeUserRole = (value) => {
   return role === 'ADMIN' ? 'ADMIN' : 'MANAGER';
 };
 
+const isMissingPasswordResetTokenTableError = (error) => {
+  const message = String(error?.message || '');
+  const tableName = String(error?.meta?.table || '');
+  return (
+    error?.code === 'P2021' ||
+    tableName.includes('PasswordResetToken') ||
+    (message.includes('PasswordResetToken') && message.includes('does not exist'))
+  );
+};
+
+const clearPasswordResetTokens = async (userId) => {
+  try {
+    await prisma.passwordResetToken.deleteMany({ where: { user_id: userId } });
+  } catch (error) {
+    if (!isMissingPasswordResetTokenTableError(error)) {
+      throw error;
+    }
+  }
+};
+
 const generateTemporaryPassword = () => crypto.randomBytes(24).toString('base64url');
 
 const issuePasswordResetForUser = async (user) => {
   if (!user) return;
 
-  await prisma.passwordResetToken.deleteMany({ where: { user_id: user.id } });
+  await clearPasswordResetTokens(user.id);
 
   const token = crypto.randomBytes(32).toString('hex');
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -857,6 +877,49 @@ router.post('/admin/reset-password', async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+router.post('/admin/change-password', authenticateToken, async (req, res) => {
+  const currentPassword = String(req.body?.currentPassword || '');
+  const newPassword = String(req.body?.newPassword || '');
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Current password and new password are required' });
+  }
+
+  const validationError = validatePassword(newPassword);
+  if (validationError) return res.status(400).json({ error: validationError });
+
+  try {
+    const userId = Number(req.user?.id);
+    if (!Number.isFinite(userId)) {
+      return res.status(401).json({ error: 'Invalid user session' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const isValidCurrentPassword = await bcrypt.compare(currentPassword, user.password);
+    if (!isValidCurrentPassword) {
+      return res.status(400).json({ error: 'Aktualne haslo jest nieprawidlowe.' });
+    }
+
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+    if (isSamePassword) {
+      return res.status(400).json({ error: 'Nowe haslo musi byc inne niz aktualne.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+    await clearPasswordResetTokens(userId);
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to change password' });
   }
 });
 

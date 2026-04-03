@@ -1,4 +1,4 @@
-const CMS_APP_VERSION = '2026-04-01-approach-save-fix';
+const CMS_APP_VERSION = '2026-04-03-account-login-bg';
 console.info(`CMS app version: ${CMS_APP_VERSION}`);
 
 function buildFreshUrl(url) {
@@ -689,18 +689,26 @@ const getResetTokenFromUrl = () => {
   return params.get('reset');
 };
 
-const syncAdminFavicon = async () => {
+const syncAdminBranding = async () => {
   const faviconEl = document.getElementById('admin-favicon');
-  if (!(faviconEl instanceof HTMLLinkElement)) return;
+  const loginScreen = document.getElementById('login-screen');
 
   try {
     const res = await fetch(`${API_URL}/settings`);
     if (!res.ok) return;
     const settings = await res.json();
-    const faviconUrl = settings?.favicon ? resolveUploadsUrl(settings.favicon) : '/favicon.svg';
-    faviconEl.href = faviconUrl;
+    if (faviconEl instanceof HTMLLinkElement) {
+      const faviconUrl = settings?.favicon ? resolveUploadsUrl(settings.favicon) : '/favicon.svg';
+      faviconEl.href = faviconUrl;
+    }
+    if (loginScreen instanceof HTMLElement) {
+      loginScreen.style.backgroundImage = settings?.login_background_image
+        ? `url('${resolveUploadsUrl(settings.login_background_image)}')`
+        : 'none';
+      loginScreen.style.backgroundColor = '#080808';
+    }
   } catch (error) {
-    // Keep default favicon if settings cannot be loaded.
+    // Keep default branding if settings cannot be loaded.
   }
 };
 
@@ -745,11 +753,6 @@ const dom = {
   mediaSelectionCount: document.getElementById('media-selection-count'),
   adminFavicon: document.getElementById('admin-favicon'),
   themeToggle: document.getElementById('theme-toggle'),
-  megaMenu: document.getElementById('mega-menu'),
-  megaMenuToggle: document.getElementById('mega-menu-toggle'),
-  megaMenuClose: document.getElementById('mega-menu-close'),
-  megaMenuBackdrop: document.getElementById('mega-menu-backdrop'),
-  megaMenuList: document.getElementById('mega-menu-list'),
   sidebar: document.getElementById('sidebar'),
   sidebarBackdrop: document.getElementById('sidebar-backdrop'),
   mobileMenuBtn: document.getElementById('mobile-menu-btn'),
@@ -773,7 +776,7 @@ if (savedTheme === 'light') {
   document.documentElement.classList.add('dark');
 }
 
-syncAdminFavicon();
+syncAdminBranding();
 
 // --- Event Listeners ---
 dom.loginForm.addEventListener('submit', handleLogin);
@@ -814,93 +817,6 @@ dom.themeToggle.addEventListener('click', () => {
     document.documentElement.classList.add('dark');
     localStorage.setItem('theme', 'dark');
   }
-});
-
-const buildPageUrl = (slug) => {
-  const normalized = String(slug || '').replace(/^\/+/, '');
-  if (!normalized || normalized === 'home') return `${SITE_BASE_URL}/`;
-  return `${SITE_BASE_URL}/${normalized}`;
-};
-
-const renderMegaMenuPages = (pages) => {
-  if (!dom.megaMenuList) return;
-  if (!Array.isArray(pages) || pages.length === 0) {
-    dom.megaMenuList.innerHTML =
-      '<div class="col-span-full rounded-xl border border-white/20 bg-white/10 p-6 text-sm text-white/80">Brak stron do wyswietlenia.</div>';
-    return;
-  }
-
-  const ordered = [...pages].sort((a, b) => {
-    const orderDiff = Number(a.sort_order || 0) - Number(b.sort_order || 0);
-    if (orderDiff !== 0) return orderDiff;
-    const aDate = new Date(a.updated_at || a.updatedAt || 0).getTime();
-    const bDate = new Date(b.updated_at || b.updatedAt || 0).getTime();
-    return bDate - aDate;
-  });
-
-  dom.megaMenuList.innerHTML = ordered
-    .map((page) => {
-      const title = page.title || page.slug || 'Bez tytulu';
-      const slug = page.slug || '';
-      const normalized = String(slug || '').replace(/^\/+/, '');
-      const label = !normalized || normalized === 'home' ? 'Strona glowna' : `/${normalized}`;
-      const url = buildPageUrl(slug);
-      return `
-        <a
-          href="${url}"
-          target="_blank"
-          class="group rounded-xl border border-white/15 bg-white/5 p-5 text-white/80 transition hover:border-white/40 hover:bg-white/10"
-        >
-          <p class="text-xs uppercase tracking-[0.3em] text-white/50">${label}</p>
-          <h3 class="mt-3 font-display text-2xl text-white group-hover:text-white">${title}</h3>
-          <p class="mt-2 text-xs uppercase tracking-[0.25em] text-white/60">Otworz strone</p>
-        </a>
-      `;
-    })
-    .join('');
-};
-
-const loadMegaMenuPages = async () => {
-  if (!dom.megaMenuList) return;
-  dom.megaMenuList.innerHTML =
-    '<div class="col-span-full flex items-center justify-center py-12 text-sm text-white/70">Ladowanie stron...</div>';
-  try {
-    const res = await fetchCms(`${ADMIN_API_URL}/pages`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) throw new Error('Failed to load pages');
-    const pages = await res.json();
-    renderMegaMenuPages(pages || []);
-  } catch (err) {
-    dom.megaMenuList.innerHTML =
-      '<div class="col-span-full rounded-xl border border-white/20 bg-white/10 p-6 text-sm text-white/80">Nie udalo sie pobrac stron.</div>';
-  }
-};
-
-const openMegaMenu = async () => {
-  if (!dom.megaMenu) return;
-  dom.megaMenu.classList.remove('hidden');
-  document.body.classList.add('overflow-hidden');
-  await loadMegaMenuPages();
-};
-
-const closeMegaMenu = () => {
-  if (!dom.megaMenu) return;
-  dom.megaMenu.classList.add('hidden');
-  document.body.classList.remove('overflow-hidden');
-};
-
-if (dom.megaMenuToggle) {
-  dom.megaMenuToggle.addEventListener('click', openMegaMenu);
-}
-if (dom.megaMenuClose) {
-  dom.megaMenuClose.addEventListener('click', closeMegaMenu);
-}
-if (dom.megaMenuBackdrop) {
-  dom.megaMenuBackdrop.addEventListener('click', closeMegaMenu);
-}
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') closeMegaMenu();
 });
 
 dom.logoutBtns.forEach((btn) =>
@@ -1188,6 +1104,54 @@ function validatePasswordStrength(password) {
   return null;
 }
 
+async function handleAuthenticatedPasswordChange(e) {
+  e.preventDefault();
+  const currentPassword = document.getElementById('account-current-password')?.value || '';
+  const newPassword = document.getElementById('account-new-password')?.value || '';
+  const confirmPassword = document.getElementById('account-confirm-password')?.value || '';
+  const form = document.getElementById('account-password-form');
+  const submitButton = document.getElementById('account-password-submit');
+  const message = document.getElementById('account-password-status');
+
+  if (!currentPassword) {
+    setStatusMessage(message, 'Podaj aktualne haslo.', 'error');
+    return;
+  }
+
+  const validationError = validatePasswordStrength(newPassword);
+  if (validationError) {
+    setStatusMessage(message, validationError, 'error');
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    setStatusMessage(message, 'Nowe hasla musza byc takie same.', 'error');
+    return;
+  }
+
+  submitButton?.setAttribute('disabled', 'disabled');
+
+  try {
+    const res = await fetchCms(`${ADMIN_API_URL}/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(data.error || 'Nie udalo sie zmienic hasla.');
+    }
+
+    form?.reset();
+    setStatusMessage(message, 'Haslo zostalo zmienione.', 'success');
+  } catch (error) {
+    setStatusMessage(message, error.message || 'Nie udalo sie zmienic hasla.', 'error');
+  } finally {
+    submitButton?.removeAttribute('disabled');
+  }
+}
+
 async function handleLogin(e) {
   e.preventDefault();
   const email = document.getElementById('email').value;
@@ -1382,6 +1346,7 @@ function switchTab(tabName) {
   if (tabName === 'galleries') loadGalleries();
   if (tabName === 'testimonials') loadTestimonials();
   if (tabName === 'media') loadMediaLibraryTab();
+  if (tabName === 'account') loadAccount();
   if (tabName === 'settings') loadSettings();
   if (tabName === 'analytics') loadAnalytics();
 }
@@ -4611,11 +4576,14 @@ async function loadMediaLibraryTab() {
       try {
         await updateMediaTag(file, tag);
 
-        const response = await fetchCms(`${ADMIN_API_URL}/media/${encodeURIComponent(file.name)}/meta`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ title_text: titleText, alt_text: altText }),
-        });
+        const response = await fetchCms(
+          `${ADMIN_API_URL}/media/${encodeURIComponent(file.name)}/meta`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ title_text: titleText, alt_text: altText }),
+          },
+        );
 
         if (!response.ok) throw new Error('Nie udało się zapisać metadanych.');
 
@@ -4840,7 +4808,10 @@ async function loadMediaLibraryTab() {
         }
       });
     });
-    const allTagSelects = [...tagSelects, ...Array.from(container.querySelectorAll('[data-media-tag-select-grid]'))];
+    const allTagSelects = [
+      ...tagSelects,
+      ...Array.from(container.querySelectorAll('[data-media-tag-select-grid]')),
+    ];
     allTagSelects.forEach((selectEl) => {
       ['click', 'mousedown', 'mouseup', 'pointerdown', 'touchstart'].forEach((eventName) => {
         selectEl.addEventListener(eventName, (event) => {
@@ -4899,6 +4870,63 @@ async function loadMediaLibraryTab() {
 }
 
 // 4. Settings
+function loadAccount() {
+  const container = document.getElementById('tab-account');
+  if (!container) return;
+
+  container.innerHTML = `
+    <h2 class="mb-6 text-3xl font-display font-medium text-gray-900 dark:text-white">Moje konto</h2>
+    <div class="rounded-xl border border-gray-200 bg-white p-8 shadow-sm dark:border-white/5 dark:bg-dark-secondary">
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,20rem)_1fr]">
+        <div class="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-white/10 dark:bg-black/20">
+          <p class="text-xs font-bold uppercase tracking-wider text-gray-500">Aktualnie zalogowany użytkownik</p>
+          <div>
+            <p class="text-xs uppercase tracking-wider text-gray-500">E-mail</p>
+            <p class="mt-1 text-base font-medium text-gray-900 dark:text-white">${escapeHtml(currentUser?.email || '')}</p>
+          </div>
+          <div>
+            <p class="text-xs uppercase tracking-wider text-gray-500">Rola</p>
+            <p class="mt-1 text-base font-medium text-gray-900 dark:text-white">${escapeHtml(currentUser?.role || '')}</p>
+          </div>
+        </div>
+
+        <div class="space-y-4 rounded-xl border border-gray-200 p-5 dark:border-white/10">
+          <div>
+            <h3 class="text-gold font-display text-xl font-medium">Zmiana hasła</h3>
+            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              Zmienisz hasło bez wylogowywania i bez używania opcji „Zapomniałem hasła”.
+            </p>
+          </div>
+
+          <form id="account-password-form" class="space-y-4">
+            <div>
+              <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Aktualne hasło</label>
+              <input type="password" id="account-current-password" class="mt-1 w-full rounded border border-gray-300 bg-gray-50 p-2 outline-none text-gray-900 focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white" autocomplete="current-password" required>
+            </div>
+            <div>
+              <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Nowe hasło</label>
+              <input type="password" id="account-new-password" class="mt-1 w-full rounded border border-gray-300 bg-gray-50 p-2 outline-none text-gray-900 focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white" autocomplete="new-password" required>
+              <p class="mt-2 text-xs text-gray-500">Min. 10 znaków, wielka i mała litera, cyfra oraz znak specjalny.</p>
+            </div>
+            <div>
+              <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Powtórz nowe hasło</label>
+              <input type="password" id="account-confirm-password" class="mt-1 w-full rounded border border-gray-300 bg-gray-50 p-2 outline-none text-gray-900 focus:border-gold dark:border-white/10 dark:bg-black/20 dark:text-white" autocomplete="new-password" required>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <button type="submit" id="account-password-submit" class="rounded bg-gold px-5 py-2.5 font-bold text-black transition-colors hover:bg-gold-hover">Zmień hasło</button>
+              <p id="account-password-status" class="hidden rounded border border-gray-200 px-3 py-2 text-sm dark:border-white/10"></p>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document
+    .getElementById('account-password-form')
+    ?.addEventListener('submit', handleAuthenticatedPasswordChange);
+}
+
 async function loadSettings() {
   const container = document.getElementById('tab-settings');
   container.innerHTML =
@@ -5045,6 +5073,11 @@ async function loadSettings() {
                  </div>
 
                  <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
+                   <h4 class="text-gold font-display font-medium">Ekran logowania</h4>
+                   ${renderSettingsImagePicker({ inputId: 's_login_background_image', label: 'Tło ekranu logowania', value: s.login_background_image || '', sizeClass: 'h-48' })}
+                 </div>
+
+                 <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
                    <h4 class="text-gold font-display font-medium">Mega menu</h4>
                    ${renderSettingsImagePicker({ inputId: 's_mega_menu_image', label: 'Zdjęcie po lewej stronie', value: s.mega_menu_image || '', sizeClass: 'h-48' })}
                  </div>
@@ -5165,9 +5198,14 @@ async function loadSettings() {
     });
   };
 
-  ['s_logo_path', 's_logo_secondary_path', 's_mega_menu_image', 's_og_image', 's_favicon'].forEach(
-    bindSettingsImageUpload,
-  );
+  [
+    's_logo_path',
+    's_logo_secondary_path',
+    's_login_background_image',
+    's_mega_menu_image',
+    's_og_image',
+    's_favicon',
+  ].forEach(bindSettingsImageUpload);
 
   const usersResetStatus = document.getElementById('users-reset-status');
   const setUsersStatus = (message, isError = false) => {
@@ -5298,6 +5336,7 @@ async function loadSettings() {
       privacy_url: document.getElementById('s_privacy_url').value,
       logo_path: document.getElementById('s_logo_path').value,
       logo_secondary_path: document.getElementById('s_logo_secondary_path').value,
+      login_background_image: document.getElementById('s_login_background_image').value,
       mega_menu_image: document.getElementById('s_mega_menu_image').value,
       umami_script_url: document.getElementById('s_umami_script_url').value,
       umami_website_id: document.getElementById('s_umami_website_id').value,
@@ -5321,7 +5360,7 @@ async function loadSettings() {
       }
 
       await response.json().catch(() => null);
-      await syncAdminFavicon();
+      await syncAdminBranding();
       setSaveStatus('Ustawienia zostały zapisane.');
     } catch (error) {
       setSaveStatus(error.message || 'Wystąpił błąd podczas zapisu.', true);

@@ -101,6 +101,7 @@ model Settings {
   meta_title       String?
   meta_description String?
   og_image         String?
+  login_background_image String?
   favicon          String?
   canonical_base_url String?
   head_html          String?
