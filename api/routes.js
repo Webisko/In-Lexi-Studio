@@ -1574,19 +1574,20 @@ router.get('/admin/media/usage', authenticateToken, async (req, res) => {
       const usage = { pages: [], galleries: [], testimonials: [], settings: [] };
 
       pages.forEach((page) => {
+        const normalizedPage = normalizePageResponse(page, settings);
         const locations = [];
         pageMediaUsageFields.forEach(({ field, label }) => {
-          if (hasReference(page[field], file)) {
+          if (hasReference(normalizedPage?.[field], file)) {
             locations.push(label);
           }
         });
-        if (hasReference(page.content, file)) locations.push('Treść');
+        if (hasReference(normalizedPage?.content, file)) locations.push('Treść');
         const uniqueLocations = Array.from(new Set(locations));
         if (uniqueLocations.length) {
           usage.pages.push({
-            id: page.id,
-            slug: page.slug,
-            title: getPageTitle(page),
+            id: normalizedPage?.id || page.id,
+            slug: normalizedPage?.slug || page.slug,
+            title: getPageTitle(normalizedPage || page),
             locations: uniqueLocations,
           });
         }
