@@ -1,5 +1,32 @@
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&family=Cormorant+Garamond:wght@300;400;500;600;700&display=swap');
 
+.loader {
+  border-top-color: #d4af37;
+  -webkit-animation: spinner 1.5s linear infinite;
+  animation: spinner 1.5s linear infinite;
+}
+
+.mega-menu-bg {
+  background:
+    radial-gradient(
+      circle at 70% 25%,
+      rgba(255, 255, 255, 0.22) 0%,
+      rgba(255, 255, 255, 0.08) 28%,
+      rgba(255, 255, 255, 0) 52%
+    ),
+    linear-gradient(135deg, #43564d 0%, #2a3a33 52%, #1b2521 100%);
+}
+
+@keyframes spinner {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 /* Light Mode Default */
 body {
   background-color: #f9fafb;

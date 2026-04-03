@@ -5,9 +5,12 @@
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
-    "build": "astro build",
-    "build:prod": "astro build",
+    "build": "npm run build:frontend && npm run build:admin",
+    "build:frontend": "astro build",
+    "build:admin": "tailwindcss -c tailwind.admin.config.mjs -i ./admin/tailwind.src.css -o ./admin/tailwind.generated.css --minify",
+    "build:prod": "npm run build",
     "preview": "astro preview",
+    "test:cms:smoke": "node ./scripts/cms-smoke.mjs",
     "astro": "astro",
     "format": "prettier . --write",
     "format:check": "prettier . --check"

@@ -6,60 +6,13 @@
     <meta name="api-base" content="https://inlexistudio.com/app/api" />
     <title>In Lexi CMS</title>
     <link rel="icon" id="admin-favicon" href="/favicon.svg" />
+    <link rel="stylesheet" href="tailwind.generated.css" />
     <link rel="stylesheet" href="style.css" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              'dark-bg': '#0a0a0a',
-              'dark-secondary': '#111111',
-              gold: '#D4AF37',
-              'gold-hover': '#B5952F',
-              'off-white': '#f5f5f5',
-            },
-            fontFamily: {
-              sans: ['Montserrat', 'sans-serif'],
-              display: ['Cinzel', 'serif'],
-              serif: ['Cormorant Garamond', 'serif'],
-            },
-          },
-        },
-      };
-    </script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script
       src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
       referrerpolicy="origin"
     ></script>
-    <style>
-      /* Loader */
-      .loader {
-        border-top-color: #d4af37;
-        -webkit-animation: spinner 1.5s linear infinite;
-        animation: spinner 1.5s linear infinite;
-      }
-      .mega-menu-bg {
-        background:
-          radial-gradient(
-            circle at 70% 25%,
-            rgba(255, 255, 255, 0.22) 0%,
-            rgba(255, 255, 255, 0.08) 28%,
-            rgba(255, 255, 255, 0) 52%
-          ),
-          linear-gradient(135deg, #43564d 0%, #2a3a33 52%, #1b2521 100%);
-      }
-      @keyframes spinner {
-        0% {
-          transform: rotate(0deg);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
-      }
-    </style>
   </head>
   <body
     class="min-h-screen bg-dark-bg font-sans text-off-white antialiased selection:bg-gold selection:text-black"

@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 .astro
+admin/tailwind.generated.css
 *.local
 .env
 inlexistudio.db
