@@ -1492,15 +1492,30 @@ router.get('/admin/media/usage', authenticateToken, async (req, res) => {
         meta_title: true,
         hero_image: true,
         seo_image: true,
+        home_hero_logo: true,
+        home_gallery_wedding_images: true,
+        home_gallery_portrait_images: true,
+        home_gallery_product_images: true,
+        home_moments_image: true,
+        home_latest_moments_bg: true,
+        wedding_slider_images: true,
+        portfolio_gallery_ids: true,
+        about_origin_images: true,
+        about_story_images: true,
+        about_work_images: true,
+        approach_gallery_images: true,
+        approach_feature_image: true,
         content: true,
       },
     });
 
     const galleries = await prisma.gallery.findMany({
+      where: { published: true },
       include: { items: true },
     });
 
     const testimonials = await prisma.testimonial.findMany({
+      where: { approved: true },
       select: { id: true, author: true, avatar_image: true },
     });
 
@@ -1512,22 +1527,26 @@ router.get('/admin/media/usage', authenticateToken, async (req, res) => {
 
       pages.forEach((page) => {
         const locations = [];
-        if (page.hero_image && page.hero_image.includes(filename)) locations.push('Hero');
-        if (page.seo_image && page.seo_image.includes(filename)) locations.push('SEO');
-        if (page.content && page.content.includes(filename)) locations.push('Treść');
-        if (locations.length) {
+        PAGE_MEDIA_USAGE_FIELDS.forEach(({ field, label }) => {
+          if (hasMediaReference(page[field], file)) {
+            locations.push(label);
+          }
+        });
+        if (hasMediaReference(page.content, file)) locations.push('Treść');
+        const uniqueLocations = Array.from(new Set(locations));
+        if (uniqueLocations.length) {
           usage.pages.push({
             id: page.id,
             slug: page.slug,
-            title: page.title || page.meta_title || page.slug,
-            locations,
+            title: normalizeSlugLabel(page.slug, page.title || page.meta_title),
+            locations: uniqueLocations,
           });
         }
       });
 
       galleries.forEach((gallery) => {
         const hasMatch = (gallery.items || []).some(
-          (item) => item.image_path && item.image_path.includes(filename),
+          (item) => hasMediaReference(item.image_path, file),
         );
         if (hasMatch) {
           usage.galleries.push({
@@ -1539,7 +1558,7 @@ router.get('/admin/media/usage', authenticateToken, async (req, res) => {
       });
 
       testimonials.forEach((testimonial) => {
-        if (testimonial.avatar_image && testimonial.avatar_image.includes(filename)) {
+        if (hasMediaReference(testimonial.avatar_image, file)) {
           usage.testimonials.push({
             id: testimonial.id,
             author: testimonial.author,
@@ -1548,19 +1567,19 @@ router.get('/admin/media/usage', authenticateToken, async (req, res) => {
       });
 
       if (settings) {
-        if (settings.og_image && settings.og_image.includes(filename)) {
+        if (hasMediaReference(settings.og_image, file)) {
           usage.settings.push('OG Image');
         }
-        if (settings.favicon && settings.favicon.includes(filename)) {
+        if (hasMediaReference(settings.favicon, file)) {
           usage.settings.push('Favicon');
         }
-        if (settings.logo_path && settings.logo_path.includes(filename)) {
+        if (hasMediaReference(settings.logo_path, file)) {
           usage.settings.push('Logo');
         }
-        if (settings.logo_secondary_path && settings.logo_secondary_path.includes(filename)) {
+        if (hasMediaReference(settings.logo_secondary_path, file)) {
           usage.settings.push('Logo dodatkowe');
         }
-        if (settings.mega_menu_image && settings.mega_menu_image.includes(filename)) {
+        if (hasMediaReference(settings.mega_menu_image, file)) {
           usage.settings.push('Mega menu');
         }
       }
@@ -1609,6 +1628,57 @@ const stringifyJsonArray = (value) => {
   if (parsed === undefined || parsed === null) return null;
   return JSON.stringify(parsed);
 };
+
+const normalizeSlugLabel = (slug, title) => {
+  const normalizedSlug = String(slug || '')
+    .trim()
+    .replace(/^\/+|\/+$/g, '');
+
+  if (title) return title;
+  if (!normalizedSlug) return 'Home';
+  return normalizedSlug;
+};
+
+const hasMediaReference = (value, file) => {
+  if (!value) return false;
+
+  const fileName = String(file?.name || '').trim();
+  const fileUrl = String(file?.url || '').trim();
+
+  if (!fileName && !fileUrl) return false;
+
+  if (typeof value === 'string') {
+    return (fileUrl && value.includes(fileUrl)) || (fileName && value.includes(fileName));
+  }
+
+  if (Array.isArray(value)) {
+    return value.some((item) => hasMediaReference(item, file));
+  }
+
+  if (typeof value === 'object') {
+    return Object.values(value).some((item) => hasMediaReference(item, file));
+  }
+
+  return false;
+};
+
+const PAGE_MEDIA_USAGE_FIELDS = [
+  { field: 'hero_image', label: 'Hero' },
+  { field: 'seo_image', label: 'SEO' },
+  { field: 'home_hero_logo', label: 'Logo hero' },
+  { field: 'home_gallery_wedding_images', label: 'Home: galeria ślubna' },
+  { field: 'home_gallery_portrait_images', label: 'Home: galeria portretowa' },
+  { field: 'home_gallery_product_images', label: 'Home: galeria produktowa' },
+  { field: 'home_moments_image', label: 'Home: sekcja About feature' },
+  { field: 'home_latest_moments_bg', label: 'Home: tło Latest Moments' },
+  { field: 'wedding_slider_images', label: 'Wedding: slider' },
+  { field: 'portfolio_gallery_ids', label: 'Portfolio: ręczny wybór' },
+  { field: 'about_origin_images', label: 'About: sekcja origin' },
+  { field: 'about_story_images', label: 'About: sekcja story' },
+  { field: 'about_work_images', label: 'About: sekcja work' },
+  { field: 'approach_gallery_images', label: 'Approach: galeria' },
+  { field: 'approach_feature_image', label: 'Approach: feature image' },
+];
 
 const normalizeStringArray = (value) =>
   (parseJsonArray(value) || [])
