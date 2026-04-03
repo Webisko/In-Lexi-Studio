@@ -294,9 +294,41 @@ const clearEmailChangeTokens = async (userId) => {
   await prisma.emailChangeToken.deleteMany({ where: { user_id: userId } });
 };
 
+const normalizeBaseUrl = (value) => String(value || '').trim().replace(/\/+$/, '');
+
+const isLocalOrigin = (value) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(String(value));
+
+const resolveRequestOrigin = (req) => {
+  const forwardedProtoHeader = String(req.headers['x-forwarded-proto'] || '')
+    .split(',')[0]
+    .trim();
+  const proto = forwardedProtoHeader || req.protocol || 'http';
+  const forwardedHostHeader = String(req.headers['x-forwarded-host'] || '')
+    .split(',')[0]
+    .trim();
+  const host = forwardedHostHeader || req.get('host');
+
+  if (!host) return '';
+  return normalizeBaseUrl(`${proto}://${host}`);
+};
+
+const resolveAdminBaseUrl = (req, explicitBaseUrl) => {
+  const requestOrigin = resolveRequestOrigin(req);
+  if (isLocalOrigin(requestOrigin)) {
+    return `${requestOrigin}/admin`;
+  }
+
+  const configuredBaseUrl = normalizeBaseUrl(explicitBaseUrl);
+  if (configuredBaseUrl) return configuredBaseUrl;
+
+  if (!requestOrigin) return normalizeBaseUrl(RESET_BASE_URL);
+
+  return requestOrigin.replace(/\/app$/i, '');
+};
+
 const generateTemporaryPassword = () => crypto.randomBytes(24).toString('base64url');
 
-const issuePasswordResetForUser = async (user) => {
+const issuePasswordResetForUser = async (user, req) => {
   if (!user) return;
 
   await clearPasswordResetTokens(user.id);
@@ -304,7 +336,8 @@ const issuePasswordResetForUser = async (user) => {
   const token = crypto.randomBytes(32).toString('hex');
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
   const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60 * 1000);
-  const resetLink = `${RESET_BASE_URL}/?reset=${token}`;
+  const resetBaseUrl = resolveAdminBaseUrl(req, process.env.RESET_BASE_URL || RESET_BASE_URL);
+  const resetLink = `${resetBaseUrl}/?reset=${token}`;
 
   await prisma.passwordResetToken.create({
     data: {
@@ -317,7 +350,7 @@ const issuePasswordResetForUser = async (user) => {
   await sendResetEmail(user.email, resetLink);
 };
 
-const issueEmailChangeForUser = async (user, newEmail) => {
+const issueEmailChangeForUser = async (user, newEmail, req) => {
   if (!user || !newEmail) return;
 
   await clearEmailChangeTokens(user.id);
@@ -325,7 +358,11 @@ const issueEmailChangeForUser = async (user, newEmail) => {
   const token = crypto.randomBytes(32).toString('hex');
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
   const expiresAt = new Date(Date.now() + EMAIL_CHANGE_TOKEN_TTL_MINUTES * 60 * 1000);
-  const confirmationLink = `${EMAIL_CHANGE_BASE_URL}/?email_change=${token}`;
+  const emailChangeBaseUrl = resolveAdminBaseUrl(
+    req,
+    process.env.EMAIL_CHANGE_BASE_URL || EMAIL_CHANGE_BASE_URL,
+  );
+  const confirmationLink = `${emailChangeBaseUrl}/?email_change=${token}`;
 
   await prisma.emailChangeToken.create({
     data: {
@@ -919,7 +956,7 @@ router.post('/admin/forgot-password', async (req, res) => {
     const normalizedEmail = String(email).trim().toLowerCase();
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
-    if (user) await issuePasswordResetForUser(user);
+    if (user) await issuePasswordResetForUser(user, req);
 
     res.json({ ok: true });
   } catch (e) {
@@ -1047,7 +1084,7 @@ router.put('/admin/account/profile', authenticateToken, async (req, res) => {
       }
 
       if (pendingEmailChange?.new_email !== requestedEmail) {
-        await issueEmailChangeForUser(user, requestedEmail);
+        await issueEmailChangeForUser(user, requestedEmail, req);
         emailChangeRequested = true;
       }
     }
@@ -1172,7 +1209,7 @@ router.post('/admin/users', authenticateToken, async (req, res) => {
       select: { id: true, name: true, email: true, role: true },
     });
 
-    await issuePasswordResetForUser(user);
+    await issuePasswordResetForUser(user, req);
     res.status(201).json(user);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create user' });
@@ -1191,7 +1228,7 @@ router.post('/admin/users/:id/send-reset', authenticateToken, async (req, res) =
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    await issuePasswordResetForUser(user);
+    await issuePasswordResetForUser(user, req);
     res.json({ ok: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to send reset link' });
