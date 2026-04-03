@@ -1861,10 +1861,46 @@ router.delete('/admin/testimonials/:id', authenticateToken, async (req, res) => 
 
 // Settings
 router.put('/admin/settings', authenticateToken, async (req, res) => {
+  const sharedSettingsFields = [
+    'site_name',
+    'email',
+    'phone',
+    'instagram',
+    'facebook',
+    'meta_title',
+    'meta_description',
+    'og_image',
+    'favicon',
+    'cta_text',
+    'cta_url',
+    'footer_text',
+    'privacy_url',
+    'logo_path',
+    'logo_secondary_path',
+    'login_background_image',
+    'mega_menu_image',
+  ];
+  const adminOnlySettingsFields = [
+    'canonical_base_url',
+    'head_html',
+    'body_html',
+    'umami_script_url',
+    'umami_website_id',
+    'umami_domains',
+    'umami_dashboard_url',
+  ];
+  const allowedFields =
+    req.user?.role === 'ADMIN'
+      ? [...sharedSettingsFields, ...adminOnlySettingsFields]
+      : sharedSettingsFields;
+  const filteredBody = Object.fromEntries(
+    Object.entries(req.body || {}).filter(([key]) => allowedFields.includes(key)),
+  );
+
   const data = await prisma.settings.upsert({
     where: { id: 1 },
-    update: req.body,
-    create: { id: 1, ...req.body },
+    update: filteredBody,
+    create: { id: 1, ...filteredBody },
   });
   res.json(data);
 });

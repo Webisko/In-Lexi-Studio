@@ -1257,14 +1257,14 @@ async function verifyToken() {
       const payload = parseJwt(token);
       currentUser = { ...payload }; // { id, email, role }
 
-      // Settings Tab Visibility based on Role
+      // Tab visibility based on role
       const settingsTab = document.querySelector('[data-tab="settings"]');
       const analyticsTab = document.querySelector('[data-tab="analytics"]');
-      if (currentUser.role !== 'ADMIN' && settingsTab) {
-        settingsTab.classList.add('hidden'); // Hide Settings for non-admins
+      if (settingsTab) {
+        settingsTab.classList.remove('hidden');
       }
-      if (currentUser.role !== 'ADMIN' && analyticsTab) {
-        analyticsTab.classList.add('hidden');
+      if (analyticsTab) {
+        analyticsTab.classList.remove('hidden');
       }
 
       showDashboard();
@@ -4931,10 +4931,11 @@ async function loadSettings() {
   const container = document.getElementById('tab-settings');
   container.innerHTML =
     '<div class="loader mx-auto w-10 h-10 rounded-full border-2 border-t-gold"></div>';
+  const isAdmin = currentUser?.role === 'ADMIN';
 
   const [settingsRes, usersRes] = await Promise.all([
     fetch(`${API_URL}/settings`),
-    currentUser?.role === 'ADMIN'
+    isAdmin
       ? fetch(`${ADMIN_API_URL}/users`, {
           headers: { Authorization: `Bearer ${token}` },
         })
@@ -4943,13 +4944,13 @@ async function loadSettings() {
   const s = await settingsRes.json();
   const users = usersRes && usersRes.ok ? await usersRes.json() : [];
 
-  const renderSettingsImagePicker = ({ inputId, label, value, sizeClass = 'h-40' }) => {
+  const renderSettingsImagePicker = ({ inputId, label, value, previewRatio = '1 / 1' }) => {
     const hasValue = Boolean(value);
     return `
       <div class="space-y-2">
         <label class="text-xs font-bold uppercase tracking-wider text-gray-500">${label}</label>
         <div>
-          <div id="${inputId}_empty" class="${hasValue ? 'hidden' : ''} w-full rounded-lg border-2 border-dashed border-gray-300 dark:border-white/10 p-6 text-gray-400 transition-colors hover:border-gold hover:text-gold">
+          <div id="${inputId}_empty" class="${hasValue ? 'hidden' : 'flex'} w-full items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-6 text-gray-400 transition-colors hover:border-gold hover:text-gold dark:border-white/10" style="aspect-ratio: ${previewRatio};">
             <div class="flex flex-col items-center justify-center gap-3 text-center">
               <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
               <p class="text-sm">Wybierz z biblioteki lub dodaj z komputera</p>
@@ -4961,7 +4962,7 @@ async function loadSettings() {
           </div>
 
           <div id="${inputId}_filled" class="${hasValue ? '' : 'hidden'}">
-            <img id="${inputId}_preview" src="${resolveUploadsUrl(value || '')}" class="w-full ${sizeClass} rounded-lg border border-gray-200 dark:border-white/10 object-cover" />
+            <img id="${inputId}_preview" src="${resolveUploadsUrl(value || '')}" class="w-full rounded-lg border border-gray-200 object-cover dark:border-white/10" style="aspect-ratio: ${previewRatio};" />
             <div class="mt-3 flex flex-wrap gap-2">
               <button type="button" class="rounded bg-gray-200 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-300 dark:bg-white/10 dark:text-white dark:hover:bg-white/20" onclick="openMediaPicker().then(url => updateImagePicker('${inputId}', url))">Zmień</button>
               <button type="button" class="rounded bg-gray-100 px-4 py-2 text-sm text-gray-900 transition-colors hover:bg-gray-200 dark:bg-white/5 dark:text-white dark:hover:bg-white/10" onclick="updateImagePicker('${inputId}', '')">Usuń</button>
@@ -4976,9 +4977,52 @@ async function loadSettings() {
     `;
   };
 
-  const usersSection =
-    currentUser?.role === 'ADMIN'
-      ? `
+  const advancedSettingsSection = isAdmin
+    ? `
+                  <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
+                    <h4 class="text-gold font-display font-medium">Zaawansowane</h4>
+                    <div>
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Canonical base URL</label>
+                      <input type="text" id="s_canonical_base_url" value="${s.canonical_base_url || ''}" placeholder="https://inlexistudio.com" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                    </div>
+                    <div>
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Dodatkowy kod w HEAD</label>
+                      <textarea id="s_head_html" class="w-full h-24 bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">${s.head_html || ''}</textarea>
+                    </div>
+                    <div>
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Dodatkowy kod przed zamknieciem BODY</label>
+                      <textarea id="s_body_html" class="w-full h-24 bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">${s.body_html || ''}</textarea>
+                    </div>
+                  </div>
+                `
+    : '';
+
+  const analyticsSettingsSection = isAdmin
+    ? `
+                  <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
+                    <h4 class="text-gold font-display font-medium">Analityka (Umami)</h4>
+                    <div>
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Umami Script URL</label>
+                      <input type="text" id="s_umami_script_url" value="${s.umami_script_url || ''}" placeholder="https://cloud.umami.is/script.js" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                    </div>
+                    <div>
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Umami Website ID</label>
+                      <input type="text" id="s_umami_website_id" value="${s.umami_website_id || ''}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                    </div>
+                    <div>
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Dozwolone domeny (opcjonalnie)</label>
+                      <input type="text" id="s_umami_domains" value="${s.umami_domains || ''}" placeholder="inlexistudio.com" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                    </div>
+                    <div>
+                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Umami Dashboard URL (opcjonalnie)</label>
+                      <input type="text" id="s_umami_dashboard_url" value="${s.umami_dashboard_url || ''}" placeholder="https://cloud.umami.is" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
+                    </div>
+                  </div>
+                `
+    : '';
+
+  const usersSection = isAdmin
+    ? `
                   <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
                     <h4 class="text-gold font-display font-medium">Zarządzanie użytkownikami</h4>
                     <div id="user-create-panel" class="grid grid-cols-1 gap-4 rounded-lg border border-gray-200 p-4 dark:border-white/10 md:items-end md:grid-cols-[minmax(14rem,18rem)_10rem_auto]">
@@ -5031,7 +5075,7 @@ async function loadSettings() {
                     <p id="users-reset-status" class="hidden rounded border border-gray-200 px-3 py-2 text-xs text-gray-600 dark:border-white/10 dark:text-gray-300"></p>
                   </div>
                 `
-      : '';
+    : '';
 
   container.innerHTML = `
         <h2 class="text-3xl font-display font-medium text-gray-900 dark:text-white mb-6">Ustawienia Globalne</h2>
@@ -5067,19 +5111,22 @@ async function loadSettings() {
                  <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
                      <h4 class="text-gold font-display font-medium">Logotypy globalne</h4>
                      <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                       ${renderSettingsImagePicker({ inputId: 's_logo_path', label: 'Logo główne', value: s.logo_path || '', sizeClass: 'h-44' })}
-                       ${renderSettingsImagePicker({ inputId: 's_logo_secondary_path', label: 'Logo dodatkowe', value: s.logo_secondary_path || '', sizeClass: 'h-44' })}
+                       ${renderSettingsImagePicker({ inputId: 's_logo_path', label: 'Logo główne', value: s.logo_path || '' })}
+                       ${renderSettingsImagePicker({ inputId: 's_logo_secondary_path', label: 'Logo dodatkowe', value: s.logo_secondary_path || '' })}
                      </div>
                  </div>
 
                  <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
                    <h4 class="text-gold font-display font-medium">Ekran logowania</h4>
-                   ${renderSettingsImagePicker({ inputId: 's_login_background_image', label: 'Tło ekranu logowania', value: s.login_background_image || '', sizeClass: 'h-48' })}
+                   ${renderSettingsImagePicker({ inputId: 's_login_background_image', label: 'Tło ekranu logowania', value: s.login_background_image || '', previewRatio: '16 / 9' })}
                  </div>
 
                  <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
-                   <h4 class="text-gold font-display font-medium">Mega menu</h4>
-                   ${renderSettingsImagePicker({ inputId: 's_mega_menu_image', label: 'Zdjęcie po lewej stronie', value: s.mega_menu_image || '', sizeClass: 'h-48' })}
+                   <h4 class="text-gold font-display font-medium">Mega menu i favicon</h4>
+                   <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                     ${renderSettingsImagePicker({ inputId: 's_mega_menu_image', label: 'Obraz mega menu', value: s.mega_menu_image || '' })}
+                     ${renderSettingsImagePicker({ inputId: 's_favicon', label: 'Ikona przeglądarki', value: s.favicon || '' })}
+                   </div>
                  </div>
 
                  <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
@@ -5094,8 +5141,7 @@ async function loadSettings() {
                     <textarea id="s_meta_description" class="w-full h-20 bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">${s.meta_description || ''}</textarea>
                     <p class="text-xs text-gray-500">Długość: <span id="s_meta_description_count">0</span> / 140-160</p>
                   </div>
-                  ${renderSettingsImagePicker({ inputId: 's_og_image', label: 'OG Image', value: s.og_image || '', sizeClass: 'h-44' })}
-                  ${renderSettingsImagePicker({ inputId: 's_favicon', label: 'Favicon', value: s.favicon || '', sizeClass: 'h-32' })}
+                  ${renderSettingsImagePicker({ inputId: 's_og_image', label: 'OG Image', value: s.og_image || '', previewRatio: '16 / 9' })}
                  </div>
 
                   <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
@@ -5120,41 +5166,9 @@ async function loadSettings() {
                     </div>
                   </div>
 
-                  <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
-                    <h4 class="text-gold font-display font-medium">Zaawansowane</h4>
-                    <div>
-                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Canonical base URL</label>
-                      <input type="text" id="s_canonical_base_url" value="${s.canonical_base_url || ''}" placeholder="https://inlexistudio.com" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
-                    </div>
-                    <div>
-                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Dodatkowy kod w HEAD</label>
-                      <textarea id="s_head_html" class="w-full h-24 bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">${s.head_html || ''}</textarea>
-                    </div>
-                    <div>
-                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Dodatkowy kod przed zamknieciem BODY</label>
-                      <textarea id="s_body_html" class="w-full h-24 bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">${s.body_html || ''}</textarea>
-                    </div>
-                  </div>
+                  ${advancedSettingsSection}
 
-                  <div class="space-y-4 pt-4 border-t border-gray-200 dark:border-white/5">
-                    <h4 class="text-gold font-display font-medium">Analityka (Umami)</h4>
-                    <div>
-                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Umami Script URL</label>
-                      <input type="text" id="s_umami_script_url" value="${s.umami_script_url || ''}" placeholder="https://cloud.umami.is/script.js" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
-                    </div>
-                    <div>
-                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Umami Website ID</label>
-                      <input type="text" id="s_umami_website_id" value="${s.umami_website_id || ''}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
-                    </div>
-                    <div>
-                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Dozwolone domeny (opcjonalnie)</label>
-                      <input type="text" id="s_umami_domains" value="${s.umami_domains || ''}" placeholder="inlexistudio.com" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
-                    </div>
-                    <div>
-                      <label class="text-xs font-bold uppercase tracking-wider text-gray-500">Umami Dashboard URL (opcjonalnie)</label>
-                      <input type="text" id="s_umami_dashboard_url" value="${s.umami_dashboard_url || ''}" placeholder="https://cloud.umami.is" class="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded p-2 outline-none text-gray-900 dark:text-white focus:border-gold mt-1 font-medium">
-                    </div>
-                  </div>
+                  ${analyticsSettingsSection}
 
                   ${usersSection}
 
@@ -5317,32 +5331,38 @@ async function loadSettings() {
         saveStatus.classList.add('text-emerald-500', 'border-emerald-500/40');
       }
     };
+    const getFieldValue = (id) => document.getElementById(id)?.value || '';
     const data = {
-      site_name: document.getElementById('s_site_name').value,
-      email: document.getElementById('s_email').value,
-      phone: document.getElementById('s_phone').value,
-      instagram: document.getElementById('s_instagram').value,
-      facebook: document.getElementById('s_facebook').value,
-      meta_title: document.getElementById('s_meta_title').value,
-      meta_description: document.getElementById('s_meta_description').value,
-      og_image: document.getElementById('s_og_image').value,
-      favicon: document.getElementById('s_favicon').value,
-      canonical_base_url: document.getElementById('s_canonical_base_url').value,
-      head_html: document.getElementById('s_head_html').value,
-      body_html: document.getElementById('s_body_html').value,
-      cta_text: document.getElementById('s_cta_text').value,
-      cta_url: document.getElementById('s_cta_url').value,
-      footer_text: document.getElementById('s_footer_text').value,
-      privacy_url: document.getElementById('s_privacy_url').value,
-      logo_path: document.getElementById('s_logo_path').value,
-      logo_secondary_path: document.getElementById('s_logo_secondary_path').value,
-      login_background_image: document.getElementById('s_login_background_image').value,
-      mega_menu_image: document.getElementById('s_mega_menu_image').value,
-      umami_script_url: document.getElementById('s_umami_script_url').value,
-      umami_website_id: document.getElementById('s_umami_website_id').value,
-      umami_domains: document.getElementById('s_umami_domains').value,
-      umami_dashboard_url: document.getElementById('s_umami_dashboard_url').value,
+      site_name: getFieldValue('s_site_name'),
+      email: getFieldValue('s_email'),
+      phone: getFieldValue('s_phone'),
+      instagram: getFieldValue('s_instagram'),
+      facebook: getFieldValue('s_facebook'),
+      meta_title: getFieldValue('s_meta_title'),
+      meta_description: getFieldValue('s_meta_description'),
+      og_image: getFieldValue('s_og_image'),
+      favicon: getFieldValue('s_favicon'),
+      cta_text: getFieldValue('s_cta_text'),
+      cta_url: getFieldValue('s_cta_url'),
+      footer_text: getFieldValue('s_footer_text'),
+      privacy_url: getFieldValue('s_privacy_url'),
+      logo_path: getFieldValue('s_logo_path'),
+      logo_secondary_path: getFieldValue('s_logo_secondary_path'),
+      login_background_image: getFieldValue('s_login_background_image'),
+      mega_menu_image: getFieldValue('s_mega_menu_image'),
     };
+
+    if (isAdmin) {
+      Object.assign(data, {
+        canonical_base_url: getFieldValue('s_canonical_base_url'),
+        head_html: getFieldValue('s_head_html'),
+        body_html: getFieldValue('s_body_html'),
+        umami_script_url: getFieldValue('s_umami_script_url'),
+        umami_website_id: getFieldValue('s_umami_website_id'),
+        umami_domains: getFieldValue('s_umami_domains'),
+        umami_dashboard_url: getFieldValue('s_umami_dashboard_url'),
+      });
+    }
 
     saveButton?.setAttribute('disabled', 'disabled');
     setSaveStatus('Zapisywanie ustawień...');
