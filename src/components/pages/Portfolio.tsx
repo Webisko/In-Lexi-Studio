@@ -41,7 +41,7 @@ export default function Portfolio({ page, galleries = [], mediaFiles = [] }: Pro
     [selectedTokens],
   );
   const selectedGalleries = useMemo(() => {
-    if (!selectedGalleryIds.length) return galleries;
+    if (!selectedGalleryIds.length) return [];
     const map = new Map(galleries.map((gallery) => [gallery.id, gallery]));
     return selectedGalleryIds.map((id) => map.get(id)).filter(Boolean) as Gallery[];
   }, [galleries, selectedGalleryIds]);
@@ -75,7 +75,7 @@ export default function Portfolio({ page, galleries = [], mediaFiles = [] }: Pro
     }));
 
     if (selectedTokens.length === 0) {
-      return galleryItems;
+      return [];
     }
 
     if (selectedGalleryIds.length > 0 && selectedMediaUrls.length > 0) {
@@ -197,32 +197,41 @@ export default function Portfolio({ page, galleries = [], mediaFiles = [] }: Pro
 
       {/* Masonry Grid */}
       <section className="container mx-auto px-4 pb-24">
-        <div className="columns-1 gap-6 space-y-6 md:columns-2 lg:columns-3">
-          {filteredItems.map((item, idx) => (
-            <div
-              key={`${filter}-${item.id}`}
-              className="group relative cursor-pointer break-inside-avoid overflow-hidden rounded-sm"
-              onClick={() => setSelectedIndex(idx)}
-            >
-              <img
-                src={item.src}
-                srcSet={item.srcSet || undefined}
-                sizes={item.srcSet ? item.sizes : undefined}
-                alt={item.category}
-                loading="lazy"
-                decoding="async"
-                data-lightbox="off"
-                className="portfolio-grid-image h-auto w-full transition-all duration-500"
-              />
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-4 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
-                <Maximize2 className="mb-2 text-[#d4af37]" size={24} />
-                <span className="text-xs font-light uppercase tracking-[0.3em] text-white">
-                  {item.category}
-                </span>
+        {filteredItems.length === 0 ? (
+          <div className="mx-auto max-w-2xl rounded-sm border border-white/10 bg-white/[0.03] px-6 py-12 text-center">
+            <p className="text-sm uppercase tracking-[0.3em] text-[#d4af37]">Portfolio</p>
+            <p className="mt-4 text-base text-white/75">
+              This page now shows only images selected manually in the CMS.
+            </p>
+          </div>
+        ) : (
+          <div className="columns-1 gap-6 space-y-6 md:columns-2 lg:columns-3">
+            {filteredItems.map((item, idx) => (
+              <div
+                key={`${filter}-${item.id}`}
+                className="group relative cursor-pointer break-inside-avoid overflow-hidden rounded-sm"
+                onClick={() => setSelectedIndex(idx)}
+              >
+                <img
+                  src={item.src}
+                  srcSet={item.srcSet || undefined}
+                  sizes={item.srcSet ? item.sizes : undefined}
+                  alt={item.category}
+                  loading="lazy"
+                  decoding="async"
+                  data-lightbox="off"
+                  className="portfolio-grid-image h-auto w-full transition-all duration-500"
+                />
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 p-4 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
+                  <Maximize2 className="mb-2 text-[#d4af37]" size={24} />
+                  <span className="text-xs font-light uppercase tracking-[0.3em] text-white">
+                    {item.category}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Lightbox */}

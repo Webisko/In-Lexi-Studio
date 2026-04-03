@@ -467,11 +467,13 @@ const upsertMediaAssetTag = async (fileUrl, tag) => {
   });
 };
 
-const ensureMediaAssetRecord = async (fileUrl, tag = null) => {
+const ensureMediaAssetRecord = async (fileUrl, tag = null, options = {}) => {
   if (!fileUrl) return;
+  const { overwriteTag = false } = options;
   const existing = await prisma.mediaAsset.findUnique({ where: { file_url: fileUrl } });
   if (existing) {
-    if (tag) {
+    const currentTag = normalizeMediaTag(existing.tag);
+    if (tag && (overwriteTag || currentTag === 'other')) {
       await prisma.mediaAsset.update({
         where: { file_url: fileUrl },
         data: { tag: normalizeMediaTag(tag) },
@@ -1320,7 +1322,7 @@ router.post('/admin/upload', authenticateToken, upload.single('image'), async (r
     if (incomingFormat === 'svg') {
       const result = writeSvgOriginal(req.file.buffer, baseName);
       try {
-        await ensureMediaAssetRecord(result.url, mediaTag);
+        await ensureMediaAssetRecord(result.url, mediaTag, { overwriteTag: hasExplicitTag });
       } catch (e) {
         console.error('mediaAsset tag error:', e.message);
       }
@@ -1332,7 +1334,7 @@ router.post('/admin/upload', authenticateToken, upload.single('image'), async (r
       (req.file.originalname && req.file.originalname.toLowerCase().endsWith('.webp'));
     const result = await writeWebpVariants(req.file.buffer, baseName, isWebpSource);
     try {
-      await ensureMediaAssetRecord(result.url, mediaTag);
+      await ensureMediaAssetRecord(result.url, mediaTag, { overwriteTag: hasExplicitTag });
     } catch (e) {
       console.error('mediaAsset tag error:', e.message);
     }
