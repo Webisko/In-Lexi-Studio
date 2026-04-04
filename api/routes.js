@@ -399,9 +399,13 @@ const flushFrontendPublishQueue = async () => {
     frontendPublishState.rerunAfterInflight = false;
     frontendPublishState.status = 'queued';
     frontendPublishState.queuedAt = new Date().toISOString();
-    frontendPublishTimer = setTimeout(() => {
+    if (FRONTEND_PUBLISH_DEBOUNCE_MS === 0) {
       void flushFrontendPublishQueue();
-    }, FRONTEND_PUBLISH_DEBOUNCE_MS);
+    } else {
+      frontendPublishTimer = setTimeout(() => {
+        void flushFrontendPublishQueue();
+      }, FRONTEND_PUBLISH_DEBOUNCE_MS);
+    }
   }
 };
 
@@ -413,6 +417,11 @@ const scheduleFrontendPublish = (reason) => {
 
   if (frontendPublishTimer) {
     clearTimeout(frontendPublishTimer);
+  }
+
+  if (FRONTEND_PUBLISH_DEBOUNCE_MS === 0) {
+    void flushFrontendPublishQueue();
+    return;
   }
 
   frontendPublishTimer = setTimeout(() => {
