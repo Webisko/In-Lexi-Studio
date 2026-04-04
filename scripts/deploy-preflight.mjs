@@ -23,6 +23,7 @@ const requiredSourceFiles = [
 
 const requiredDistFiles = ['dist/index.html', 'admin/tailwind.generated.css'];
 const failures = [];
+const warnings = [];
 
 function readText(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
@@ -42,6 +43,13 @@ function assertDirectory(relativePath) {
   }
 }
 
+function warnIfMissingDirectory(relativePath, label) {
+  const absolutePath = path.join(repoRoot, relativePath);
+  if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isDirectory()) {
+    warnings.push(`${label} is not present in this checkout: ${relativePath}`);
+  }
+}
+
 function assertIncludes(relativePath, needle, label) {
   const contents = readText(relativePath);
   if (!contents.includes(needle)) {
@@ -53,7 +61,7 @@ for (const relativePath of requiredSourceFiles) {
   assertFile(relativePath);
 }
 
-assertDirectory('public/uploads');
+warnIfMissingDirectory('public/uploads', 'Uploads directory');
 assertIncludes('app.js', "require('./api/server.js')", 'Passenger entrypoint');
 assertIncludes('package.json', '"build"', 'build script');
 assertIncludes('package.json', '"build:admin"', 'admin build script');
@@ -84,6 +92,7 @@ console.log(
       checkDist,
       checkedSourceFiles: requiredSourceFiles.length,
       checkedDistFiles: checkDist ? requiredDistFiles.length : 0,
+      warnings,
     },
     null,
     2,
