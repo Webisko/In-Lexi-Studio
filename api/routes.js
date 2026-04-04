@@ -290,7 +290,8 @@ const requireAdmin = (req, res) => {
 };
 
 const summarizePublishReasons = (reasons) => {
-  const uniqueReasons = [...new Set((reasons || []).filter(Boolean))];
+  const normalizedReasons = Array.from(reasons || []).filter(Boolean);
+  const uniqueReasons = [...new Set(normalizedReasons)];
   if (!uniqueReasons.length) return 'CMS content update';
   if (uniqueReasons.length === 1) return uniqueReasons[0];
   return `${uniqueReasons[0]} (+${uniqueReasons.length - 1} more)`;
