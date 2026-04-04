@@ -134,6 +134,8 @@ jobs:
             npx prisma generate &&
             find . -type d -exec chmod 755 {} \; &&
             find . -type f -exec chmod 644 {} \; &&
+            mkdir -p tmp &&
+            touch tmp/restart.txt &&
             touch app.js
           "
 

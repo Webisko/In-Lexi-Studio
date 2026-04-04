@@ -64,6 +64,8 @@ $remoteSteps = @(
   "chmod 755 $remoteAdminPublic || true",
   "if [ ! -L $remoteMainPublic/app ]; then rm -rf $remoteMainPublic/app; ln -s ../cms-app $remoteMainPublic/app; fi",
   "if [ -d $remoteMainPublic/cursor ]; then chmod 755 $remoteMainPublic/cursor || true; chmod 644 $remoteMainPublic/cursor/*.svg || true; fi",
+  'mkdir -p tmp',
+  'touch tmp/restart.txt',
   'touch app.js',
   'echo DEPLOY_SAFE_OK'
 )

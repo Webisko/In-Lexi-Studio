@@ -37,5 +37,7 @@ find . -type f -exec chmod 644 {} \;
 source /home/$User/nodevenv/domains/inlexistudio.com/cms-app/22/bin/activate
 npm install --production
 npx prisma generate
+mkdir -p tmp
+touch tmp/restart.txt
 touch app.js
 "@
