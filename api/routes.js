@@ -28,6 +28,32 @@ const EMAIL_CHANGE_BASE_URL = process.env.EMAIL_CHANGE_BASE_URL || RESET_BASE_UR
 const UMAMI_API_URL = process.env.UMAMI_API_URL || 'https://api.umami.is/v1';
 const UMAMI_API_KEY = process.env.UMAMI_API_KEY;
 const MEDIA_TAG_VALUES = ['wedding', 'portrait', 'product', 'utility', 'other'];
+const FRONTEND_PUBLISH_ENABLED = process.env.FRONTEND_PUBLISH_ENABLED !== 'false';
+const FRONTEND_PUBLISH_DEBOUNCE_MS = Math.max(
+  Number(process.env.FRONTEND_PUBLISH_DEBOUNCE_MS || 15000),
+  1000,
+);
+const GITHUB_ACTIONS_TRIGGER_TOKEN = process.env.GITHUB_ACTIONS_TRIGGER_TOKEN;
+const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || 'Webisko';
+const GITHUB_REPO_NAME = process.env.GITHUB_REPO_NAME || 'In-Lexi-Studio';
+const GITHUB_DEPLOY_WORKFLOW = process.env.GITHUB_DEPLOY_WORKFLOW || 'deploy.yml';
+const GITHUB_DEPLOY_REF = process.env.GITHUB_DEPLOY_REF || 'main';
+
+const frontendPublishState = {
+  status: 'idle',
+  queuedAt: null,
+  lastRequestedAt: null,
+  lastAcceptedAt: null,
+  lastErrorAt: null,
+  lastError: null,
+  lastRequestId: null,
+  queuedReasons: new Set(),
+  lastReasonSummary: null,
+  inflight: false,
+  rerunAfterInflight: false,
+};
+
+let frontendPublishTimer = null;
 
 let resetMailer;
 const resolveResetMailer = () => {
@@ -261,6 +287,166 @@ const requireAdmin = (req, res) => {
     return false;
   }
   return true;
+};
+
+const summarizePublishReasons = (reasons) => {
+  const uniqueReasons = [...new Set((reasons || []).filter(Boolean))];
+  if (!uniqueReasons.length) return 'CMS content update';
+  if (uniqueReasons.length === 1) return uniqueReasons[0];
+  return `${uniqueReasons[0]} (+${uniqueReasons.length - 1} more)`;
+};
+
+const getFrontendPublishStatus = () => ({
+  enabled: FRONTEND_PUBLISH_ENABLED,
+  configured: Boolean(GITHUB_ACTIONS_TRIGGER_TOKEN),
+  debounceMs: FRONTEND_PUBLISH_DEBOUNCE_MS,
+  repository: `${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}`,
+  workflow: GITHUB_DEPLOY_WORKFLOW,
+  ref: GITHUB_DEPLOY_REF,
+  status: frontendPublishState.status,
+  queuedAt: frontendPublishState.queuedAt,
+  lastRequestedAt: frontendPublishState.lastRequestedAt,
+  lastAcceptedAt: frontendPublishState.lastAcceptedAt,
+  lastErrorAt: frontendPublishState.lastErrorAt,
+  lastError: frontendPublishState.lastError,
+  lastRequestId: frontendPublishState.lastRequestId,
+  queuedReasons: [...frontendPublishState.queuedReasons],
+  lastReasonSummary: frontendPublishState.lastReasonSummary,
+  inflight: frontendPublishState.inflight,
+  rerunAfterInflight: frontendPublishState.rerunAfterInflight,
+});
+
+const requestFrontendPublish = async (reasonSummary) => {
+  if (!FRONTEND_PUBLISH_ENABLED) {
+    frontendPublishState.status = 'disabled';
+    frontendPublishState.lastError = 'Frontend publish trigger is disabled.';
+    frontendPublishState.lastErrorAt = new Date().toISOString();
+    return;
+  }
+
+  if (!GITHUB_ACTIONS_TRIGGER_TOKEN) {
+    frontendPublishState.status = 'disabled';
+    frontendPublishState.lastError = 'GITHUB_ACTIONS_TRIGGER_TOKEN is not configured.';
+    frontendPublishState.lastErrorAt = new Date().toISOString();
+    return;
+  }
+
+  const requestId = crypto.randomUUID();
+  frontendPublishState.status = 'triggering';
+  frontendPublishState.inflight = true;
+  frontendPublishState.lastRequestedAt = new Date().toISOString();
+  frontendPublishState.lastRequestId = requestId;
+  frontendPublishState.lastReasonSummary = reasonSummary;
+
+  try {
+    const response = await fetch(
+      `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/actions/workflows/${encodeURIComponent(GITHUB_DEPLOY_WORKFLOW)}/dispatches`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'application/vnd.github+json',
+          Authorization: `Bearer ${GITHUB_ACTIONS_TRIGGER_TOKEN}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'in-lexi-studio-cms-publisher',
+        },
+        body: JSON.stringify({
+          ref: GITHUB_DEPLOY_REF,
+          inputs: {
+            source: 'cms',
+            reason: reasonSummary,
+            request_id: requestId,
+          },
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const responseText = await response.text();
+      throw new Error(`GitHub workflow dispatch failed (${response.status}): ${responseText}`);
+    }
+
+    frontendPublishState.status = 'requested';
+    frontendPublishState.lastAcceptedAt = new Date().toISOString();
+    frontendPublishState.lastError = null;
+    frontendPublishState.lastErrorAt = null;
+    console.info(`[Frontend publish] accepted ${requestId}: ${reasonSummary}`);
+  } catch (error) {
+    frontendPublishState.status = 'failed';
+    frontendPublishState.lastError = error.message || 'Unknown publish error';
+    frontendPublishState.lastErrorAt = new Date().toISOString();
+    console.error('[Frontend publish] request failed:', error);
+  } finally {
+    frontendPublishState.inflight = false;
+  }
+};
+
+const flushFrontendPublishQueue = async () => {
+  frontendPublishTimer = null;
+  const reasonSummary = summarizePublishReasons(frontendPublishState.queuedReasons);
+  frontendPublishState.queuedReasons.clear();
+  frontendPublishState.queuedAt = null;
+
+  if (frontendPublishState.inflight) {
+    frontendPublishState.status = 'queued';
+    frontendPublishState.rerunAfterInflight = true;
+    return;
+  }
+
+  frontendPublishState.rerunAfterInflight = false;
+  await requestFrontendPublish(reasonSummary);
+
+  if (frontendPublishState.rerunAfterInflight || frontendPublishState.queuedReasons.size > 0) {
+    frontendPublishState.rerunAfterInflight = false;
+    frontendPublishState.status = 'queued';
+    frontendPublishState.queuedAt = new Date().toISOString();
+    frontendPublishTimer = setTimeout(() => {
+      void flushFrontendPublishQueue();
+    }, FRONTEND_PUBLISH_DEBOUNCE_MS);
+  }
+};
+
+const scheduleFrontendPublish = (reason) => {
+  const normalizedReason = String(reason || '').trim() || 'CMS content update';
+  frontendPublishState.queuedReasons.add(normalizedReason);
+  frontendPublishState.status = 'queued';
+  frontendPublishState.queuedAt = new Date().toISOString();
+
+  if (frontendPublishTimer) {
+    clearTimeout(frontendPublishTimer);
+  }
+
+  frontendPublishTimer = setTimeout(() => {
+    void flushFrontendPublishQueue();
+  }, FRONTEND_PUBLISH_DEBOUNCE_MS);
+};
+
+const shouldTriggerSettingsPublish = (payload = {}) => {
+  const frontendSettingsFields = new Set([
+    'site_name',
+    'email',
+    'phone',
+    'instagram',
+    'facebook',
+    'meta_title',
+    'meta_description',
+    'og_image',
+    'favicon',
+    'cta_text',
+    'cta_url',
+    'footer_text',
+    'privacy_url',
+    'logo_path',
+    'logo_secondary_path',
+    'mega_menu_image',
+    'canonical_base_url',
+    'head_html',
+    'body_html',
+    'umami_script_url',
+    'umami_website_id',
+    'umami_domains',
+  ]);
+
+  return Object.keys(payload).some((key) => frontendSettingsFields.has(key));
 };
 
 const normalizeUserRole = (value) => {
@@ -1170,6 +1356,18 @@ router.get('/admin/verify', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/admin/publish-status', authenticateToken, async (req, res) => {
+  res.json(getFrontendPublishStatus());
+});
+
+router.post('/admin/publish', authenticateToken, async (req, res) => {
+  const reason =
+    normalizeFieldValue(req.body?.reason) ||
+    `Manual publish requested by ${req.user?.role || 'user'}`;
+  scheduleFrontendPublish(reason);
+  res.status(202).json(getFrontendPublishStatus());
+});
+
 router.get('/admin/users', authenticateToken, async (req, res) => {
   if (!requireAdmin(req, res)) return;
 
@@ -2051,6 +2249,7 @@ router.put('/admin/pages/:id', authenticateToken, async (req, res) => {
     } catch {}
     const settings = await prisma.settings.findUnique({ where: { id: 1 } });
     const normalized = normalizePageResponse(page, settings);
+    scheduleFrontendPublish(`Page updated: ${normalized.slug || page.slug || pageId}`);
     res.json(normalized);
   } catch (e) {
     console.error('Page update failed:', e);
@@ -2074,6 +2273,7 @@ router.delete('/admin/pages/:id', authenticateToken, async (req, res) => {
     }
 
     await prisma.page.delete({ where: { id: pageId } });
+    scheduleFrontendPublish(`Page deleted: ${page.slug || pageId}`);
     res.json({ success: true });
   } catch (e) {
     console.error('Page delete failed:', e);
@@ -2103,6 +2303,7 @@ router.post('/admin/pages', authenticateToken, async (req, res) => {
     const page = await prisma.page.create({ data });
     const settings = await prisma.settings.findUnique({ where: { id: 1 } });
     const normalized = normalizePageResponse(page, settings);
+    scheduleFrontendPublish(`Page created: ${normalized.slug || page.slug || page.id}`);
     res.json(normalized);
   } catch (e) {
     console.error('Page create failed:', e);
@@ -2119,6 +2320,7 @@ router.post('/admin/pages/reorder', authenticateToken, async (req, res) => {
     }),
   );
   await prisma.$transaction(updates);
+  scheduleFrontendPublish('Pages reordered');
   res.json({ success: true });
 });
 
@@ -2136,6 +2338,7 @@ router.post('/admin/galleries', authenticateToken, async (req, res) => {
   const payload = { ...req.body };
   normalizeGalleryPayload(payload);
   const data = await prisma.gallery.create({ data: payload });
+  scheduleFrontendPublish(`Gallery created: ${data.slug || data.id}`);
   res.json(data);
 });
 router.put('/admin/galleries/:id', authenticateToken, async (req, res) => {
@@ -2143,6 +2346,7 @@ router.put('/admin/galleries/:id', authenticateToken, async (req, res) => {
   const payload = { ...req.body };
   normalizeGalleryPayload(payload);
   const data = await prisma.gallery.update({ where: { id: Number(id) }, data: payload });
+  scheduleFrontendPublish(`Gallery updated: ${data.slug || data.id}`);
   res.json(data);
 });
 router.delete('/admin/galleries/:id', authenticateToken, async (req, res) => {
@@ -2155,6 +2359,7 @@ router.delete('/admin/galleries/:id', authenticateToken, async (req, res) => {
     }),
     prisma.gallery.delete({ where: { id: galleryId } }),
   ]);
+  scheduleFrontendPublish(`Gallery deleted: ${galleryId}`);
   res.json({ success: true });
 });
 
@@ -2177,12 +2382,14 @@ router.post('/admin/gallery-items', authenticateToken, async (req, res) => {
       await ensureMediaAssetRecord(rest.image_path, gallery.category);
     }
   } catch {}
+  scheduleFrontendPublish(`Gallery item created: ${gallery_id}`);
   res.json(item);
 });
 
 router.delete('/admin/gallery-items/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   await prisma.galleryItem.delete({ where: { id: Number(id) } });
+  scheduleFrontendPublish(`Gallery item deleted: ${id}`);
   res.json({ success: true });
 });
 
@@ -2195,6 +2402,7 @@ router.post('/admin/gallery-items/reorder', authenticateToken, async (req, res) 
     }),
   );
   await prisma.$transaction(updates);
+  scheduleFrontendPublish('Gallery items reordered');
   res.json({ success: true });
 });
 
@@ -2207,16 +2415,19 @@ router.get('/admin/testimonials', authenticateToken, async (req, res) => {
 });
 router.post('/admin/testimonials', authenticateToken, async (req, res) => {
   const data = await prisma.testimonial.create({ data: req.body });
+  scheduleFrontendPublish(`Testimonial created: ${data.id}`);
   res.json(data);
 });
 router.put('/admin/testimonials/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const data = await prisma.testimonial.update({ where: { id: Number(id) }, data: req.body });
+  scheduleFrontendPublish(`Testimonial updated: ${data.id}`);
   res.json(data);
 });
 router.delete('/admin/testimonials/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   await prisma.testimonial.delete({ where: { id: Number(id) } });
+  scheduleFrontendPublish(`Testimonial deleted: ${id}`);
   res.json({ success: true });
 });
 
@@ -2263,6 +2474,9 @@ router.put('/admin/settings', authenticateToken, async (req, res) => {
     update: filteredBody,
     create: { id: 1, ...filteredBody },
   });
+  if (shouldTriggerSettingsPublish(filteredBody)) {
+    scheduleFrontendPublish('Global settings updated');
+  }
   res.json(data);
 });
 

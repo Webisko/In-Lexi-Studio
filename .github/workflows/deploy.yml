@@ -4,12 +4,35 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      source:
+        description: Trigger source
+        required: false
+        default: manual
+      reason:
+        description: Trigger reason
+        required: false
+        default: Manual deploy
+      request_id:
+        description: CMS publish request id
+        required: false
+        default: ''
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Deployment Context
+        run: |
+          echo "source=${{ github.event.inputs.source || 'push' }}"
+          echo "reason=${{ github.event.inputs.reason || github.event.head_commit.message || 'push to main' }}"
+          echo "request_id=${{ github.event.inputs.request_id || '' }}"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -18,6 +41,9 @@ jobs:
 
       - name: Install Dependencies
         run: npm ci
+
+      - name: Preflight Validation
+        run: npm run preflight:deploy
 
       - name: Build Frontend
         env:
@@ -38,6 +64,9 @@ jobs:
             echo "Build failed, retrying in 10 seconds..."
             sleep 10
           done
+
+      - name: Validate Build Artifacts
+        run: npm run preflight:dist
 
       - name: Install SSH Key
         shell: bash
@@ -103,3 +132,9 @@ jobs:
             find . -type f -exec chmod 644 {} \; &&
             touch app.js
           "
+
+      - name: Post-deploy Smoke
+        env:
+          DEPLOY_SMOKE_BASE_URL: 'https://inlexistudio.com'
+          DEPLOY_SMOKE_API_BASE_URL: 'https://inlexistudio.com/app/api'
+        run: npm run test:deploy:smoke

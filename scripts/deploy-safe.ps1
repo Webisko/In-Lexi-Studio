@@ -19,10 +19,15 @@ function Assert-Command([string]$Name) {
 
 Assert-Command 'ssh'
 Assert-Command 'scp'
+Assert-Command 'node'
+Assert-Command 'npm'
 
 if (-not (Test-Path $KeyPath)) {
   throw "SSH key not found: $KeyPath"
 }
+
+Write-Host 'Running local preflight checks...' -ForegroundColor Cyan
+node .\scripts\deploy-preflight.mjs
 
 $remoteCmsRoot = "domains/inlexistudio.com/cms-app"
 $remoteMainPublic = "/home/$SshUser/domains/inlexistudio.com/public_html"
@@ -46,6 +51,10 @@ $remoteSteps = @(
   'npx prisma migrate deploy',
   'rm -rf .astro node_modules/.astro dist',
   'PUBLIC_API_URL=https://inlexistudio.com/app/api PUBLIC_BASE_URL=https://inlexistudio.com/app npm run build',
+  'test -f dist/index.html',
+  'test -f admin/tailwind.generated.css',
+  'test -f api/server.js',
+  'test -f prisma/schema.prisma',
   "rsync -a --delete --exclude app dist/ $remoteMainPublic/",
   "find $remoteMainPublic -type d -exec chmod 755 {} + || true",
   "find $remoteMainPublic -type f -exec chmod 644 {} + || true",
@@ -79,51 +88,6 @@ if (-not ($sshOut -match 'DEPLOY_SAFE_OK')) {
 Write-Host 'DEPLOY_SAFE_OK confirmed.' -ForegroundColor Green
 
 Write-Host 'Running smoke checks...' -ForegroundColor Cyan
-
-$urls = @(
-  'https://inlexistudio.com/',
-  'https://inlexistudio.com/wedding-photography/',
-  'https://inlexistudio.com/portrait-photography/',
-  'https://inlexistudio.com/product-photography/',
-  'https://inlexistudio.com/about/',
-  'https://inlexistudio.com/approach/',
-  'https://inlexistudio.com/portfolio/',
-  'https://inlexistudio.com/contact/',
-  'https://inlexistudio.com/pricing/',
-  'https://admin.inlexistudio.com/',
-  'https://inlexistudio.com/cursor/normal.svg',
-  'https://inlexistudio.com/cursor/hover.svg',
-  'https://inlexistudio.com/uploads/ils-40.webp',
-  'https://inlexistudio.com/app/api/pages',
-  'https://inlexistudio.com/app/api/settings'
-)
-
-foreach ($url in $urls) {
-  try {
-    $response = Invoke-WebRequest -Uri $url -UseBasicParsing -Method Head -TimeoutSec 25
-    Write-Host ("{0} {1}" -f $response.StatusCode, $url)
-  } catch {
-    $code = $_.Exception.Response.StatusCode.value__
-    if (-not $code) { $code = 'ERR' }
-    Write-Host ("{0} {1}" -f $code, $url)
-  }
-}
-
-$body = 'formType=contact&name=Deploy+Safe&email=info%40inlexistudio.com&message=smoke+check'
-try {
-  $postRes = Invoke-WebRequest -Uri 'https://inlexistudio.com/app/api/contact' -Method Post -ContentType 'application/x-www-form-urlencoded' -Body $body -UseBasicParsing -TimeoutSec 30
-  Write-Host ("POST /app/api/contact => {0}" -f $postRes.StatusCode)
-  Write-Host $postRes.Content
-} catch {
-  $resp = $_.Exception.Response
-  if ($resp) {
-    Write-Host ("POST /app/api/contact => {0}" -f $resp.StatusCode.value__)
-    $reader = New-Object IO.StreamReader($resp.GetResponseStream())
-    Write-Host $reader.ReadToEnd()
-  } else {
-    Write-Host 'POST /app/api/contact => ERR'
-    Write-Host $_.Exception.Message
-  }
-}
+node .\scripts\deploy-smoke.mjs
 
 Write-Host 'Done.' -ForegroundColor Green
