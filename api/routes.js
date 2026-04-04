@@ -29,10 +29,10 @@ const UMAMI_API_URL = process.env.UMAMI_API_URL || 'https://api.umami.is/v1';
 const UMAMI_API_KEY = process.env.UMAMI_API_KEY;
 const MEDIA_TAG_VALUES = ['wedding', 'portrait', 'product', 'utility', 'other'];
 const FRONTEND_PUBLISH_ENABLED = process.env.FRONTEND_PUBLISH_ENABLED !== 'false';
-const FRONTEND_PUBLISH_DEBOUNCE_MS = Math.max(
-  Number(process.env.FRONTEND_PUBLISH_DEBOUNCE_MS || 15000),
-  1000,
-);
+const parsedFrontendPublishDebounceMs = Number(process.env.FRONTEND_PUBLISH_DEBOUNCE_MS || 15000);
+const FRONTEND_PUBLISH_DEBOUNCE_MS = Number.isFinite(parsedFrontendPublishDebounceMs)
+  ? Math.max(parsedFrontendPublishDebounceMs, 0)
+  : 15000;
 const GITHUB_ACTIONS_TRIGGER_TOKEN = process.env.GITHUB_ACTIONS_TRIGGER_TOKEN;
 const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || 'Webisko';
 const GITHUB_REPO_NAME = process.env.GITHUB_REPO_NAME || 'In-Lexi-Studio';
