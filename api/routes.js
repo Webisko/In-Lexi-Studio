@@ -873,13 +873,30 @@ const ensureSeoImage = async (sourceUrl) => {
   return `/uploads/${seoName}`;
 };
 
+const getSettingsRecord = () =>
+  prisma.settings.findFirst({
+    orderBy: { id: 'asc' },
+  });
+
+const saveSettingsRecord = async (data) => {
+  const existingSettings = await getSettingsRecord();
+  if (existingSettings) {
+    return prisma.settings.update({
+      where: { id: existingSettings.id },
+      data,
+    });
+  }
+
+  return prisma.settings.create({ data });
+};
+
 // --- Public Routes ---
 
 // Get all pages (slugs) - Required for Static Site Generation
 router.get('/pages', async (req, res) => {
   try {
     disableResponseCache(res);
-    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    const settings = await getSettingsRecord();
     const pages = await prisma.page.findMany({
       orderBy: [{ sort_order: 'asc' }, { updated_at: 'desc' }],
     });
@@ -893,7 +910,7 @@ router.get('/pages', async (req, res) => {
 router.get('/pages/home', async (req, res) => {
   try {
     disableResponseCache(res);
-    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    const settings = await getSettingsRecord();
     let page = await prisma.page.findFirst({ where: { is_home: true } });
     if (!page) page = await prisma.page.findFirst({ where: { slug: '/' } });
     if (!page) page = await prisma.page.findFirst({ where: { slug: 'home' } });
@@ -909,7 +926,7 @@ router.get('/pages/:slug', async (req, res) => {
   const { slug } = req.params;
   try {
     disableResponseCache(res);
-    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    const settings = await getSettingsRecord();
     const page = await prisma.page.findUnique({ where: { slug } });
     if (!page) return res.status(404).json({ error: 'Page not found' });
     res.json(normalizePageResponse(page, settings));
@@ -987,7 +1004,7 @@ router.get('/media', async (req, res) => {
 
 router.get('/settings', async (req, res) => {
   try {
-    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    const settings = await getSettingsRecord();
     res.json(settings || {});
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -1776,7 +1793,7 @@ router.get('/admin/media/usage', authenticateToken, async (req, res) => {
       select: { id: true, author: true, avatar_image: true },
     });
 
-    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    const settings = await getSettingsRecord();
 
     const usageFiles = files.map((file) => {
       const usage = { pages: [], galleries: [], testimonials: [], settings: [] };
@@ -2212,7 +2229,7 @@ const normalizePagePayload = (data) => {
 
 router.get('/admin/pages', authenticateToken, async (req, res) => {
   disableResponseCache(res);
-  const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+  const settings = await getSettingsRecord();
   const pages = await prisma.page.findMany({
     orderBy: [{ sort_order: 'asc' }, { updated_at: 'desc' }],
   });
@@ -2257,7 +2274,7 @@ router.put('/admin/pages/:id', authenticateToken, async (req, res) => {
     try {
       await autoTagImagesFromPage(data);
     } catch {}
-    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    const settings = await getSettingsRecord();
     const normalized = normalizePageResponse(page, settings);
     scheduleFrontendPublish(`Page updated: ${normalized.slug || page.slug || pageId}`);
     res.json(normalized);
@@ -2311,7 +2328,7 @@ router.post('/admin/pages', authenticateToken, async (req, res) => {
     }
 
     const page = await prisma.page.create({ data });
-    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    const settings = await getSettingsRecord();
     const normalized = normalizePageResponse(page, settings);
     scheduleFrontendPublish(`Page created: ${normalized.slug || page.slug || page.id}`);
     res.json(normalized);
@@ -2479,11 +2496,7 @@ router.put('/admin/settings', authenticateToken, async (req, res) => {
     Object.entries(req.body || {}).filter(([key]) => allowedFields.includes(key)),
   );
 
-  const data = await prisma.settings.upsert({
-    where: { id: 1 },
-    update: filteredBody,
-    create: { id: 1, ...filteredBody },
-  });
+  const data = await saveSettingsRecord(filteredBody);
   if (shouldTriggerSettingsPublish(filteredBody)) {
     scheduleFrontendPublish('Global settings updated');
   }

@@ -108,8 +108,13 @@ export const Hero: React.FC<HeroProps> = ({ data, settings }) => {
           {['WEDDING', 'PORTRAIT', 'PRODUCT'].map((item, index) => {
             const category = item.toLowerCase() as GalleryCategory;
             const isActive = activeCategory === category;
-            
-            const alignmentClass = index === 0 ? 'self-start md:self-auto' : index === 1 ? 'self-center md:self-auto' : 'self-end md:self-auto';
+
+            const alignmentClass =
+              index === 0
+                ? 'self-start md:self-auto'
+                : index === 1
+                  ? 'self-center md:self-auto'
+                  : 'self-end md:self-auto';
 
             return (
               <a

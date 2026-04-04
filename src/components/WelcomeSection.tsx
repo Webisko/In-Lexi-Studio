@@ -20,7 +20,7 @@ export const WelcomeSection: React.FC = () => {
               <span className="mt-4 block font-serif text-[clamp(1.1rem,1.6vw,1.6rem)] italic tracking-normal text-white/80">
                 to
               </span>
-              <div className="mt-6 flex flex-col items-center gap-10 md:gap-6 text-[clamp(3.5rem,6vw,6rem)] leading-[0.9] tracking-[0.1em]">
+              <div className="mt-6 flex flex-col items-center gap-10 text-[clamp(3.5rem,6vw,6rem)] leading-[0.9] tracking-[0.1em] md:gap-6">
                 {hotspotLinks.map((item) => (
                   <div
                     key={item.word}

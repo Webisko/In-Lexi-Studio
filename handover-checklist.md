@@ -35,6 +35,7 @@
 
 - [ ] Confirm workflow file and target paths in `.github/workflows/deploy.yml`.
 - [ ] Confirm deploy artifacts match expectations (`dist`, `api`, `prisma`, `admin`, `app.js`, package manifests).
+- [ ] Confirm deploy restart step touches both `tmp/restart.txt` and `app.js` so Passenger reloads the updated backend process.
 - [ ] Trigger deploy from `main` or `workflow_dispatch`.
 
 ## 6) Post-deploy smoke checks
@@ -42,9 +43,15 @@
 - [ ] Frontend loads without console errors.
 - [ ] Admin panel loads and login works.
 - [ ] Content update in CMS is visible on frontend.
+- [ ] If CMS save does not trigger frontend rebuild, inspect `domains/inlexistudio.com/cms-app/stderr.log` first and verify the Passenger process reloaded the newest backend code.
 - [ ] Password reset flow works.
 
-## 7) Client handoff pack
+## 7) Settings singleton sanity
+
+- [ ] Confirm API reads and writes use the first `Settings` row as the singleton record rather than assuming `id = 1`.
+- [ ] If the `settings` table was recreated or restored, verify `/api/settings` and CMS settings save still work before handoff.
+
+## 8) Client handoff pack
 
 - [ ] Admin URL + role accounts verified.
 - [ ] Short SOP for content editing and publishing.

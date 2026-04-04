@@ -51,6 +51,16 @@ Powód: deploy produkcyjny wykonany po SSH, smoke-check live zakończony sukcese
    - Walidacja była wykonana awaryjnie na lokalnym runtime portable Node 22.
    - Nie wpływa na działanie produkcji, ale warto naprawić dla komfortu dalszego developmentu.
 
+2. **Passenger reload semantics na hostingu**
+
+- Na tym hostingu sam deploy plików nie zawsze oznacza natychmiastowe przeładowanie procesu Node.
+- Aktualny workflow i skrypty deployowe dotykają zarówno `tmp/restart.txt`, jak i `app.js`; tego zachowania nie należy usuwać bez równoważnego mechanizmu restartu.
+
+3. **Singleton `Settings` w Prisma**
+
+- Kod backendu został utwardzony tak, aby czytać i zapisywać pierwszy rekord `Settings`, zamiast zakładać sztywno `id = 1`.
+- To zabezpiecza projekt po restore bazy lub driftach autoincrement; po takich operacjach nadal warto ręcznie sprawdzić `/api/settings` i zapis ustawień w CMS.
+
 ## Akcje po przekazaniu (zalecane)
 
 1. Uporządkować lokalny globalny runtime Node (docelowo stabilny user-level setup).
